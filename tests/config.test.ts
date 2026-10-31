@@ -1,5 +1,7 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, it } from 'vitest';
+import { CREDENTIALS } from '../scripts/lib/manifest.ts';
 
 it('config example has every runtime key', () => {
   expect(JSON.parse(readFileSync('config/config.example.json', 'utf8'))).toEqual({
@@ -11,10 +13,31 @@ it('config example has every runtime key', () => {
   });
 });
 
+/** Every `.ts` file directly or recursively under `dir`. */
+function tsFilesUnder(dir: string): string[] {
+  const files: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...tsFilesUnder(path));
+    else if (entry.name.endsWith('.ts')) files.push(path);
+  }
+  return files;
+}
+
 it('.env.example lists every variable compose and the scripts read', () => {
   const compose = readFileSync('compose.yaml', 'utf8');
   const envExample = readFileSync('.env.example', 'utf8');
-  const used = [...compose.matchAll(/\$\{([A-Z0-9_]+)/g)].map((m) => m[1]);
   const declared = new Set([...envExample.matchAll(/^([A-Z0-9_]+)=/gm)].map((m) => m[1]));
+
+  const usedByCompose = [...compose.matchAll(/\$\{([A-Z0-9_]+)/g)].map((m) => m[1]);
+
+  const usedByCredentials = CREDENTIALS.flatMap((c) => c.env);
+
+  const usedByScripts = tsFilesUnder('scripts').flatMap((file) => {
+    const source = readFileSync(file, 'utf8');
+    return [...source.matchAll(/process\.env\.([A-Z0-9_]+)/g)].map((m) => m[1]);
+  });
+
+  const used = [...usedByCompose, ...usedByCredentials, ...usedByScripts];
   expect(used.filter((name) => !declared.has(name))).toEqual([]);
 });

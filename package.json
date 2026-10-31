@@ -9,13 +9,17 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check": "node scripts/check-workflows.ts workflows",
+    "build:workflows": "node scripts/build-workflows.ts",
+    "setup": "node scripts/setup.ts",
+    "export": "node scripts/export-workflows.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/luxon": "^3.7.6",
     "@types/node": "^24.19.2",
-    "esbuild": "^0.28.2",
+    "esbuild": "0.28.2",
     "eslint": "^10.13.0",
     "eslint-plugin-security": "^4.2.0",
     "jiti": "^2.7.0",

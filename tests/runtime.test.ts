@@ -1,11 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from 'vitest';
+import { TRIGGER_WEBHOOK_ID } from '../scripts/lib/manifest.ts';
 
 const compose = readFileSync('compose.yaml', 'utf8');
 const policy = readFileSync('ngrok/traffic-policy.yml', 'utf8');
-// The Shopify Trigger's webhookId (global-constraints.md's fixed IDs). Once workflows/shopify-orders.json
-// exists, that file becomes the source of truth and this literal should be read from it instead.
-const triggerWebhookId = '4b1d2c3e-5f60-4a7b-8c9d-0e1f2a3b4c5d';
+const triggerWebhookId = TRIGGER_WEBHOOK_ID;
 const service = (name: string): string =>
   compose.split(/^ {2}(?=[a-z][\w-]*:$)/m).find((block) => block.startsWith(`${name}:`)) ?? '';
 
