@@ -1,0 +1,7 @@
+{
+  "owner_email": "owner@example.com",
+  "google": { "orders_sheet_id": "REPLACE_ME", "orders_tab": "Orders" },
+  "shopify": { "store": "replace-me", "api_version": "2026-10" },
+  "low_stock_threshold": 5,
+  "guide_delay_minutes": 60
+}

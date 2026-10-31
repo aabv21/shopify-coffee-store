@@ -1,0 +1,10 @@
+.env
+config/*
+!config/config.example.json
+node_modules/
+.n8n-import/
+.theme-build/
+coverage/
+.superpowers/
+.DS_Store
+docs/diagrams/*.delivery.json
