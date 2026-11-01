@@ -22,9 +22,9 @@ files, producing a complete, pushable theme at `.theme-build/theme/`.
    anchor, rather than silently applying to the wrong spot or duplicating. Every touched file
    counts as `modified`.
 
-The toolchain itself shipped both lists empty. The free-shipping bar (below) is the first feature
-to use them; later tasks add more theme files and insertions the same way, each with the exact
-file, anchor, and content being inserted documented here.
+The toolchain itself shipped both lists empty. The free-shipping bar and the coffee finder (below)
+are the first features to use them; later tasks add more theme files and insertions the same way,
+each with the exact file, anchor, and content being inserted documented here.
 
 ## TypeScript assets
 
@@ -75,6 +75,67 @@ attributes even where `data-skip-subtree-update` keeps it from touching that ele
 - The bar reads `cart.total_price`, which reflects cart-level discounts but not anything applied
   at checkout. A discount code entered at checkout can still take the order below the free
   shipping rate after the bar has already shown "You've got free shipping!".
+
+## Coffee finder
+
+A home-page section that asks three questions (brew method, taste, party size), recommends one or
+two coffees from product metafields, and adds the chosen bag to the cart.
+
+**Files:**
+
+- `src/theme/recommend.ts` — `recommend(products, answers)` and its helpers `readAnswers` and
+  `parseProducts`: scores each available product (+2 for a brew-method match, +1 for a
+  taste-to-roast match via `TASTE_TO_ROAST`), keeps up to two, preferring an exact score-3 match
+  over a partial one, and picks each product's lightest available variant for 1–2 people or its
+  heaviest for 3, first on a tie. Pure, unit-tested (`tests/theme/recommend.test.ts`).
+- `src/theme/shopify-actions.d.ts` — ambient types for the platform-provided `Shopify.actions`
+  (`updateCart`, `openCart`), declaring only the members this theme calls, including
+  `UpdateCartResult`'s `userErrors` and `warnings`.
+- `src/theme/coffee-finder.ts` — the `<coffee-finder>` custom element. Bundled by `THEME_ENTRIES`
+  into `theme/assets/coffee-finder.js` (generated; never hand-edited). Renders with `textContent`
+  only.
+- `theme/sections/coffee-finder.liquid` — the section markup from the Theme contracts' DOM
+  contract: the three-question form, the results region, the card `<template>`, and the embedded
+  product JSON (up to 50 products from the configured collection, or every product when it's
+  blank), reads the settings below, and loads the bundled script.
+
+**Insertions** (`scripts/lib/theme-insertions.ts`'s `INSERTIONS`):
+
+3. `templates/index.json`: an `add-section-after` insertion adding section `coffee_finder`
+   (`{ "type": "coffee-finder", "settings": {} }`) right after `hero_jVaWmY` in `order`, keeping the
+   file's leading `/* ... */` comment intact.
+
+**Embedding product data safely.** Each product's title, image alt text, and metafield values are
+merchant-controlled text, written into `script[type="application/json"][data-finder-products]` with
+Liquid's `json` filter. shopify.dev's `json` filter docs promise only that it escapes quotes, say
+nothing about `<`, `>`, or `/`, and Horizon's own existing `| json` usages (for example
+`snippets/variant-swatches.liquid`) embed the same way with no extra escaping — so a tasting note
+containing a literal `</script>` isn't guaranteed safe by the filter alone. The section captures the
+JSON first, then runs it through `| replace: '</', '<\/'` before writing it into the script tag,
+which breaks any embedded closing-tag sequence while leaving `JSON.parse` able to read it back
+unchanged (`\/` parses back to `/`). The runtime reads the script with `JSON.parse(script.textContent)`
+and renders every field with `textContent`, never `innerHTML`.
+
+**Adding to cart.** `coffee-finder.ts` prefers the platform's `Shopify.actions.updateCart`, passing
+the chosen variant and `{ event: { context: 'standard-action' } }`; a non-empty `userErrors` shows
+the configured error text, otherwise it opens the cart and shows the added text, followed by any
+`warnings` messages (such as an adjusted quantity). When `Shopify.actions` is absent, it falls back
+to the Cart AJAX API (`POST ${cartAddUrl}.js`), navigating to the cart only on an OK response and
+otherwise showing the error text. A thrown or rejected call either way also shows the error text and
+re-enables the add button.
+
+**Accessibility.** Each question is a native `<fieldset>` with a `<legend>` and radio inputs; the
+results region is `aria-live="polite"`; submitting moves focus to the results heading
+(`tabindex="-1"`, since it isn't otherwise focusable); the add button sets `aria-busy` while the
+request is in flight; each card's add button carries the product and variant name in a
+visually-hidden span inside it, so its accessible name names the coffee; and the card template's
+image has `alt=""`, since the card's own title and variant text already describe it.
+
+**Limitations:**
+
+- The product list is capped at 50 products (`| slice: 0, 50`), reflecting the catalog this demo
+  ships with. A larger catalog would need pagination or a narrower collection setting instead of
+  reading every product on every page load.
 
 ## Theme check
 
@@ -143,3 +204,21 @@ task:
   checkout charges 0 shipping.
 - **Disabled.** A blank threshold, or unticking "Show the free shipping bar", hides the bar with no
   console errors.
+
+### Coffee finder (deferred live checks)
+
+These need `npx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme`, keyboard only, with
+Chrome DevTools open, and are not run by this task:
+
+- **Keyboard path.** Tab reaches each radio group and arrow keys move within it. Submitting
+  "Pour-over / Mild and bright / Just me" moves focus to "Our pick for you", which shows one card:
+  Nariño 250 g, its price, and its notes.
+- **Adding to cart.** "Add to cart" with Enter opens the cart drawer, and the free-shipping bar
+  reflects the new total.
+- **Second option.** "Espresso / Mild and bright / Three or more" shows two cards, Sierra Nevada
+  500 g and then Nariño 500 g.
+- **Theme editor.** The section can be added to another page, its texts edited, and the section
+  removed, all without code.
+- **No errors.** The console shows no errors, and `Shopify.actions` is present; record it in the
+  ledger if it's absent. If it turns out to be missing, the Cart AJAX fallback already built into
+  `coffee-finder.ts` is the path that keeps "Add to cart" working.

@@ -8,7 +8,6 @@ export type Insertion =
 
 export class InsertionError extends Error {}
 
-// Task 12 adds its own insertion here.
 export const INSERTIONS: readonly Insertion[] = [
   {
     kind: 'before-line',
@@ -51,6 +50,13 @@ export const INSERTIONS: readonly Insertion[] = [
         },
       ],
     },
+  },
+  {
+    kind: 'add-section-after',
+    file: 'templates/index.json',
+    after: 'hero_jVaWmY',
+    key: 'coffee_finder',
+    section: { type: 'coffee-finder', settings: {} },
   },
 ];
 
