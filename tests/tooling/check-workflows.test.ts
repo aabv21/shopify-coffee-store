@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, it } from 'vitest';
-import { checkWorkflow } from '../../scripts/check-workflows.ts';
+import { checkWorkflow, hasPlaceholderInSqlComment } from '../../scripts/check-workflows.ts';
 import { normalizeWorkflow } from '../../scripts/lib/normalize-workflow.ts';
 import { listJsonFiles } from '../../scripts/lib/list-json-files.ts';
 import { CREDENTIALS } from '../../scripts/lib/manifest.ts';
@@ -56,4 +56,11 @@ it('rejects a Postgres query built from an expression instead of $n parameters',
     codeNodes: [{ file: 'clean.json', node: 'Double value', source: 'tests/fixtures/nodes/double.ts', why: 'fixture' }],
   }).join('\n');
   expect(e).toMatch(/query in node Insert row must use \$n parameters, not expressions/);
+});
+it('rejects a Postgres query that references a $n placeholder from inside a SQL comment', () =>
+  expect(errors('sql-comment-placeholder')).toMatch(/query in node Insert row has a \$n placeholder inside a SQL comment/));
+it('hasPlaceholderInSqlComment catches a placeholder inside a line comment or a block comment, and ignores one in live SQL', () => {
+  expect(hasPlaceholderInSqlComment('-- $1 order_id\nINSERT INTO t (a) VALUES ($1)')).toBe(true);
+  expect(hasPlaceholderInSqlComment('/* uses $1 */\nINSERT INTO t (a) VALUES ($1)')).toBe(true);
+  expect(hasPlaceholderInSqlComment('INSERT INTO t (a) VALUES ($1)')).toBe(false);
 });

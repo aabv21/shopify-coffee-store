@@ -1,0 +1,92 @@
+{
+  "id": "nbcShopifyOrders",
+  "name": "Shopify orders",
+  "description": null,
+  "nodes": [
+    {
+      "id": "50000000-0000-4000-8000-000000000001",
+      "name": "Receive order",
+      "type": "n8n-nodes-base.shopifyTrigger",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        200
+      ],
+      "webhookId": "4b1d2c3e-5f60-4a7b-8c9d-0e1f2a3b4c5d",
+      "parameters": {
+        "topic": "orders/create",
+        "authentication": "accessToken"
+      },
+      "credentials": {
+        "shopifyAccessTokenApi": {
+          "id": "nbcCredShopify01",
+          "name": "Shopify Admin"
+        }
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000002",
+      "name": "Hand to intake",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        160,
+        200
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "nbcIntakeOrder01"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "50000000-0000-4000-8000-000000000003",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        -60
+      ],
+      "parameters": {
+        "width": 760,
+        "height": 160,
+        "content": "## Receive and verify\nVerifies X-Shopify-Hmac-Sha256 against the app secret before anything else runs. A request that fails the check starts no execution at all — n8n still answers it with HTTP 200. Every verified order is handed whole to Intake order."
+      }
+    }
+  ],
+  "connections": {
+    "Receive order": {
+      "main": [
+        [
+          {
+            "node": "Hand to intake",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Bogota",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "nbcErrorHandler1"
+  },
+  "meta": null,
+  "nodeGroups": [],
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

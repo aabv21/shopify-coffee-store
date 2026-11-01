@@ -97,6 +97,12 @@ export const CODE_NODES: readonly CodeNodeEntry[] = [
     why: 'validates the Shopify payload and applies field fallbacks no Set node can express',
   },
   {
+    file: 'intake-order.json',
+    node: 'Check config',
+    source: 'src/nodes/check-config.ts',
+    why: 'validates the hand-edited config before any order is processed',
+  },
+  {
     file: 'process-order.json',
     node: 'Build order row',
     source: 'src/nodes/order-row.ts',

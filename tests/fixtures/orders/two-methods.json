@@ -1,0 +1,32 @@
+{
+  "id": 7000000004,
+  "admin_graphql_api_id": "gid://shopify/Order/7000000004",
+  "name": "#T1004",
+  "created_at": "2026-11-04T15:20:00-05:00",
+  "email": "pedro.diaz@example.com",
+  "contact_email": "pedro.diaz@example.com",
+  "currency": "COP",
+  "subtotal_price": "84000.00",
+  "total_price": "96000.00",
+  "total_shipping_price_set": { "shop_money": { "amount": "12000.00" } },
+  "customer": { "first_name": "Pedro", "last_name": "Diaz" },
+  "shipping_address": { "first_name": "Pedro", "name": "Pedro Diaz", "city": "Barranquilla" },
+  "billing_address": { "first_name": "Pedro", "name": "Pedro Diaz", "city": "Barranquilla" },
+  "shipping_lines": [{ "title": "Standard shipping", "price": "12000.00" }],
+  "line_items": [
+    {
+      "variant_id": 1001,
+      "title": "Nariño",
+      "variant_title": "250 g",
+      "sku": "NBC-NAR-250",
+      "quantity": 1
+    },
+    {
+      "variant_id": 3001,
+      "title": "Sierra Nevada",
+      "variant_title": "250 g",
+      "sku": "NBC-SNV-250",
+      "quantity": 1
+    }
+  ]
+}

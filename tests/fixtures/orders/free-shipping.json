@@ -1,0 +1,32 @@
+{
+  "id": 7000000002,
+  "admin_graphql_api_id": "gid://shopify/Order/7000000002",
+  "name": "#T1002",
+  "created_at": "2026-11-04T10:15:00-05:00",
+  "email": "carlos.ruiz@example.com",
+  "contact_email": "carlos.ruiz@example.com",
+  "currency": "COP",
+  "subtotal_price": "120000.00",
+  "total_price": "120000.00",
+  "total_shipping_price_set": { "shop_money": { "amount": "0.00" } },
+  "customer": { "first_name": "Carlos", "last_name": "Ruiz" },
+  "shipping_address": { "first_name": "Carlos", "name": "Carlos Ruiz", "city": "Bogotá" },
+  "billing_address": { "first_name": "Carlos", "name": "Carlos Ruiz", "city": "Bogotá" },
+  "shipping_lines": [{ "title": "Free shipping", "price": "0.00" }],
+  "line_items": [
+    {
+      "variant_id": 2001,
+      "title": "Huila",
+      "variant_title": "250 g",
+      "sku": "NBC-HUI-250",
+      "quantity": 1
+    },
+    {
+      "variant_id": 2002,
+      "title": "Huila",
+      "variant_title": "500 g",
+      "sku": "NBC-HUI-500",
+      "quantity": 1
+    }
+  ]
+}

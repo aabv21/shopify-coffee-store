@@ -1,0 +1,32 @@
+{
+  "id": 7000000005,
+  "admin_graphql_api_id": "gid://shopify/Order/7000000005",
+  "name": "#T1005",
+  "created_at": "2026-11-04T17:00:00-05:00",
+  "email": "",
+  "contact_email": "",
+  "currency": "COP",
+  "subtotal_price": "49000.00",
+  "total_price": "49000.00",
+  "total_shipping_price_set": { "shop_money": { "amount": "0.00" } },
+  "customer": null,
+  "shipping_address": null,
+  "billing_address": null,
+  "shipping_lines": [],
+  "line_items": [
+    {
+      "variant_id": null,
+      "title": "Gift wrap",
+      "variant_title": null,
+      "sku": null,
+      "quantity": 1
+    },
+    {
+      "variant_id": 2001,
+      "title": "Huila",
+      "variant_title": "250 g",
+      "sku": "NBC-HUI-250",
+      "quantity": 1
+    }
+  ]
+}

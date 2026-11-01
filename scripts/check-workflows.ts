@@ -9,6 +9,20 @@ const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
 const PHONE_RE = /\d{10,}/;
 const LONG_ID_RE = /[A-Za-z0-9_-]{40,}/;
 const SECRET_RE = /shp(at|ca|pa|ss)_[A-Za-z0-9]{20,}|GOCSPX-|ya29\.|Bearer [A-Za-z0-9._-]{20,}/;
+const SQL_LINE_COMMENT_RE = /--.*$/gm;
+const SQL_BLOCK_COMMENT_RE = /\/\*[\s\S]*?\*\//g;
+const SQL_PLACEHOLDER_RE = /\$\d/;
+
+/**
+ * n8n formats a Postgres query client-side before sending it, replacing every `$N` in the raw text
+ * — including inside a `--` or `/* *\/` comment — with its bound value. Its escaping only doubles
+ * `'`, so a bound value containing a newline can end a `--` comment and turn whatever follows into
+ * live SQL. A query must never reference a placeholder from within a comment.
+ */
+export function hasPlaceholderInSqlComment(query: string): boolean {
+  const comments = [...query.matchAll(SQL_LINE_COMMENT_RE), ...query.matchAll(SQL_BLOCK_COMMENT_RE)].map((m) => m[0]);
+  return comments.some((comment) => SQL_PLACEHOLDER_RE.test(comment));
+}
 
 // External services that must retry instead of failing a workflow run on a transient error.
 // graphql is included because a later task reads stock through the GraphQL node.
@@ -82,6 +96,9 @@ export function checkWorkflow(
       const query = node.parameters.query;
       if (typeof query === 'string' && query.includes('{{')) {
         errors.push(`query in node ${node.name} must use $n parameters, not expressions`);
+      }
+      if (typeof query === 'string' && hasPlaceholderInSqlComment(query)) {
+        errors.push(`query in node ${node.name} has a $n placeholder inside a SQL comment`);
       }
     }
   }
