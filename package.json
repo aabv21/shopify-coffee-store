@@ -16,10 +16,14 @@
     "setup": "node scripts/setup.ts",
     "export": "node scripts/export-workflows.ts",
     "shopify:token": "node scripts/shopify-token.ts",
-    "send-test-order": "node scripts/send-test-order.ts"
+    "send-test-order": "node scripts/send-test-order.ts",
+    "build:theme": "node scripts/build-theme.ts",
+    "theme:assemble": "node scripts/assemble-theme.ts",
+    "theme:check": "node scripts/theme-check.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@shopify/theme-check-node": "3.31.0",
     "@types/luxon": "^3.7.6",
     "@types/node": "^24.19.2",
     "csv-parse": "^7.0.3",

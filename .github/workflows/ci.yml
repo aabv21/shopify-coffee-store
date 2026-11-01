@@ -30,6 +30,8 @@ jobs:
       - run: npm test
       - run: npm run build:workflows -- --check
       - run: npm run check
+      - run: npm run build:theme -- --check
+      - run: npm run theme:check
       - name: ShellCheck
         run: |
           mapfile -t files < <(git ls-files '*.sh')
