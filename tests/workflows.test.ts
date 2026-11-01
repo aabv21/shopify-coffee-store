@@ -97,6 +97,21 @@ it('no Execute Workflow node retries, across all workflows', () => {
   expect(seen).toBeGreaterThan(0);
 });
 
+it('the sheet upsert is keyed by order number and writes raw values', () => {
+  const p = node('process-order.json', 'Upsert order row').parameters;
+  expect(p.operation).toBe('appendOrUpdate');
+  expect((p.columns as { matchingColumns: string[] }).matchingColumns).toEqual(['order_number']);
+  expect(p.sheetName).toMatchObject({ mode: 'name' });
+  expect(p.documentId).toMatchObject({ mode: 'id' });
+  expect(p.options).toMatchObject({ cellFormat: 'RAW' });
+  expect(JSON.stringify(p)).toContain('config.google.orders_sheet_id');
+});
+it('the owner email is plain text to the configured owner', () => {
+  const p = node('process-order.json', 'Email owner').parameters;
+  expect([p.emailType, JSON.stringify(p).includes('config.owner_email')]).toEqual(['text', true]);
+  expect(p.options).toMatchObject({ appendAttribution: false });
+});
+
 it('the dev harness hands intake-order the order payload as the trigger would emit it', () => {
   const n = node('dev-harness.json', 'Call intake-order');
   expect(JSON.stringify(n.parameters)).toContain('nbcIntakeOrder01');

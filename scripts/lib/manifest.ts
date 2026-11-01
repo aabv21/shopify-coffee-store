@@ -108,16 +108,4 @@ export const CODE_NODES: readonly CodeNodeEntry[] = [
     source: 'src/nodes/order-row.ts',
     why: 'joins line items and converts the timestamp to Bogota time',
   },
-  {
-    file: 'process-order.json',
-    node: 'Select low-stock variants',
-    source: 'src/nodes/select-low-stock.ts',
-    why: 'parses the GraphQL response, de-duplicates variants, and fails loudly on API errors',
-  },
-  {
-    file: 'process-order.json',
-    node: 'Build guide email',
-    source: 'src/nodes/select-guides.ts',
-    why: 'picks one guide per brew method and renders escaped HTML',
-  },
 ];

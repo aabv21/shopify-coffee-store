@@ -1,0 +1,279 @@
+{
+  "id": "nbcProcessOrder1",
+  "name": "Process order",
+  "description": null,
+  "nodes": [
+    {
+      "id": "30000000-0000-4000-8000-000000000001",
+      "name": "When called",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -420,
+        200
+      ],
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "order",
+              "type": "object"
+            },
+            {
+              "name": "config",
+              "type": "object"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000002",
+      "name": "Build order row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        200
+      ],
+      "notes": "Why Code: joins line items and converts the timestamp to Bogota time",
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Why Code: joins line items and converts the timestamp to Bogota time. Generated from src/nodes/order-row.ts by npm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/order-row.ts\n  var order_row_exports = {};\n  __export(order_row_exports, {\n    run: () => run\n  });\n  function formatLine(line) {\n    const name = line.variant_title === null ? line.product_title : `${line.product_title} (${line.variant_title})`;\n    return `${name} x ${String(line.quantity)}`;\n  }\n  function run(input) {\n    const { order } = input;\n    const date = DateTime.fromISO(order.created_at).setZone(\"America/Bogota\").toFormat(\"yyyy-LL-dd HH:mm\");\n    const products = order.lines.map(formatLine).join(\"; \");\n    const units = order.lines.reduce((sum, line) => sum + line.quantity, 0);\n    return {\n      date,\n      order_number: order.order_number,\n      customer: order.customer_name,\n      city: order.city,\n      products,\n      units,\n      subtotal: order.subtotal,\n      shipping: order.shipping,\n      total: order.total,\n      free_shipping: order.free_shipping ? \"yes\" : \"no\"\n    };\n  }\n  return __toCommonJS(order_row_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000003",
+      "name": "Upsert order row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        140,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "resource": "sheet",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('When called').first().json.config.google.orders_sheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('When called').first().json.config.google.orders_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": null,
+          "matchingColumns": [
+            "order_number"
+          ],
+          "schema": [
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "order_number",
+              "displayName": "order_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "customer",
+              "displayName": "customer",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "city",
+              "displayName": "city",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "products",
+              "displayName": "products",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "units",
+              "displayName": "units",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "subtotal",
+              "displayName": "subtotal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "shipping",
+              "displayName": "shipping",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total",
+              "displayName": "total",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "free_shipping",
+              "displayName": "free_shipping",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "nbcCredGSheets01",
+          "name": "Google Sheets"
+        }
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000004",
+      "name": "Email owner",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        420,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $('When called').first().json.config.owner_email }}",
+        "subject": "=New order {{ $('Build order row').first().json.order_number }}: {{ $('Build order row').first().json.total.toLocaleString('en-US') }} COP",
+        "emailType": "text",
+        "message": "=Order: {{ $('Build order row').first().json.order_number }}\nDate: {{ $('Build order row').first().json.date }}\nCustomer: {{ $('Build order row').first().json.customer }}\nCity: {{ $('Build order row').first().json.city }}\nProducts: {{ $('Build order row').first().json.products }}\nUnits: {{ $('Build order row').first().json.units }}\nSubtotal: {{ $('Build order row').first().json.subtotal.toLocaleString('en-US') }} COP\nShipping: {{ $('Build order row').first().json.shipping.toLocaleString('en-US') }} COP\nTotal: {{ $('Build order row').first().json.total.toLocaleString('en-US') }} COP\nFree shipping: {{ $('Build order row').first().json.free_shipping }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "nbcCredGmail0001",
+          "name": "Gmail"
+        }
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000005",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -460,
+        -60
+      ],
+      "parameters": {
+        "width": 1180,
+        "height": 160,
+        "content": "## Log and notify\nBuilds one flat row from the normalized order, upserts it into the Orders sheet keyed by order number so a retried call updates the same row instead of duplicating it, then emails the owner a plain-text summary."
+      }
+    }
+  ],
+  "connections": {
+    "When called": {
+      "main": [
+        [
+          {
+            "node": "Build order row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build order row": {
+      "main": [
+        [
+          {
+            "node": "Upsert order row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert order row": {
+      "main": [
+        [
+          {
+            "node": "Email owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Bogota",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "nbcErrorHandler1"
+  },
+  "meta": null,
+  "nodeGroups": [],
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

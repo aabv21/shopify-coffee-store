@@ -91,3 +91,16 @@ n8n's Shopify credential needs an Admin API access token. Admin-created custom a
 If Shopify refuses `https://127.0.0.1/shopify/callback` as a redirect URL, fall back to `npm run shopify:token -- --client-credentials`. This only works for a same-organization dev store, and the resulting token expires in 24 hours. Once the store is live, re-run this daily: `npm run shopify:token -- --client-credentials`, then `npm run setup -- --refresh nbcCredShopify01 --live`. The `--live` flag matters — without it, `npm run setup` re-imports every workflow and leaves the Shopify trigger unpublished, taking live order intake offline.
 
 **An existing pre-2026 admin-created custom app** still works without any of the above: put its `shpat_` token directly in `SHOPIFY_ACCESS_TOKEN` and its API secret key in `SHOPIFY_CLIENT_SECRET`.
+
+## 9. Create the Orders sheet
+
+The core order workflow (`process-order`) logs every order to a Google Sheet, not to Shopify. Create it once, in the same Google account n8n signs in with for the Sheets and Gmail credentials:
+
+1. Create a new Google Sheet and rename its first tab to match `config.google.orders_tab` exactly (`Orders` in `config/config.example.json`).
+2. Give that tab a header row with these column names, in order:
+
+   `date | order_number | customer | city | products | units | subtotal | shipping | total | free_shipping`
+
+3. Copy the sheet's id (the long value between `/d/` and `/edit` in its URL) into `config.google.orders_sheet_id`.
+
+`process-order`'s "Upsert order row" node finds the tab by this name and matches column data to the header row automatically; a missing or renamed header column breaks the write instead of silently landing a value elsewhere.
