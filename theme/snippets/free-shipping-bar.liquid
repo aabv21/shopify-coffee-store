@@ -1,0 +1,68 @@
+{% doc %}
+  Renders the free-shipping progress bar: how far the cart is from the free-shipping threshold,
+  updating live as the cart changes. Hidden when the feature is off or the threshold is blank or
+  zero.
+{% enddoc %}
+
+{%- assign free_shipping_threshold_cents = settings.free_shipping_threshold | times: 100 -%}
+{%- if settings.free_shipping_bar_enabled and free_shipping_threshold_cents > 0 -%}
+  {%- comment -%} data-skip-subtree-update keeps Horizon's section morph from wiping the JS-rendered children while it still updates data-total-cents. {%- endcomment -%}
+  <free-shipping-bar
+    class="free-shipping-bar"
+    data-total-cents="{{ cart.total_price }}"
+    data-threshold-cents="{{ free_shipping_threshold_cents }}"
+    data-money-format="{{ shop.money_format | escape }}"
+    data-message-remaining="{{ settings.free_shipping_message_remaining | escape }}"
+    data-message-reached="{{ settings.free_shipping_message_reached | escape }}"
+    data-cart-url="{{ routes.cart_url }}"
+    data-skip-subtree-update
+  >
+    <p class="free-shipping-bar__message" data-bar-message aria-live="polite"></p>
+    <div
+      class="free-shipping-bar__track"
+      data-bar-track
+      role="progressbar"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-label="{{ settings.free_shipping_progress_label | escape }}"
+    >
+      <div class="free-shipping-bar__fill" data-bar-fill></div>
+    </div>
+  </free-shipping-bar>
+  <script src="{{ 'free-shipping-bar.js' | asset_url }}" type="module"></script>
+{%- endif -%}
+
+{% stylesheet %}
+  .free-shipping-bar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-2xs);
+  }
+
+  .free-shipping-bar__message {
+    margin: 0;
+    min-height: 1.5em;
+    font-size: var(--font-size--sm);
+    color: var(--color-foreground);
+  }
+
+  .free-shipping-bar__track {
+    block-size: 6px;
+    border-radius: var(--style-border-radius-pills);
+    background-color: rgb(var(--color-foreground-rgb) / var(--opacity-10-25));
+    overflow: hidden;
+  }
+
+  .free-shipping-bar__fill {
+    block-size: 100%;
+    border-radius: var(--style-border-radius-pills);
+    background-color: var(--color-foreground);
+    inline-size: 0%;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .free-shipping-bar__fill {
+      transition: inline-size var(--animation-speed) ease;
+    }
+  }
+{% endstylesheet %}

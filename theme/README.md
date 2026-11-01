@@ -22,10 +22,9 @@ files, producing a complete, pushable theme at `.theme-build/theme/`.
    anchor, rather than silently applying to the wrong spot or duplicating. Every touched file
    counts as `modified`.
 
-This task ships both lists empty — there is no overlay content or insertion yet. Later tasks add
-new theme files directly under this directory (for example `sections/coffee-finder.liquid`) and
-list their insertions in `INSERTIONS`, each with the exact file, anchor, and content being
-inserted.
+The toolchain itself shipped both lists empty. The free-shipping bar (below) is the first feature
+to use them; later tasks add more theme files and insertions the same way, each with the exact
+file, anchor, and content being inserted documented here.
 
 ## TypeScript assets
 
@@ -34,7 +33,48 @@ maps each entry point to the asset name it bundles into; `npm run build:theme` r
 (bundled, ESM, not minified — Shopify serves theme assets minified at request time, so shipping
 already-minified code would just double-minify it) and writes `theme/assets/<asset>`, with a
 generated-file banner naming the source to edit instead. `npm run build:theme -- --check` reports
-drift and exits 1 without writing; that's what CI runs. This task ships `THEME_ENTRIES` empty.
+drift and exits 1 without writing; that's what CI runs.
+
+## Free shipping bar
+
+A progress bar in the cart drawer and on `/cart` showing how far the cart is from the free
+shipping threshold, updating live as the cart changes.
+
+**Files:**
+
+- `src/theme/money.ts` — `formatMoney(cents, format)`, a small formatter for Shopify's
+  `shop.money_format` placeholders (`amount`, `amount_no_decimals`, and their comma/space/period/
+  apostrophe-separator variants). Pure, unit-tested (`tests/theme/money.test.ts`).
+- `src/theme/free-shipping.ts` — `freeShippingProgress(totalCents, thresholdCents)` and
+  `barMessage(state, messages, moneyFormat)`: the bar's own math and copy, with no DOM. Pure,
+  unit-tested (`tests/theme/free-shipping.test.ts`).
+- `src/theme/free-shipping-bar.ts` — the `<free-shipping-bar>` custom element. Bundled by
+  `THEME_ENTRIES` into `theme/assets/free-shipping-bar.js` (generated; never hand-edited).
+- `theme/snippets/free-shipping-bar.liquid` — renders the `<free-shipping-bar>` markup from the
+  Theme contracts' DOM contract, reads the settings below, and loads the bundled script.
+
+**Insertions** (`scripts/lib/theme-insertions.ts`'s `INSERTIONS`):
+
+1. `snippets/cart-summary.liquid`: a `before-line` insertion of `{% render 'free-shipping-bar' %}`
+   on its own line, anchored immediately before `<div class="cart-totals">` (that line appears
+   exactly once in Horizon's file).
+2. `config/settings_schema.json`: an `append-settings-group` insertion adding the group "Free
+   shipping bar" with five settings: `free_shipping_bar_enabled` (checkbox, default on),
+   `free_shipping_threshold` (number, default 120000), `free_shipping_message_remaining` (text,
+   `[amount]` placeholder), `free_shipping_message_reached` (text), and
+   `free_shipping_progress_label` (text, the progress bar's accessible label).
+
+**Staying live.** The bar updates two ways: it listens on `document` for
+`shopify:cart:lines-update` and re-reads `/cart.js` once the event's own promise settles, and it
+also re-renders from `data-total-cents` whenever that attribute changes — which Horizon's section
+morph sets on every cart update regardless of the event, since the morph copies an element's
+attributes even where `data-skip-subtree-update` keeps it from touching that element's children.
+
+**Limitations:**
+
+- The bar reads `cart.total_price`, which reflects cart-level discounts but not anything applied
+  at checkout. A discount code entered at checkout can still take the order below the free
+  shipping rate after the bar has already shown "You've got free shipping!".
 
 ## Theme check
 
@@ -88,3 +128,18 @@ Confirmed against `npx @shopify/cli@5.0.0 theme push --help` and `theme dev --he
     The password for storefronts with password protection.
     [env: SHOPIFY_FLAG_STORE_PASSWORD]
 ```
+
+### Free shipping bar (deferred live checks)
+
+These need `npx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme` and are not run by this
+task:
+
+- **Drawer.** With Sierra Nevada 250 g in the cart, it shows "You're $82.000 away from free
+  shipping" at 31%.
+- **Live updates.** Raising the quantity to 4 (152,000 COP) switches it to "You've got free
+  shipping!" without a reload, in the drawer and on `/cart`. Lowering it again restores the
+  remaining message.
+- **Boundary.** Huila 250 g plus Huila 500 g (exactly 120,000 COP) shows the reached message, and
+  checkout charges 0 shipping.
+- **Disabled.** A blank threshold, or unticking "Show the free shipping bar", hides the bar with no
+  console errors.

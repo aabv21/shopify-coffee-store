@@ -8,8 +8,51 @@ export type Insertion =
 
 export class InsertionError extends Error {}
 
-// Tasks 11-12 add their insertions here; this task ships the empty list.
-export const INSERTIONS: readonly Insertion[] = [];
+// Task 12 adds its own insertion here.
+export const INSERTIONS: readonly Insertion[] = [
+  {
+    kind: 'before-line',
+    file: 'snippets/cart-summary.liquid',
+    anchor: '<div class="cart-totals">',
+    content: "{% render 'free-shipping-bar' %}",
+  },
+  {
+    kind: 'append-settings-group',
+    file: 'config/settings_schema.json',
+    group: {
+      name: 'Free shipping bar',
+      settings: [
+        { type: 'checkbox', id: 'free_shipping_bar_enabled', label: 'Show the free shipping bar', default: true },
+        {
+          type: 'number',
+          id: 'free_shipping_threshold',
+          label: 'Free shipping threshold',
+          default: 120000,
+          info: 'Whole amount in the store currency. Match the free shipping rate in Settings > Shipping and delivery.',
+        },
+        {
+          type: 'text',
+          id: 'free_shipping_message_remaining',
+          label: 'Message: amount remaining',
+          default: "You're [amount] away from free shipping",
+          info: '[amount] shows the amount left.',
+        },
+        {
+          type: 'text',
+          id: 'free_shipping_message_reached',
+          label: 'Message: free shipping reached',
+          default: "You've got free shipping!",
+        },
+        {
+          type: 'text',
+          id: 'free_shipping_progress_label',
+          label: 'Progress bar accessible label',
+          default: 'Progress toward free shipping',
+        },
+      ],
+    },
+  },
+];
 
 function readThemeFile(themeDir: string, file: string): string {
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is an insertion's own fixed path, not user input

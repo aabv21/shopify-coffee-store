@@ -5,8 +5,8 @@ import { build } from 'esbuild';
 
 const ASSETS_DIR = 'theme/assets';
 
-// Tasks 11-12 add their theme entries here; this task ships the empty list.
-export const THEME_ENTRIES: readonly { source: string; asset: string }[] = [];
+// Task 12 adds its own theme entry here.
+export const THEME_ENTRIES: readonly { source: string; asset: string }[] = [{ source: 'src/theme/free-shipping-bar.ts', asset: 'free-shipping-bar.js' }];
 
 /**
  * Bundles `entry.source` for the storefront. Not minified: Shopify serves theme assets minified
