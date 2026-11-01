@@ -1,0 +1,30 @@
+{
+  "data": {
+    "nodes": [
+      {
+        "id": "gid://shopify/ProductVariant/1001",
+        "title": "250 g",
+        "sku": "NBC-NAR-250",
+        "inventoryQuantity": 39,
+        "inventoryItem": { "tracked": true },
+        "product": {
+          "title": "Nariño",
+          "roast": { "value": "light" },
+          "brewMethod": { "value": "pour-over" }
+        }
+      },
+      {
+        "id": "gid://shopify/ProductVariant/3001",
+        "title": "250 g",
+        "sku": "NBC-SNV-250",
+        "inventoryQuantity": 39,
+        "inventoryItem": { "tracked": true },
+        "product": {
+          "title": "Sierra Nevada",
+          "roast": { "value": "dark" },
+          "brewMethod": { "value": "espresso" }
+        }
+      }
+    ]
+  }
+}

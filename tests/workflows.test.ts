@@ -112,6 +112,30 @@ it('the owner email is plain text to the configured owner', () => {
   expect(p.options).toMatchObject({ appendAttribution: false });
 });
 
+it('stock and brew methods come from one authenticated GraphQL call', () => {
+  const n = node('process-order.json', 'Read stock and brew methods');
+  expect(n.type).toBe('n8n-nodes-base.graphql');
+  const p = n.parameters;
+  expect([p.authentication, p.nodeCredentialType]).toEqual(['predefinedCredentialType', 'shopifyAccessTokenApi']);
+  for (const s of ['/graphql.json', 'inventoryQuantity', 'brew_method', 'variant_gids']) expect(JSON.stringify(p)).toContain(s);
+});
+it('the low-stock gate checks the report length with a plain greater-than', () => {
+  const gate = node('process-order.json', 'Any low stock?').parameters;
+  const conditions = gate.conditions as { conditions: { leftValue: string; operator: { operation: string }; rightValue: unknown }[] };
+  expect(conditions.conditions).toMatchObject([{ leftValue: '={{ $json.low_stock.length }}', operator: { operation: 'gt' }, rightValue: 0 }]);
+  expect(conditions.conditions).toHaveLength(1);
+});
+it('the stock check chains from Email owner to the low-stock gate, with only the true branch wired so far', () => {
+  const connections = wf('process-order.json').connections as Record<string, { main?: { node: string }[][] }>;
+  expect(connections['Email owner']?.main?.[0]?.map((c) => c.node)).toEqual(['Read stock and brew methods']);
+  expect(connections['Read stock and brew methods']?.main?.[0]?.map((c) => c.node)).toEqual(['Collect stock input']);
+  expect(connections['Collect stock input']?.main?.[0]?.map((c) => c.node)).toEqual(['Select low-stock variants']);
+  expect(connections['Select low-stock variants']?.main?.[0]?.map((c) => c.node)).toEqual(['Any low stock?']);
+  const gateOutputs = connections['Any low stock?']?.main ?? [];
+  expect(gateOutputs[0]?.map((c) => c.node)).toEqual(['Email low-stock alert']);
+  expect(gateOutputs[1] ?? []).toEqual([]);
+});
+
 it('the dev harness hands intake-order the order payload as the trigger would emit it', () => {
   const n = node('dev-harness.json', 'Call intake-order');
   expect(JSON.stringify(n.parameters)).toContain('nbcIntakeOrder01');

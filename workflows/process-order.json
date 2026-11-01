@@ -225,6 +225,180 @@
         "height": 160,
         "content": "## Log and notify\nBuilds one flat row from the normalized order, upserts it into the Orders sheet keyed by order number so a retried call updates the same row instead of duplicating it, then emails the owner a plain-text summary."
       }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000006",
+      "name": "Read stock and brew methods",
+      "type": "n8n-nodes-base.graphql",
+      "typeVersion": 1.1,
+      "position": [
+        700,
+        200
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "shopifyAccessTokenApi",
+        "requestMethod": "POST",
+        "endpoint": "=https://{{ $('When called').first().json.config.shopify.store }}.myshopify.com/admin/api/{{ $('When called').first().json.config.shopify.api_version }}/graphql.json",
+        "requestFormat": "json",
+        "query": "query OrderVariants($ids: [ID!]!) {\n  nodes(ids: $ids) {\n    ... on ProductVariant {\n      id\n      title\n      sku\n      inventoryQuantity\n      inventoryItem { tracked }\n      product {\n        title\n        roast: metafield(namespace: \"coffee\", key: \"roast\") { value }\n        brewMethod: metafield(namespace: \"coffee\", key: \"brew_method\") { value }\n      }\n    }\n  }\n}\n",
+        "variables": "={{ JSON.stringify({ ids: $('When called').first().json.order.variant_gids }) }}",
+        "responseFormat": "json"
+      },
+      "credentials": {
+        "shopifyAccessTokenApi": {
+          "id": "nbcCredShopify01",
+          "name": "Shopify Admin"
+        }
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000007",
+      "name": "Collect stock input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        980,
+        200
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "30000000-0007-4000-8000-0000000a0001",
+              "name": "order",
+              "type": "object",
+              "value": "={{ $('When called').first().json.order }}"
+            },
+            {
+              "id": "30000000-0007-4000-8000-0000000a0002",
+              "name": "threshold",
+              "type": "number",
+              "value": "={{ $('When called').first().json.config.low_stock_threshold }}"
+            },
+            {
+              "id": "30000000-0007-4000-8000-0000000a0003",
+              "name": "response",
+              "type": "object",
+              "value": "={{ $json }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000008",
+      "name": "Select low-stock variants",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1260,
+        200
+      ],
+      "notes": "Why Code: parses the GraphQL response, de-duplicates variants, and fails loudly on API errors",
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Why Code: parses the GraphQL response, de-duplicates variants, and fails loudly on API errors. Generated from src/nodes/select-low-stock.ts by npm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/select-low-stock.ts\n  var select_low_stock_exports = {};\n  __export(select_low_stock_exports, {\n    run: () => run\n  });\n  function toVariantInfo(gid, node) {\n    return {\n      variant_gid: gid,\n      product_title: node.product.title,\n      variant_title: node.title,\n      sku: node.sku,\n      tracked: node.inventoryItem.tracked,\n      available: node.inventoryQuantity,\n      roast: node.product.roast?.value ?? null,\n      brew_method: node.product.brewMethod?.value ?? null\n    };\n  }\n  function toLowStockItem(variant) {\n    return { product_title: variant.product_title, variant_title: variant.variant_title, sku: variant.sku, available: variant.available };\n  }\n  function formatLine(item, threshold) {\n    return `${item.product_title} (${item.variant_title}), SKU ${item.sku ?? \"\"}: ${String(item.available)} left (threshold ${String(threshold)})`;\n  }\n  function run(input) {\n    const response = input.response;\n    if (response.errors && response.errors.length > 0) {\n      throw new Error(`Shopify GraphQL error: ${response.errors.map((e) => e.message).join(\"; \")}`);\n    }\n    const nodes = response.data?.nodes;\n    if (!Array.isArray(nodes)) throw new Error(\"Shopify GraphQL response has no nodes\");\n    const byGid = /* @__PURE__ */ new Map();\n    for (const node of nodes) {\n      if (node !== null) byGid.set(node.id, node);\n    }\n    const variants = [];\n    for (const gid of input.order.variant_gids) {\n      const node = byGid.get(gid);\n      if (node) variants.push(toVariantInfo(gid, node));\n    }\n    const lowStock = variants.filter((v) => v.tracked && v.available < input.threshold).map(toLowStockItem);\n    return {\n      variants,\n      low_stock: lowStock,\n      subject: `Low stock after order ${input.order.order_number}`,\n      text: lowStock.map((item) => formatLine(item, input.threshold)).join(\"\\n\")\n    };\n  }\n  return __toCommonJS(select_low_stock_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000009",
+      "name": "Any low stock?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        1540,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "30000000-0009-4000-8000-0000000a0001",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "leftValue": "={{ $json.low_stock.length }}",
+              "rightValue": 0
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000010",
+      "name": "Email low-stock alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        100
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $('When called').first().json.config.owner_email }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "nbcCredGmail0001",
+          "name": "Gmail"
+        }
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000011",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        660,
+        -60
+      ],
+      "parameters": {
+        "width": 1180,
+        "height": 160,
+        "content": "## Stock check\nReads the ordered variants' current stock and brew method from Shopify, flags any that fell below the configured threshold, and emails the owner one alert per order. No per-request timeout on this node (NOTE below); the GraphQL node retries throttling instead of failing outright, since Shopify returns throttling as a 200 response with an errors array rather than an HTTP error."
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000012",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        660,
+        360
+      ],
+      "parameters": {
+        "width": 420,
+        "height": 160,
+        "content": "NOTE: the GraphQL node has no per-request timeout option, so a hung Shopify response blocks this execution until n8n's own default times it out. Ceiling: a slow but responding Shopify API is not bounded here. Upgrade path: switch to the HTTP Request node with options.timeout plus an explicit errors check, trading the GraphQL node's built-in NodeApiError-on-errors behavior for a manual one."
+      }
     }
   ],
   "connections": {
@@ -259,6 +433,62 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "Email owner": {
+      "main": [
+        [
+          {
+            "node": "Read stock and brew methods",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read stock and brew methods": {
+      "main": [
+        [
+          {
+            "node": "Collect stock input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect stock input": {
+      "main": [
+        [
+          {
+            "node": "Select low-stock variants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Select low-stock variants": {
+      "main": [
+        [
+          {
+            "node": "Any low stock?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any low stock?": {
+      "main": [
+        [
+          {
+            "node": "Email low-stock alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },

@@ -1,0 +1,18 @@
+{
+  "data": {
+    "nodes": [
+      {
+        "id": "gid://shopify/ProductVariant/3002",
+        "title": "500 g",
+        "sku": "NBC-SNV-500",
+        "inventoryQuantity": 5,
+        "inventoryItem": { "tracked": true },
+        "product": {
+          "title": "Sierra Nevada",
+          "roast": { "value": "dark" },
+          "brewMethod": { "value": "espresso" }
+        }
+      }
+    ]
+  }
+}
