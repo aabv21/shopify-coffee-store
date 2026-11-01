@@ -125,7 +125,7 @@ it('the low-stock gate checks the report length with a plain greater-than', () =
   expect(conditions.conditions).toMatchObject([{ leftValue: '={{ $json.low_stock.length }}', operator: { operation: 'gt' }, rightValue: 0 }]);
   expect(conditions.conditions).toHaveLength(1);
 });
-it('the stock check chains from Email owner to the low-stock gate, with only the true branch wired so far', () => {
+it('the stock check chains from Email owner to the low-stock gate, and both branches reach the wait', () => {
   const connections = wf('process-order.json').connections as Record<string, { main?: { node: string }[][] }>;
   expect(connections['Email owner']?.main?.[0]?.map((c) => c.node)).toEqual(['Read stock and brew methods']);
   expect(connections['Read stock and brew methods']?.main?.[0]?.map((c) => c.node)).toEqual(['Collect stock input']);
@@ -133,7 +133,40 @@ it('the stock check chains from Email owner to the low-stock gate, with only the
   expect(connections['Select low-stock variants']?.main?.[0]?.map((c) => c.node)).toEqual(['Any low stock?']);
   const gateOutputs = connections['Any low stock?']?.main ?? [];
   expect(gateOutputs[0]?.map((c) => c.node)).toEqual(['Email low-stock alert']);
-  expect(gateOutputs[1] ?? []).toEqual([]);
+  expect(gateOutputs[1]?.map((c) => c.node)).toEqual(['Wait before guide']);
+  expect(connections['Email low-stock alert']?.main?.[0]?.map((c) => c.node)).toEqual(['Wait before guide']);
+});
+
+it('the guide waits a persisted, configurable number of minutes', () => {
+  const p = node('process-order.json', 'Wait before guide').parameters;
+  expect(p.resume ?? 'timeInterval').toBe('timeInterval');
+  expect(p.unit).toBe('minutes');
+  expect(String(p.amount)).toContain('guide_delay_minutes');
+});
+it('the guides are read from the mounted file after the wait and sent as HTML', () => {
+  expect(params('process-order.json', 'Read brewing guides')).toContain('/files/data/brewing-guides.json');
+  const readNode = node('process-order.json', 'Read brewing guides');
+  expect(readNode.alwaysOutputData).toBe(true);
+  const p = node('process-order.json', 'Email brewing guide').parameters;
+  expect(p.emailType ?? 'html').toBe('html');
+  expect(p.options).toMatchObject({ appendAttribution: false });
+});
+it('the guide chain runs from the wait to the conditional send, with nothing on the no-guide branch', () => {
+  const connections = wf('process-order.json').connections as Record<string, { main?: { node: string }[][] }>;
+  expect(connections['Wait before guide']?.main?.[0]?.map((c) => c.node)).toEqual(['Read brewing guides']);
+  expect(connections['Read brewing guides']?.main?.[0]?.map((c) => c.node)).toEqual(['Parse guides']);
+  expect(connections['Parse guides']?.main?.[0]?.map((c) => c.node)).toEqual(['Collect guide input']);
+  expect(connections['Collect guide input']?.main?.[0]?.map((c) => c.node)).toEqual(['Build guide email']);
+  expect(connections['Build guide email']?.main?.[0]?.map((c) => c.node)).toEqual(['Has guide email?']);
+  const guideGateOutputs = connections['Has guide email?']?.main ?? [];
+  expect(guideGateOutputs[0]?.map((c) => c.node)).toEqual(['Email brewing guide']);
+  expect(guideGateOutputs[1] ?? []).toEqual([]);
+});
+it('the guide gate checks a plain boolean is true', () => {
+  const gate = node('process-order.json', 'Has guide email?').parameters;
+  const conditions = gate.conditions as { conditions: { leftValue: string; operator: { type: string; operation: string } }[] };
+  expect(conditions.conditions).toMatchObject([{ leftValue: '={{ $json.send }}', operator: { type: 'boolean', operation: 'true' } }]);
+  expect(conditions.conditions).toHaveLength(1);
 });
 
 it('the dev harness hands intake-order the order payload as the trigger would emit it', () => {

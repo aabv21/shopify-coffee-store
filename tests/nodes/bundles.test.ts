@@ -3,10 +3,13 @@ import { expect, it } from 'vitest';
 import { run as normalize } from '../../src/nodes/normalize-order.ts';
 import { run as buildOrderRow } from '../../src/nodes/order-row.ts';
 import { run as selectLowStock } from '../../src/nodes/select-low-stock.ts';
+import { run as selectGuides } from '../../src/nodes/select-guides.ts';
+import type { BrewingGuides } from '../../src/nodes/types.ts';
 import { runCodeNode } from '../lib/code-node.ts';
 import { fx } from '../lib/orders.ts';
 
 const stock = (n: string): unknown => JSON.parse(readFileSync(`tests/fixtures/stock/${n}.json`, 'utf8'));
+const guides = JSON.parse(readFileSync('data/brewing-guides.json', 'utf8')) as BrewingGuides;
 
 it('the committed Normalize order node behaves like its source', () =>
   expect(runCodeNode('intake-order.json', 'Normalize order', fx('two-methods'))).toEqual([{ json: normalize(fx('two-methods')) }]));
@@ -27,4 +30,11 @@ it('the committed Check config node throws the validator message for an invalid 
 it('the committed Select low-stock variants node behaves like its source', () => {
   const input = { order: normalize(fx('low-stock')), response: stock('sierra-500-at-4'), threshold: 5 };
   expect(runCodeNode('process-order.json', 'Select low-stock variants', input)).toEqual([{ json: selectLowStock(input) }]);
+});
+
+it('the committed Build guide email node behaves like its source', () => {
+  const order = normalize(fx('two-methods'));
+  const variants = selectLowStock({ order, response: stock('two-methods'), threshold: 5 }).variants;
+  const input = { order, variants, guides };
+  expect(runCodeNode('process-order.json', 'Build guide email', input)).toEqual([{ json: selectGuides(input) }]);
 });
