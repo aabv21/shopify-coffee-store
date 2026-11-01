@@ -23,6 +23,8 @@ export interface CodeNodeEntry {
 
 export const ERROR_WORKFLOW_ID = 'nbcErrorHandler1';
 
+export const CONFIG_LOADER_ID = 'nbcLoadConfig001';
+
 export const TRIGGER_WEBHOOK_ID = '4b1d2c3e-5f60-4a7b-8c9d-0e1f2a3b4c5d';
 
 /** `env[key]` widened past `noUncheckedIndexedAccess`; callers only reach here once the key is known to be set. */
@@ -30,7 +32,7 @@ export const TRIGGER_WEBHOOK_ID = '4b1d2c3e-5f60-4a7b-8c9d-0e1f2a3b4c5d';
 const readEnv = (env: Readonly<Record<string, string>>, key: string): string => env[key] ?? '';
 
 export const WORKFLOWS: readonly WorkflowEntry[] = [
-  { id: 'nbcLoadConfig001', name: 'Load config', file: 'load-config.json', publish: true, liveTrigger: false },
+  { id: CONFIG_LOADER_ID, name: 'Load config', file: 'load-config.json', publish: true, liveTrigger: false },
   { id: ERROR_WORKFLOW_ID, name: 'Error handler', file: 'error-handler.json', publish: true, liveTrigger: false },
   { id: 'nbcProcessOrder1', name: 'Process order', file: 'process-order.json', publish: true, liveTrigger: false },
   { id: 'nbcIntakeOrder01', name: 'Intake order', file: 'intake-order.json', publish: true, liveTrigger: false },

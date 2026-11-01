@@ -1,5 +1,5 @@
 // Fixed data contracts shared across Code nodes. Pure types only: no I/O, no clock, no Node
-// imports — a later task's Code node compiles against these the same way normalize-order.ts does.
+// imports, so every Code node source can compile against them.
 
 /** The subset of Shopify's `orders/create` webhook payload normalize-order.ts reads. */
 export interface ShopifyOrderPayload {

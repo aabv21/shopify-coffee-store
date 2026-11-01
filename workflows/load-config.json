@@ -83,7 +83,7 @@
       "parameters": {
         "width": 900,
         "height": 160,
-        "content": "## Load config\nReads /files/config/config.json and returns { config }. Always Output Data is on for the read step, so a missing file still reaches the parse step as an item with no binary data, which throws instead of the branch silently stopping with zero items. Returns the parsed config unvalidated; the caller decides when to check it. Any failure here fires the error workflow."
+        "content": "## Load config\nReads /files/config/config.json and returns { config }. Always Output Data is on for the read step, so a missing file still reaches the parse step as an item with no binary data, which throws instead of the branch silently stopping with zero items. Returns the parsed config unvalidated; the caller decides when to check it. A failure here fails the caller, whose error workflow fires. This workflow has none of its own: Error handler calls it, so one would loop while the file is missing."
       }
     },
     {
@@ -140,8 +140,7 @@
   "settings": {
     "executionOrder": "v1",
     "timezone": "America/Bogota",
-    "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": "nbcErrorHandler1"
+    "callerPolicy": "workflowsFromSameOwner"
   },
   "meta": null,
   "nodeGroups": [],

@@ -16,7 +16,7 @@ In **Settings > General > Store currency**, set the customer-facing currency for
 - **HTML without currency:** `${{amount_no_decimals_with_comma_separator}}`
 - **HTML with currency:** `${{amount_no_decimals_with_comma_separator}} COP`
 
-Both formats omit decimals and use a comma as the thousands separator, matching whole-peso pricing (COP has no minor unit in practice).
+Both formats round to whole pesos and use a period as the thousands separator (82,000 COP shows as `$82.000`), matching whole-peso pricing (COP has no minor unit in practice).
 
 ## 3. Create the metafield definitions
 

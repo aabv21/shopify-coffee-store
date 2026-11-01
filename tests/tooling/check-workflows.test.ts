@@ -3,7 +3,7 @@ import { expect, it } from 'vitest';
 import { checkWorkflow, hasPlaceholderInSqlComment } from '../../scripts/check-workflows.ts';
 import { normalizeWorkflow } from '../../scripts/lib/normalize-workflow.ts';
 import { listJsonFiles } from '../../scripts/lib/list-json-files.ts';
-import { CREDENTIALS } from '../../scripts/lib/manifest.ts';
+import { CONFIG_LOADER_ID, CREDENTIALS } from '../../scripts/lib/manifest.ts';
 import type { WorkflowJson } from '../../scripts/lib/workflow-types.ts';
 
 const fx = (n: string) => JSON.parse(readFileSync(`tests/fixtures/workflows/${n}.json`, 'utf8')) as WorkflowJson;
@@ -29,6 +29,20 @@ it('requires sticky notes', () => expect(errors('no-sticky')).toMatch(/workflow 
 it('requires the shared settings', () => {
   const e = errors('bad-settings');
   for (const m of ['executionOrder must be v1', 'timezone must be America/Bogota', 'callerPolicy must be workflowsFromSameOwner', 'errorWorkflow must be nbcErrorHandler1']) expect(e).toContain(m);
+});
+it('exempts only the config loader from the errorWorkflow rule, since the error handler calls it', () => {
+  const opts = {
+    file: 'clean.json',
+    credentialIds: new Set(CREDENTIALS.map((c) => c.id)),
+    codeNodes: [{ file: 'clean.json', node: 'Double value', source: 'tests/fixtures/nodes/double.ts', why: 'fixture' }],
+  };
+  const withoutErrorWorkflow = (id: string): WorkflowJson => ({
+    ...fx('clean'),
+    id,
+    settings: { executionOrder: 'v1', timezone: 'America/Bogota', callerPolicy: 'workflowsFromSameOwner' },
+  });
+  expect(checkWorkflow(withoutErrorWorkflow(CONFIG_LOADER_ID), opts)).toEqual([]);
+  expect(checkWorkflow(withoutErrorWorkflow('fixtureCleanWf01'), opts)).toContain('settings.errorWorkflow must be nbcErrorHandler1');
 });
 it('normalize drops volatile fields and is idempotent', () => {
   const n = normalizeWorkflow(fx('volatile'));

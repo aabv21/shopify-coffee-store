@@ -15,6 +15,8 @@ const allWorkflows = () => listJsonFiles('workflows').map((path) => ({ file: bas
 
 it('load-config reads the mounted config file', () => expect(params('load-config.json', 'Read config file')).toContain('/files/config/config.json'));
 it('load-config accepts all caller data on its trigger', () => expect(params('load-config.json', 'When called')).toContain('"inputSource":"passthrough"'));
+it('load-config names no error workflow, because error-handler calls it and would loop', () =>
+  expect((wf('load-config.json').settings as Record<string, unknown>).errorWorkflow).toBeUndefined());
 it('load-config reads the config file loudly instead of silently skipping a missing one', () => {
   const n = node('load-config.json', 'Read config file');
   expect(n.alwaysOutputData).toBe(true);

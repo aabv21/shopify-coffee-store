@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Order Lifecycle",
+    "locale": "en",
+    "output": "docs/diagrams/order-sequence.html",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [
+      1400,
+      900
+    ],
+    "legend": {
+      "entries": {
+        "emphasis": {
+          "label": "main path"
+        },
+        "default": {
+          "label": "call"
+        },
+        "return": {
+          "label": "reply"
+        },
+        "dashed": {
+          "label": "only when needed"
+        }
+      }
+    }
+  },
+  "participants": [
+    {
+      "id": "shopify",
+      "type": "external",
+      "label": "Shopify",
+      "brand": "shopify"
+    },
+    {
+      "id": "ngrok",
+      "type": "security",
+      "label": "ngrok"
+    },
+    {
+      "id": "entry",
+      "type": "backend",
+      "label": "shopify-orders"
+    },
+    {
+      "id": "intake",
+      "type": "backend",
+      "label": "intake-order"
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "Postgres",
+      "brand": "postgresql"
+    },
+    {
+      "id": "process",
+      "type": "backend",
+      "label": "process-order"
+    },
+    {
+      "id": "google",
+      "type": "external",
+      "label": "Sheets · Gmail"
+    }
+  ],
+  "segments": [
+    {
+      "from": 160,
+      "to": 250,
+      "label": "1 Delivery and HMAC check"
+    },
+    {
+      "from": 270,
+      "to": 360,
+      "label": "2 Idempotency gate"
+    },
+    {
+      "from": 380,
+      "to": 414,
+      "label": "3 Config, then hand-off"
+    },
+    {
+      "from": 434,
+      "to": 496,
+      "label": "4 Sheet row and owner email"
+    },
+    {
+      "from": 516,
+      "to": 606,
+      "label": "5 Stock check"
+    },
+    {
+      "from": 626,
+      "to": 688,
+      "label": "6 Persisted wait"
+    },
+    {
+      "from": 708,
+      "to": 742,
+      "label": "7 Brewing guide"
+    }
+  ],
+  "messages": [
+    {
+      "from": "shopify",
+      "to": "ngrok",
+      "y": 178,
+      "label": "orders/create webhook",
+      "variant": "emphasis"
+    },
+    {
+      "from": "ngrok",
+      "to": "entry",
+      "y": 206,
+      "label": "trigger path only",
+      "variant": "emphasis"
+    },
+    {
+      "from": "entry",
+      "to": "shopify",
+      "y": 234,
+      "label": "HTTP 200 on receipt",
+      "variant": "return"
+    },
+    {
+      "from": "entry",
+      "to": "intake",
+      "y": 288,
+      "label": "whole order, waits",
+      "variant": "emphasis"
+    },
+    {
+      "from": "intake",
+      "to": "db",
+      "y": 316,
+      "label": "insert order_id once"
+    },
+    {
+      "from": "db",
+      "to": "intake",
+      "y": 344,
+      "label": "repeat: no row, stop",
+      "variant": "return"
+    },
+    {
+      "from": "intake",
+      "to": "process",
+      "y": 398,
+      "label": "order + checked config, no wait",
+      "variant": "emphasis"
+    },
+    {
+      "from": "process",
+      "to": "google",
+      "y": 452,
+      "label": "upsert row by order_number"
+    },
+    {
+      "from": "process",
+      "to": "google",
+      "y": 480,
+      "label": "owner summary email"
+    },
+    {
+      "from": "process",
+      "to": "shopify",
+      "y": 534,
+      "label": "GraphQL: stock, brew method"
+    },
+    {
+      "from": "shopify",
+      "to": "process",
+      "y": 562,
+      "label": "variants",
+      "variant": "return"
+    },
+    {
+      "from": "process",
+      "to": "google",
+      "y": 590,
+      "label": "low-stock alert",
+      "variant": "dashed"
+    },
+    {
+      "from": "process",
+      "to": "db",
+      "y": 644,
+      "label": "wait guide_delay_minutes"
+    },
+    {
+      "from": "db",
+      "to": "process",
+      "y": 672,
+      "label": "resume, even after a restart",
+      "variant": "return"
+    },
+    {
+      "from": "process",
+      "to": "google",
+      "y": 726,
+      "label": "brewing guide email",
+      "variant": "dashed"
+    }
+  ]
+}

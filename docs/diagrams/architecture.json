@@ -1,0 +1,292 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Nubandina Coffee Order Backend",
+    "locale": "en",
+    "output": "docs/diagrams/architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1230,
+      640
+    ]
+  },
+  "components": [
+    {
+      "id": "storefront",
+      "type": "frontend",
+      "label": "Storefront",
+      "sublabel": "Horizon · bar · finder",
+      "pos": [
+        40,
+        100
+      ],
+      "size": [
+        120,
+        64
+      ]
+    },
+    {
+      "id": "shopify",
+      "type": "external",
+      "label": "Shopify",
+      "sublabel": "orders · Admin API",
+      "brand": "shopify",
+      "pos": [
+        246,
+        100
+      ],
+      "size": [
+        120,
+        64
+      ]
+    },
+    {
+      "id": "ngrok",
+      "type": "security",
+      "label": "ngrok",
+      "sublabel": "trigger path only",
+      "pos": [
+        246,
+        300
+      ],
+      "size": [
+        120,
+        64
+      ]
+    },
+    {
+      "id": "shopify-orders",
+      "type": "backend",
+      "label": "shopify-orders",
+      "sublabel": "HMAC check",
+      "pos": [
+        452,
+        300
+      ],
+      "size": [
+        120,
+        64
+      ]
+    },
+    {
+      "id": "intake-order",
+      "type": "backend",
+      "label": "intake-order",
+      "sublabel": "normalize · gate",
+      "pos": [
+        658,
+        300
+      ],
+      "size": [
+        120,
+        64
+      ]
+    },
+    {
+      "id": "process-order",
+      "type": "backend",
+      "label": "process-order",
+      "sublabel": "row · stock · guide",
+      "pos": [
+        864,
+        300
+      ],
+      "size": [
+        120,
+        64
+      ]
+    },
+    {
+      "id": "sheets",
+      "type": "external",
+      "label": "Google Sheets",
+      "sublabel": "Orders tab",
+      "pos": [
+        1070,
+        100
+      ],
+      "size": [
+        120,
+        64
+      ]
+    },
+    {
+      "id": "gmail",
+      "type": "external",
+      "label": "Gmail",
+      "sublabel": "owner · customer",
+      "pos": [
+        1070,
+        300
+      ],
+      "size": [
+        120,
+        64
+      ]
+    },
+    {
+      "id": "dev-harness",
+      "type": "backend",
+      "label": "dev-harness",
+      "sublabel": "localhost · token",
+      "pos": [
+        452,
+        500
+      ],
+      "size": [
+        120,
+        64
+      ]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "Postgres 17",
+      "sublabel": "orders · waits",
+      "brand": "postgresql",
+      "pos": [
+        761,
+        500
+      ],
+      "size": [
+        120,
+        64
+      ]
+    },
+    {
+      "id": "error-handler",
+      "type": "backend",
+      "label": "error-handler",
+      "sublabel": "plain-text alerts",
+      "pos": [
+        1070,
+        500
+      ],
+      "size": [
+        120,
+        64
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "checkout",
+      "from": "storefront",
+      "to": "shopify",
+      "label": "checkout"
+    },
+    {
+      "id": "webhook",
+      "from": "shopify",
+      "to": "ngrok",
+      "label": "orders/create",
+      "variant": "emphasis"
+    },
+    {
+      "id": "forward",
+      "from": "ngrok",
+      "to": "shopify-orders",
+      "label": "one path",
+      "variant": "emphasis"
+    },
+    {
+      "id": "handoff",
+      "from": "shopify-orders",
+      "to": "intake-order",
+      "label": "whole order",
+      "variant": "emphasis"
+    },
+    {
+      "id": "new-orders",
+      "from": "intake-order",
+      "to": "process-order",
+      "label": "new orders",
+      "variant": "emphasis"
+    },
+    {
+      "id": "record",
+      "from": "intake-order",
+      "to": "postgres",
+      "label": "record once",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "wait",
+      "from": "process-order",
+      "to": "postgres",
+      "label": "persisted wait",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "upsert",
+      "from": "process-order",
+      "to": "sheets",
+      "label": "upsert row",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "stock",
+      "from": "process-order",
+      "to": "shopify",
+      "label": "stock · metafields",
+      "fromSide": "top",
+      "toSide": "right"
+    },
+    {
+      "id": "emails",
+      "from": "process-order",
+      "to": "gmail",
+      "label": "emails"
+    },
+    {
+      "id": "alert",
+      "from": "error-handler",
+      "to": "gmail",
+      "label": "alert email",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "test-calls",
+      "from": "dev-harness",
+      "to": "intake-order",
+      "label": "test calls",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "bottom"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Order path",
+      "items": [
+        "ngrok forwards only the Shopify Trigger's path",
+        "shopify-orders checks the HMAC and answers 200 on receipt",
+        "intake-order records each order once, then starts process-order"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "process-order",
+      "items": [
+        "Upserts the sheet row and emails the owner",
+        "Reads stock and brew methods in one GraphQL call",
+        "Waits in Postgres, then emails the brewing guide"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Around the path",
+      "items": [
+        "load-config reads the mounted config for every caller",
+        "error-handler emails the owner when a workflow fails",
+        "dev-harness runs the intake chain from localhost only"
+      ]
+    }
+  ]
+}

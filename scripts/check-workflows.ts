@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { listJsonFiles } from './lib/list-json-files.ts';
-import { CODE_NODES, CREDENTIALS, ERROR_WORKFLOW_ID, type CodeNodeEntry } from './lib/manifest.ts';
+import { CODE_NODES, CONFIG_LOADER_ID, CREDENTIALS, ERROR_WORKFLOW_ID, type CodeNodeEntry } from './lib/manifest.ts';
 import type { WorkflowJson, WorkflowNode } from './lib/workflow-types.ts';
 
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
@@ -25,7 +25,7 @@ export function hasPlaceholderInSqlComment(query: string): boolean {
 }
 
 // External services that must retry instead of failing a workflow run on a transient error.
-// graphql is included because a later task reads stock through the GraphQL node.
+// graphql is included because process-order reads stock through the GraphQL node.
 const RETRY_REQUIRED_TYPES = new Set([
   'n8n-nodes-base.postgres',
   'n8n-nodes-base.googleSheets',
@@ -59,7 +59,9 @@ export function checkWorkflow(
     if (s.executionOrder !== 'v1') errors.push('settings.executionOrder must be v1');
     if (s.timezone !== 'America/Bogota') errors.push('settings.timezone must be America/Bogota');
     if (s.callerPolicy !== 'workflowsFromSameOwner') errors.push('settings.callerPolicy must be workflowsFromSameOwner');
-    if (wf.id !== ERROR_WORKFLOW_ID && s.errorWorkflow !== ERROR_WORKFLOW_ID) {
+    // The error handler calls the config loader, so an error workflow on either one would loop.
+    const exempt = wf.id === ERROR_WORKFLOW_ID || wf.id === CONFIG_LOADER_ID;
+    if (!exempt && s.errorWorkflow !== ERROR_WORKFLOW_ID) {
       errors.push(`settings.errorWorkflow must be ${ERROR_WORKFLOW_ID}`);
     }
   }

@@ -103,7 +103,7 @@ export async function setupCredentials(o: { refresh: ReadonlySet<string> }): Pro
   for (const { id, name } of credentials) console.log(`imported ${name} (${id})`);
 }
 
-/** Every value following a `--refresh` flag, in order, since the brief allows any number of them. */
+/** Every value following a `--refresh` flag, in order; the flag can repeat. */
 export function parseRefreshIds(args: readonly string[]): Set<string> {
   const refresh = new Set<string>();
   for (const [i, arg] of args.entries()) {

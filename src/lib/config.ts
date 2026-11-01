@@ -1,5 +1,5 @@
 // Validates the config just loaded from /files/config/config.json. Pure: no I/O, no clock, no
-// Node imports — a later task bundles this into an n8n Code node.
+// Node imports, because npm run build:workflows bundles it into the Check config Code node.
 
 export interface Config {
   owner_email: string;

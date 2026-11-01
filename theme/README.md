@@ -22,9 +22,8 @@ files, producing a complete, pushable theme at `.theme-build/theme/`.
    anchor, rather than silently applying to the wrong spot or duplicating. Every touched file
    counts as `modified`.
 
-The toolchain itself shipped both lists empty. The free-shipping bar and the coffee finder (below)
-are the first features to use them; later tasks add more theme files and insertions the same way,
-each with the exact file, anchor, and content being inserted documented here.
+The free-shipping bar and the coffee finder (below) fill both lists. A new feature adds its theme
+files and insertions the same way, and documents the exact file, anchor, and content here.
 
 ## TypeScript assets
 
@@ -118,11 +117,12 @@ and renders every field with `textContent`, never `innerHTML`.
 
 **Adding to cart.** `coffee-finder.ts` prefers the platform's `Shopify.actions.updateCart`, passing
 the chosen variant and `{ event: { context: 'standard-action' } }`; a non-empty `userErrors` shows
-the configured error text, otherwise it opens the cart and shows the added text, followed by any
-`warnings` messages (such as an adjusted quantity). When `Shopify.actions` is absent, it falls back
-to the Cart AJAX API (`POST ${cartAddUrl}.js`), navigating to the cart only on an OK response and
-otherwise showing the error text. A thrown or rejected call either way also shows the error text and
-re-enables the add button.
+the configured error text. Otherwise it shows the added text, followed by any `warnings` messages
+(such as an adjusted quantity), and then opens the cart; a failure to open the cart only logs a
+console warning, so it can't turn a real add into a reported error. When `Shopify.actions` is
+absent, it falls back to the Cart AJAX API (`POST ${cartAddUrl}.js`), navigating to the cart only
+on an OK response and otherwise showing the error text. A thrown or rejected call either way also
+shows the error text and re-enables the add button.
 
 **Accessibility.** Each question is a native `<fieldset>` with a `<legend>` and radio inputs; the
 results region is `aria-live="polite"`; submitting moves focus to the results heading
@@ -162,7 +162,7 @@ warnings, all in `sections/header.liquid` and `snippets/divider.liquid`.
 
 ## Pushing to a store (deferred live check)
 
-These need a real dev store and are not run by this task:
+These need a real dev store, so they haven't been run yet:
 
 ```sh
 npx @shopify/cli@5.0.0 theme dev --store <store>.myshopify.com --path .theme-build/theme
@@ -192,8 +192,8 @@ Confirmed against `npx @shopify/cli@5.0.0 theme push --help` and `theme dev --he
 
 ### Free shipping bar (deferred live checks)
 
-These need `npx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme` and are not run by this
-task:
+These need `npx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme`, so they haven't been
+run yet:
 
 - **Drawer.** With Sierra Nevada 250 g in the cart, it shows "You're $82.000 away from free
   shipping" at 31%.
@@ -208,7 +208,7 @@ task:
 ### Coffee finder (deferred live checks)
 
 These need `npx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme`, keyboard only, with
-Chrome DevTools open, and are not run by this task:
+Chrome DevTools open, so they haven't been run yet:
 
 - **Keyboard path.** Tab reaches each radio group and arrow keys move within it. Submitting
   "Pour-over / Mild and bright / Just me" moves focus to "Our pick for you", which shows one card:
@@ -219,6 +219,5 @@ Chrome DevTools open, and are not run by this task:
   500 g and then Nariño 500 g.
 - **Theme editor.** The section can be added to another page, its texts edited, and the section
   removed, all without code.
-- **No errors.** The console shows no errors, and `Shopify.actions` is present; record it in the
-  ledger if it's absent. If it turns out to be missing, the Cart AJAX fallback already built into
-  `coffee-finder.ts` is the path that keeps "Add to cart" working.
+- **No errors.** The console shows no errors, and `Shopify.actions` is present. Note it if it's
+  absent: the Cart AJAX fallback in `coffee-finder.ts` then keeps "Add to cart" working.
