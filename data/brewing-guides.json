@@ -1,0 +1,29 @@
+{
+  "pour-over": {
+    "name": "Pour-over",
+    "ratio": "1:16 (15 g of coffee to 250 ml of water)",
+    "steps": [
+      "Rinse the paper filter with hot water, then discard the rinse water.",
+      "Add the ground coffee and pour a small amount of water to let it bloom for 30 seconds.",
+      "Pour the rest of the water in slow circles over 3 minutes, then let it drain fully."
+    ]
+  },
+  "espresso": {
+    "name": "Espresso",
+    "ratio": "1:2 (18 g of coffee to 36 g of espresso)",
+    "steps": [
+      "Grind fine and dose 18 g into the portafilter, then level and tamp evenly.",
+      "Lock the portafilter in and start the shot right away to avoid losing heat.",
+      "Stop the shot at 36 g of liquid, around 25 to 30 seconds."
+    ]
+  },
+  "french-press": {
+    "name": "French press",
+    "ratio": "1:15 (20 g of coffee to 300 ml of water)",
+    "steps": [
+      "Add the coarse ground coffee to the press and pour in all the hot water at once.",
+      "Stir gently, place the lid on with the plunger pulled up, and steep for 4 minutes.",
+      "Press the plunger down slowly and pour right away to stop extraction."
+    ]
+  }
+}

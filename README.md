@@ -6,7 +6,7 @@ A Shopify coffee store backed by a self-hosted n8n automation that turns each or
 
 ## Status
 
-Early build. The repository, toolchain, local Docker runtime (n8n + Postgres), and the workflow tooling and CI are in place. Workflows, the storefront theme, and the Shopify integration are not built yet.
+Early build. The repository, toolchain, local Docker runtime (n8n + Postgres), the workflow tooling and CI, and the product catalog data are in place. Workflows, the storefront theme, and the live Shopify integration are not built yet.
 
 ## What works now
 
@@ -19,6 +19,7 @@ Early build. The repository, toolchain, local Docker runtime (n8n + Postgres), a
 - Workflow tooling: `npm run check` (hygiene checks against the fixed manifest), `npm run build:workflows` (esbuild-bundles `src/nodes/*.ts` into Code-node `jsCode`, hardened against n8n's frozen-`Object.defineProperty` task runner), `npm run setup` (imports credentials, then publishes workflows — verified against a fresh local n8n instance: it imports the credentials whose `.env` values are set, skips the rest with their reasons, and never prints credential data), and `npm run export` (writes n8n's canonical workflow JSON back to `workflows/`). `workflows/` itself is still empty; Tasks 5-9 add the workflows these commands operate on.
 - A localhost-only dev harness CLI (`node scripts/dev-call.ts`), gated by an `X-Dev-Token` header; its workflow lands in a later task.
 - CI (GitHub Actions): typecheck, lint, tests, workflow-build and hygiene checks, `npm audit`, ShellCheck, gitleaks, actionlint, and zizmor. CodeQL is wired up and activates once the repo is public.
+- The product catalog (`data/products.csv`): 3 coffee origins (Nariño, Huila, Sierra Nevada) in 250 g and 500 g, with prices, stock, a Burst photo per product, and the `coffee` namespace metafields (roast, tasting notes, brew method) — verified offline against the catalog values and Shopify's public sample CSV's header spelling. `data/brewing-guides.json` holds one guide per brew method (pour-over, espresso, french press), each with a ratio and three short steps. `docs/shopify-setup.md` walks the owner through creating the dev store, the metafield definitions, the CSV import, shipping rates, and the test payment gateway — a manual, later step this repo doesn't automate.
 
 ## Quick start
 
