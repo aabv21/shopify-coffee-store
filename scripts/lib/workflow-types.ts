@@ -11,6 +11,8 @@ export interface WorkflowNode {
   retryOnFail?: boolean;
   maxTries?: number;
   waitBetweenTries?: number;
+  alwaysOutputData?: boolean;
+  executeOnce?: boolean;
 }
 
 export interface WorkflowJson {

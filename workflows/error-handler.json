@@ -1,0 +1,127 @@
+{
+  "id": "nbcErrorHandler1",
+  "name": "Error handler",
+  "description": null,
+  "nodes": [
+    {
+      "id": "20000000-0000-4000-8000-000000000001",
+      "name": "On workflow error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        180
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000002",
+      "name": "Load config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        160,
+        180
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "nbcLoadConfig001"
+        },
+        "mode": "once",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "schema": [],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        }
+      }
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000003",
+      "name": "Email owner",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        420,
+        180
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.config.owner_email }}",
+        "subject": "=[Nubandina demo] Workflow failed: {{ $('On workflow error').first().json.workflow.name }}",
+        "emailType": "text",
+        "message": "=Failed node: {{ (({ execution }) => execution?.lastNodeExecuted ?? 'activation')($('On workflow error').first().json) }}\nError: {{ (({ execution, trigger }) => execution?.error?.message ?? trigger?.error?.message)($('On workflow error').first().json) }}\nExecution: {{ (({ execution }) => execution?.url ?? 'n/a (activation error)')($('On workflow error').first().json) }}\nTime: {{ $now.setZone('America/Bogota').toFormat('yyyy-LL-dd HH:mm') }} America/Bogota",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "nbcCredGmail0001",
+          "name": "Gmail"
+        }
+      }
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000004",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        -60
+      ],
+      "parameters": {
+        "width": 1080,
+        "height": 160,
+        "content": "## Error handler\nRuns whenever a workflow with errorWorkflow set to this one fails, including a trigger failing at startup (no execution data, only trigger.error). Loads config for owner_email, then emails the owner a plain-text alert naming the failed node, the error, the execution URL, and the time in Bogota. This workflow has no errorWorkflow of its own, so a failure here does not loop back into itself."
+      }
+    }
+  ],
+  "connections": {
+    "On workflow error": {
+      "main": [
+        [
+          {
+            "node": "Load config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load config": {
+      "main": [
+        [
+          {
+            "node": "Email owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Bogota",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": null,
+  "nodeGroups": [],
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}
