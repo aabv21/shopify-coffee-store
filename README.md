@@ -20,6 +20,7 @@ Early build. The repository, toolchain, local Docker runtime (n8n + Postgres), t
 - A localhost-only dev harness CLI (`node scripts/dev-call.ts`), gated by an `X-Dev-Token` header; its workflow lands in a later task.
 - CI (GitHub Actions): typecheck, lint, tests, workflow-build and hygiene checks, `npm audit`, ShellCheck, gitleaks, actionlint, and zizmor. CodeQL is wired up and activates once the repo is public.
 - The product catalog (`data/products.csv`): 3 coffee origins (Nariño, Huila, Sierra Nevada) in 250 g and 500 g, with prices, stock, a Burst photo per product, and the `coffee` namespace metafields (roast, tasting notes, brew method) — verified offline against the catalog values and Shopify's public sample CSV's header spelling. `data/brewing-guides.json` holds one guide per brew method (pour-over, espresso, french press), each with a ratio and three short steps. `docs/shopify-setup.md` walks the owner through creating the dev store, the metafield definitions, the CSV import, shipping rates, and the test payment gateway — a manual, later step this repo doesn't automate.
+- `npm run shopify:token [-- --client-credentials]`: builds and validates the Shopify Admin API access token exchange (authorize URL, signed-callback verification, form-encoded token requests, scope checking, atomic 0600 `.env` write) — tested offline against an injected `fetch`, never a real Shopify call. Getting the actual live token is a later, owner-present step (`docs/shopify-setup.md` "Admin API access").
 
 ## Quick start
 
