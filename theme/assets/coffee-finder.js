@@ -1,4 +1,4 @@
-// Generated from src/theme/coffee-finder.ts by npm run build:theme; edit the source.
+// Generated from src/theme/coffee-finder.ts by pnpm run build:theme; edit the source.
 
 // src/theme/recommend.ts
 var TASTE_TO_ROAST = {

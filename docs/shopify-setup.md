@@ -83,12 +83,12 @@ n8n's Shopify credential needs an Admin API access token. Admin-created custom a
    - Redirect URL `https://127.0.0.1/shopify/callback`.
    - Webhooks API version `2026-10`.
 3. Install the app from the Installs card.
-4. Copy the app's client ID and client secret into `.env` (`SHOPIFY_CLIENT_ID`, `SHOPIFY_CLIENT_SECRET`), then run `npm run shopify:token`.
+4. Copy the app's client ID and client secret into `.env` (`SHOPIFY_CLIENT_ID`, `SHOPIFY_CLIENT_SECRET`), then run `pnpm run shopify:token`.
 5. If n8n can't subscribe to `orders/create` because of protected customer data, request access to name, email, and address under **Protected customer data access** in the Partner Dashboard. Dev stores need no review.
 
-`npm run shopify:token` walks through Shopify's authorization code grant: it prints an authorize URL, the owner opens it and approves access, the browser then fails to load the redirect URL on purpose, and the owner pastes that address-bar URL back into the prompt. The script validates it and exchanges the code for an offline token that doesn't expire, then saves it to `SHOPIFY_ACCESS_TOKEN` in `.env`.
+`pnpm run shopify:token` walks through Shopify's authorization code grant: it prints an authorize URL, the owner opens it and approves access, the browser then fails to load the redirect URL on purpose, and the owner pastes that address-bar URL back into the prompt. The script validates it and exchanges the code for an offline token that doesn't expire, then saves it to `SHOPIFY_ACCESS_TOKEN` in `.env`.
 
-If Shopify refuses `https://127.0.0.1/shopify/callback` as a redirect URL, fall back to `npm run shopify:token -- --client-credentials`. This only works for a same-organization dev store, and the resulting token expires in 24 hours. Once the store is live, re-run this daily: `npm run shopify:token -- --client-credentials`, then `npm run setup -- --refresh nbcCredShopify01 --live`. The `--live` flag matters — without it, `npm run setup` re-imports every workflow and leaves the Shopify trigger unpublished, taking live order intake offline.
+If Shopify refuses `https://127.0.0.1/shopify/callback` as a redirect URL, fall back to `pnpm run shopify:token -- --client-credentials`. This only works for a same-organization dev store, and the resulting token expires in 24 hours. Once the store is live, re-run this daily: `pnpm run shopify:token -- --client-credentials`, then `pnpm run setup -- --refresh nbcCredShopify01 --live`. The `--live` flag matters — without it, `pnpm run setup` re-imports every workflow and leaves the Shopify trigger unpublished, taking live order intake offline.
 
 **An existing pre-2026 admin-created custom app** still works without any of the above: put its `shpat_` token directly in `SHOPIFY_ACCESS_TOKEN` and its API secret key in `SHOPIFY_CLIENT_SECRET`.
 

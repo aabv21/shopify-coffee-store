@@ -179,7 +179,7 @@ async function runAuthorizationCodeFlow(o: { store: string; clientId: string; cl
 
 async function runClientCredentialsFlow(o: { store: string; clientId: string; clientSecret: string }): Promise<TokenResult> {
   console.warn('Using the client-credentials fallback: the token expires in 24 h.');
-  console.warn('Re-run daily: npm run shopify:token -- --client-credentials, then npm run setup -- --refresh nbcCredShopify01 --live.');
+  console.warn('Re-run daily: pnpm run shopify:token -- --client-credentials, then pnpm run setup -- --refresh nbcCredShopify01 --live.');
   return requestClientCredentialsToken(o);
 }
 

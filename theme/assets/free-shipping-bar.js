@@ -1,4 +1,4 @@
-// Generated from src/theme/free-shipping-bar.ts by npm run build:theme; edit the source.
+// Generated from src/theme/free-shipping-bar.ts by pnpm run build:theme; edit the source.
 
 // src/theme/money.ts
 var DEFAULT_SEPARATORS = { thousands: ",", decimal: "." };

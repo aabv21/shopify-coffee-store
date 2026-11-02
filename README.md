@@ -18,13 +18,14 @@ Each item below was verified offline.
 
 **Runtime and tooling**
 
-- `npm run typecheck`, `npm run lint`, and `npm test` (180 tests) pass. CI runs them, with the workflow, theme, and security checks, on every pull request.
+- `pnpm run typecheck`, `pnpm run lint`, and `pnpm test` (180 tests) pass. CI runs them, with the workflow, theme, and security checks, on every pull request.
+- Supply-chain hardening: pnpm with a release-age gate, trust-policy enforcement, blocked exotic sub-dependencies, and build-script approval (`pnpm-workspace.yaml`); every Compose image pinned by digest; a Dependabot cooldown on every ecosystem — see AGENTS.md's "Supply-chain hardening" section.
 - Docker Compose runs Postgres 17 and n8n 2.45.6, published on `127.0.0.1` only.
 - Databases `app` and `n8n` each belong to their own role, and neither role can open the other's database.
 - n8n mounts the config, the brewing guides, and the workflows read-only.
 - Queue mode (`compose.queue.yaml`) brings up Redis and two `n8n-worker` containers, all healthy.
-- `npm run setup` validates the config, imports credentials without printing them, and publishes the workflows. Running `setup` and `export` a second time leaves `workflows/` unchanged.
-- `npm run build:workflows -- --check` confirms every Code node matches its TypeScript source, and `npm run check` finds no hygiene violations in `workflows/`.
+- `pnpm run setup` validates the config, imports credentials without printing them, and publishes the workflows. Running `setup` and `export` a second time leaves `workflows/` unchanged.
+- `pnpm run build:workflows -- --check` confirms every Code node matches its TypeScript source, and `pnpm run check` finds no hygiene violations in `workflows/`.
 
 **Order backend**
 
@@ -38,13 +39,13 @@ Each item below was verified offline.
 
 **Shopify tooling**
 
-- `npm run shopify:token` builds the authorize URL, verifies a signed callback, and writes `.env` at mode 0600, tested against a stubbed `fetch`.
-- `npm run send-test-order` signs a fixture order the way Shopify signs a webhook, or tampers with it after signing, tested offline.
+- `pnpm run shopify:token` builds the authorize URL, verifies a signed callback, and writes `.env` at mode 0600, tested against a stubbed `fetch`.
+- `pnpm run send-test-order` signs a fixture order the way Shopify signs a webhook, or tampers with it after signing, tested offline.
 - `data/products.csv` uses the headers of Shopify's public sample CSV, and `docs/shopify-setup.md` walks through the store setup.
 
 **Storefront**
 
-- `npm run theme:check` passes on the assembled theme, with no failing offenses in this repo's 4 added and 3 modified files. Horizon's own baseline is 6 warnings.
+- `pnpm run theme:check` passes on the assembled theme, with no failing offenses in this repo's 4 added and 3 modified files. Horizon's own baseline is 6 warnings.
 - The free-shipping bar's math passes unit tests, including a total exactly at the threshold and a blank or zero threshold.
 - The coffee finder's recommendations pass unit tests for a full match, a partial match, the party-size switch, sold-out products, and malformed input.
 
@@ -74,19 +75,19 @@ Deliberate simplifications, each with its ceiling and upgrade path:
 - **"Read stock and brew methods" has no per-request timeout.** The GraphQL node (unlike HTTP Request) exposes no `options.timeout`, so a hung Shopify response blocks this execution until n8n's own default times it out, rather than failing fast on a bounded ceiling. Upgrade path: switch to the HTTP Request node with `options.timeout` plus an explicit `errors` check, trading the GraphQL node's built-in throw-on-`errors` behavior for a manual one.
 - **A wait shorter than 65 seconds doesn't survive a restart.** n8n 2.45.6 only persists a Wait node's sleep past `MAX_IN_PROCESS_WAIT_MS`; anything shorter stays in the process's own memory and is lost if n8n restarts mid-wait. `guide_delay_minutes` is validated at 2 or more precisely because of this ceiling. Upgrade path: none needed at this delay — it's n8n's own design, not something this repo works around.
 - **Queue mode's Redis has no password.** `compose.queue.yaml` publishes no Redis port, so only containers on the Compose network can reach it, but any of them can. Upgrade path: set `QUEUE_BULL_REDIS_PASSWORD` before running queue mode in production.
-- **`npm run setup` waits a fixed 15 seconds after restarting n8n.** `/healthz` reports healthy before the publication reconciler syncs the published versions, every 10 seconds by default, so the wait covers that default but not a slower reconciler. Upgrade path: poll `workflow_published_version` against `workflow_entity.activeVersionId` instead of sleeping.
+- **`pnpm run setup` waits a fixed 15 seconds after restarting n8n.** `/healthz` reports healthy before the publication reconciler syncs the published versions, every 10 seconds by default, so the wait covers that default but not a slower reconciler. Upgrade path: poll `workflow_published_version` against `workflow_entity.activeVersionId` instead of sleeping.
 - **The free-shipping bar can disagree with checkout.** It reads `cart.total_price`, which is the total after cart-level discounts but before anything applied at checkout. A discount code entered at checkout can still take the order below the free-shipping rate after the bar has already shown "You've got free shipping!".
 
 ## Live checks (pending)
 
 These need a live, `--live`-published `shopify-orders` trigger with a real Shopify credential, so they aren't run yet:
 
-- A valid order (`npm run send-test-order -- --fixture below-threshold --order-id <digits>`) produces one "Shopify orders" execution, one "Intake order" execution, and one `orders` row.
+- A valid order (`pnpm run send-test-order -- --fixture below-threshold --order-id <digits>`) produces one "Shopify orders" execution, one "Intake order" execution, and one `orders` row.
 - The same order sent again produces another "Shopify orders" execution, but that run's "Intake order" stops at "Is new order?"; the `orders` row count doesn't change.
 - A signed test order (`--fixture free-shipping`) adds exactly one `Orders` row and sends one owner email. The row matches the first test in `tests/nodes/order-row.test.ts`, except `order_number` (`#T<digits>`).
 - Deleting that order's `orders` row (`docker compose exec -T postgres psql -U "$APP_DB_USER" -d app -c "DELETE FROM orders WHERE order_id = '<digits>'"`) and sending it again with the same `--order-id` updates its `Orders` row; it doesn't add a second one. n8n refuses to retry a successful execution, so this re-sends the order instead.
 - An order whose shipping name is `=1+1` shows the literal text `=1+1` in the `customer` cell.
-- A tampered signature (`npm run send-test-order -- --tamper --order-id <digits>`) gets HTTP 200, starts no execution at all, and creates no row.
+- A tampered signature (`pnpm run send-test-order -- --tamper --order-id <digits>`) gets HTTP 200, starts no execution at all, and creates no row.
 - In one real order's execution data, every field `normalize-order` reads is present (`admin_graphql_api_id`, `name`, `email`, `shipping_address.name`/`city`, `line_items[].variant_id`/`variant_title`/`sku`, `total_shipping_price_set`, `shipping_lines`). If a field moved, update the fixture and the mapper.
 - **Low stock.** A real order of 2 × Sierra Nevada 500 g (stock 6) sends `Low stock after order <#>` with the line `Sierra Nevada (500 g), SKU NBC-SNV-500: 4 left (threshold 5)`. An order of Huila 250 g sends no alert.
 - **Unknown variants.** A signed fixture order, whose variants don't exist in the store, sends no alert and doesn't fail.
@@ -96,7 +97,7 @@ These need a live, `--live`-published `shopify-orders` trigger with a real Shopi
 - **No email address.** An order without one sends no guide and doesn't fail.
 - **Real delay.** With `guide_delay_minutes` back at 60, one order's guide arrives about an hour later. n8n shows the execution as waiting until then.
 - **Live file edits.** Editing a step in `data/brewing-guides.json` changes the next guide, with no re-import.
-- **Subscription cycle.** After `npm run setup -- --live`, `GET /admin/api/2026-10/webhooks.json` shows a new subscription ID.
+- **Subscription cycle.** After `pnpm run setup -- --live`, `GET /admin/api/2026-10/webhooks.json` shows a new subscription ID.
 
 These need the ngrok tunnel, or queue mode with the live trigger, so they aren't run yet:
 

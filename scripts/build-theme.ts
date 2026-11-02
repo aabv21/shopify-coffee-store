@@ -16,7 +16,7 @@ export const THEME_ENTRIES: readonly { source: string; asset: string }[] = [
  * make the committed source harder to read in the theme editor's code view.
  */
 export async function buildThemeAsset(entry: { source: string; asset: string }): Promise<string> {
-  const banner = `// Generated from ${entry.source} by npm run build:theme; edit the source.`;
+  const banner = `// Generated from ${entry.source} by pnpm run build:theme; edit the source.`;
   const result = await build({
     entryPoints: [entry.source],
     bundle: true,

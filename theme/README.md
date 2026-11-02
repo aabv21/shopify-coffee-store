@@ -1,7 +1,7 @@
 # Theme overlay
 
 This directory holds everything this repo adds on top of Shopify's Horizon theme. It is never
-pushed to a store on its own: `npm run theme:assemble` downloads the pinned Horizon commit,
+pushed to a store on its own: `pnpm run theme:assemble` downloads the pinned Horizon commit,
 copies this overlay onto it, and applies a short list of anchored insertions into Horizon's own
 files, producing a complete, pushable theme at `.theme-build/theme/`.
 
@@ -28,10 +28,10 @@ files and insertions the same way, and documents the exact file, anchor, and con
 ## TypeScript assets
 
 Browser-facing TypeScript lives in `src/theme/`. `scripts/build-theme.ts`'s `THEME_ENTRIES` list
-maps each entry point to the asset name it bundles into; `npm run build:theme` runs esbuild
+maps each entry point to the asset name it bundles into; `pnpm run build:theme` runs esbuild
 (bundled, ESM, not minified — Shopify serves theme assets minified at request time, so shipping
 already-minified code would just double-minify it) and writes `theme/assets/<asset>`, with a
-generated-file banner naming the source to edit instead. `npm run build:theme -- --check` reports
+generated-file banner naming the source to edit instead. `pnpm run build:theme -- --check` reports
 drift and exits 1 without writing; that's what CI runs.
 
 ## Free shipping bar
@@ -139,7 +139,7 @@ image has `alt=""`, since the card's own title and variant text already describe
 
 ## Theme check
 
-`npm run theme:check` assembles the theme and runs Shopify's theme check
+`pnpm run theme:check` assembles the theme and runs Shopify's theme check
 (`@shopify/theme-check-node`) against it. An error (severity 0) anywhere is always a release
 blocker. So is any offense — any severity — in a file this repo added or modified, since those are
 ours to fix. Everything else is Horizon's own baseline: unmodified Horizon warnings that
@@ -153,11 +153,11 @@ warnings, all in `sections/header.liquid` and `snippets/divider.liquid`.
 
 ## Commands
 
-- `npm run theme:assemble` — assembles the theme into `.theme-build/theme/` and prints the added
+- `pnpm run theme:assemble` — assembles the theme into `.theme-build/theme/` and prints the added
   and modified file lists.
-- `npm run build:theme [-- --check]` — bundles `THEME_ENTRIES` into `theme/assets/`; `--check`
+- `pnpm run build:theme [-- --check]` — bundles `THEME_ENTRIES` into `theme/assets/`; `--check`
   reports drift and exits 1 instead of writing.
-- `npm run theme:check` — assembles, then runs theme check; prints any failing offenses and the
+- `pnpm run theme:check` — assembles, then runs theme check; prints any failing offenses and the
   baseline count, and exits 1 on any failure.
 
 ## Pushing to a store (deferred live check)

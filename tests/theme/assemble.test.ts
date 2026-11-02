@@ -34,7 +34,7 @@ it('adds a section after the hero and keeps the leading comment', () => {
 });
 it('builds a self-contained asset with the generated banner', async () => {
   const js = await buildThemeAsset({ source: 'tests/fixtures/theme/hello.ts', asset: 'hello.js' });
-  expect(js.split('\n')[0]).toBe('// Generated from tests/fixtures/theme/hello.ts by npm run build:theme; edit the source.');
+  expect(js.split('\n')[0]).toBe('// Generated from tests/fixtures/theme/hello.ts by pnpm run build:theme; edit the source.');
   expect(js).not.toMatch(/^\s*(import|export)\s/m);
 });
 it('overlays new files, keeps the overlay README out of the output, and classifies added vs modified', async () => {
