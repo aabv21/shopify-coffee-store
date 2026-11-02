@@ -63,6 +63,8 @@ pnpm run setup
 
 n8n is then at <http://localhost:5678>. Fill in the blank third-party values (ngrok, Shopify, Google OAuth) in `.env` by hand before relying on anything that needs them; `init-env.ts` already generated the local secrets (Postgres roles, `N8N_ENCRYPTION_KEY`, `DEV_HARNESS_TOKEN`) — see `.env.example` for what's required.
 
+Already running a local stack from before `db/migrations/` or `app_runtime` existed? Follow `docs/database.md`'s "Upgrading an existing local stack" instead of starting over — it includes the one-time `pnpm run setup -- --refresh nbcCredAppDb0001` the `App DB` credential needs on an existing volume.
+
 ## Limitations
 
 Deliberate simplifications, each with its ceiling and upgrade path:
@@ -83,7 +85,7 @@ These need a live, `--live`-published `shopify-orders` trigger with a real Shopi
 - A valid order (`pnpm run send-test-order -- --fixture below-threshold --order-id <digits>`) produces one "Shopify orders" execution, one "Intake order" execution, and one `orders` row.
 - The same order sent again produces another "Shopify orders" execution, but that run's "Intake order" stops at "Is new order?"; the `orders` row count doesn't change.
 - A signed test order (`--fixture free-shipping`) adds exactly one `Orders` row and sends one owner email. The row matches the first test in `tests/nodes/order-row.test.ts`, except `order_number` (`#T<digits>`).
-- Deleting that order's `orders` row (`docker compose exec -T postgres psql -U "$APP_DB_USER" -d app -c "DELETE FROM orders WHERE order_id = '<digits>'"`) and sending it again with the same `--order-id` updates its `Orders` row; it doesn't add a second one. n8n refuses to retry a successful execution, so this re-sends the order instead.
+- Deleting that order's `orders` row (`docker compose exec -T postgres sh -c "psql -U \"\$APP_DB_USER\" -d app -c \"DELETE FROM orders WHERE order_id = '<digits>'\""`, so the container expands `$APP_DB_USER` from its own environment, not the host's) and sending it again with the same `--order-id` updates its `Orders` row; it doesn't add a second one. n8n refuses to retry a successful execution, so this re-sends the order instead.
 - An order whose shipping name is `=1+1` shows the literal text `=1+1` in the `customer` cell.
 - A tampered signature (`pnpm run send-test-order -- --tamper --order-id <digits>`) gets HTTP 200, starts no execution at all, and creates no row.
 - In one real order's execution data, every field `normalize-order` reads is present (`admin_graphql_api_id`, `name`, `email`, `shipping_address.name`/`city`, `line_items[].variant_id`/`variant_title`/`sku`, `total_shipping_price_set`, `shipping_lines`). If a field moved, update the fixture and the mapper.

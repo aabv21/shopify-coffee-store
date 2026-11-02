@@ -40,8 +40,6 @@ So `app_runtime` holds `SELECT, INSERT` on `orders`, and nothing else: no `UPDAT
 - **The superuser stays out of n8n.** It runs only `db/init/` and `db-migrate`, and neither n8n container is configured with it.
 - **The `postgres` maintenance database** keeps its default `PUBLIC` `CONNECT` and `TEMP`, so `app_runtime` can connect there and create temporary tables. This repo leaves that database alone: it holds no data, and nothing in it reaches `app` or `n8n`.
 
-NOTE: Grants are table-level. Column-level `UPDATE` grants would stop a leaked runtime credential from rewriting a column such as `received_at`, but every grant check would then have to compare columns too. `check-db` already flags any column grant beyond the table-level list.
-
 ### 2. Schema
 
 - **Primary keys:** every table has one: `orders (order_id)` and `schema_migrations (filename)`.
@@ -111,6 +109,8 @@ done
 docker compose exec -T postgres sh -c 'dropdb -U "$POSTGRES_USER" app_restore_check'
 ```
 
+This was run once against the local stack: both `app` and `app_restore_check` counted the same `orders` and `schema_migrations` row counts after the restore, and the scratch database was dropped afterward.
+
 To restore over `app` itself, stop n8n first, so nothing writes during the restore. `--clean --if-exists` drops each object in the dump before recreating it:
 
 ```bash
@@ -174,7 +174,7 @@ These steps take a volume created before `db/migrations/` existed to the current
 | TRUNCATE orders is denied | `permission denied for table orders` |
 | connecting to the n8n database is denied | `permission denied for database "n8n"` |
 | SET ROLE to the owner is denied | `permission denied to set role` |
-| no role attribute, membership, column grant, or TEMP on app beyond the grant list | Checked as the superuser: `app_runtime` holds none of `SUPERUSER`, `CREATEDB`, `CREATEROLE`, `REPLICATION`, or `BYPASSRLS`; `pg_auth_members` lists it as a member of nothing; `has_any_column_privilege` finds no column privilege its table grant doesn't cover; and it has no `TEMP` on `app` |
+| no role attribute, membership, column grant, or TEMP/CREATE on app beyond the grant list | Checked as the superuser: `app_runtime` holds none of `SUPERUSER`, `CREATEDB`, `CREATEROLE`, `REPLICATION`, or `BYPASSRLS`; `pg_auth_members` lists it as a member of nothing; `has_any_column_privilege` finds no column privilege its table grant doesn't cover; and it has no `TEMP` or `CREATE` on `app` |
 | table privileges are exactly the grant list | `app_runtime`'s privileges on every table and sequence in `public` equal `RUNTIME_GRANTS` (`orders: SELECT, INSERT`): none missing, none extra |
 | every workflow Postgres statement runs | the one statement runs as `app_runtime`, inside one transaction it rolls back |
 | `schema_migrations` lists every file in `db/migrations` | every file is recorded |
@@ -190,6 +190,7 @@ To prove the check can fail, grant a forbidden privilege by hand as the superuse
 - `GRANT CREATEDB` on the role (`ALTER ROLE app_runtime CREATEDB`) fails the role-attribute check. The table-privilege check misses it.
 - `GRANT app TO app_runtime` fails the role-attribute check and "SET ROLE to the owner is denied".
 - `GRANT UPDATE (order_number) ON orders TO app_runtime` fails the role-attribute check (the column-grant clause). The table-privilege check misses it, since `has_table_privilege` only sees whole-table privileges.
+- `GRANT CREATE ON DATABASE app TO app_runtime` fails the role-attribute check with `has CREATE on app`. The table-privilege check misses it too — a leaked `app_runtime` credential could otherwise `CREATE SCHEMA`/`CREATE TABLE` in `app` with every other check still green.
 - `GRANT UPDATE ON orders TO app_runtime` fails "table privileges are exactly the grant list" directly, since it's a whole-table grant beyond `RUNTIME_GRANTS`.
 
 Revoke each one afterward. `pnpm run db:migrate` also resets the role's attributes on its own.

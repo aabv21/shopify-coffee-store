@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { ensureN8nImportDir, fillSecrets, writeEnvFile } from '../../scripts/init-env.ts';
 
 const example = ['# Postgres', 'POSTGRES_USER=postgres', 'POSTGRES_PASSWORD=', 'N8N_DB_PASSWORD=', 'APP_DB_PASSWORD=',
-  'N8N_ENCRYPTION_KEY=', 'N8N_URL=http://localhost:5678', 'NGROK_AUTHTOKEN=', 'NGROK_DOMAIN=',
+  'APP_RUNTIME_DB_USER=app_runtime', 'APP_RUNTIME_DB_PASSWORD=', 'N8N_ENCRYPTION_KEY=', 'N8N_URL=http://localhost:5678', 'NGROK_AUTHTOKEN=', 'NGROK_DOMAIN=',
   'SHOPIFY_STORE=', 'SHOPIFY_CLIENT_ID=', 'SHOPIFY_CLIENT_SECRET=', 'SHOPIFY_ACCESS_TOKEN=',
   'GOOGLE_OAUTH_CLIENT_ID=', 'GOOGLE_OAUTH_CLIENT_SECRET=', 'DEV_HARNESS_TOKEN=', ''].join('\n');
 
@@ -14,9 +14,9 @@ describe('fillSecrets', () => {
     let n = 0;
     const next = (): string => `hex${String(++n)}`;
     expect(fillSecrets(example, next)).toBe(['# Postgres', 'POSTGRES_USER=postgres', 'POSTGRES_PASSWORD=hex1', 'N8N_DB_PASSWORD=hex2',
-      'APP_DB_PASSWORD=hex3', 'N8N_ENCRYPTION_KEY=hex4', 'N8N_URL=http://localhost:5678', 'NGROK_AUTHTOKEN=', 'NGROK_DOMAIN=',
+      'APP_DB_PASSWORD=hex3', 'APP_RUNTIME_DB_USER=app_runtime', 'APP_RUNTIME_DB_PASSWORD=hex4', 'N8N_ENCRYPTION_KEY=hex5', 'N8N_URL=http://localhost:5678', 'NGROK_AUTHTOKEN=', 'NGROK_DOMAIN=',
       'SHOPIFY_STORE=', 'SHOPIFY_CLIENT_ID=', 'SHOPIFY_CLIENT_SECRET=', 'SHOPIFY_ACCESS_TOKEN=',
-      'GOOGLE_OAUTH_CLIENT_ID=', 'GOOGLE_OAUTH_CLIENT_SECRET=', 'DEV_HARNESS_TOKEN=hex5', ''].join('\n'));
+      'GOOGLE_OAUTH_CLIENT_ID=', 'GOOGLE_OAUTH_CLIENT_SECRET=', 'DEV_HARNESS_TOKEN=hex6', ''].join('\n'));
   });
 });
 
