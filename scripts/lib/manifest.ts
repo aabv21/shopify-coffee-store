@@ -4,6 +4,8 @@ export interface WorkflowEntry {
   file: string;
   publish: boolean;
   liveTrigger: boolean;
+  /** This workflow's live webhook path, when its trigger is a plain webhook — used to confirm a publish actually took effect. Never set for `shopify-orders`: its trigger is the Shopify Trigger's own fixed path, which must never be probed (see AGENTS.md's tunnel guardrail). */
+  webhookPath?: string;
 }
 
 export interface CredentialEntry {
@@ -37,7 +39,7 @@ export const WORKFLOWS: readonly WorkflowEntry[] = [
   { id: 'nbcProcessOrder1', name: 'Process order', file: 'process-order.json', publish: true, liveTrigger: false },
   { id: 'nbcIntakeOrder01', name: 'Intake order', file: 'intake-order.json', publish: true, liveTrigger: false },
   { id: 'nbcShopifyOrders', name: 'Shopify orders', file: 'shopify-orders.json', publish: true, liveTrigger: true },
-  { id: 'nbcDevHarness001', name: 'Dev harness', file: 'dev-harness.json', publish: true, liveTrigger: false },
+  { id: 'nbcDevHarness001', name: 'Dev harness', file: 'dev-harness.json', publish: true, liveTrigger: false, webhookPath: 'dev' },
 ];
 
 export const CREDENTIALS: readonly CredentialEntry[] = [

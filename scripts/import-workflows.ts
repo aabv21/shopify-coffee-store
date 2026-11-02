@@ -2,9 +2,9 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compose, loadDotEnv } from './lib/compose.ts';
-import { waitForHealthy } from './lib/health.ts';
+import { waitForHealthy, waitForWebhookLive } from './lib/health.ts';
 import { listJsonFiles } from './lib/list-json-files.ts';
-import { WORKFLOWS } from './lib/manifest.ts';
+import { WORKFLOWS, type WorkflowEntry } from './lib/manifest.ts';
 
 const WORKFLOWS_DIR = 'workflows';
 
@@ -27,7 +27,7 @@ export async function importWorkflows(o: { live: boolean }): Promise<void> {
     await compose(['exec', '-T', 'n8n', 'n8n', 'import:workflow', '--separate', '--input=/workflows']);
   }
 
-  let publishedCount = 0;
+  const published: WorkflowEntry[] = [];
   const failures: string[] = [];
   for (const entry of WORKFLOWS) {
     const path = join(WORKFLOWS_DIR, entry.file);
@@ -45,13 +45,13 @@ export async function importWorkflows(o: { live: boolean }): Promise<void> {
 
     try {
       await compose(['exec', '-T', 'n8n', 'n8n', 'publish:workflow', `--id=${entry.id}`]);
-      publishedCount += 1;
+      published.push(entry);
     } catch (err) {
       failures.push(`publish failed for ${entry.file}: ${errorDetail(err)}`);
     }
   }
 
-  if (publishedCount > 0) {
+  if (published.length > 0) {
     await compose(['restart', 'n8n']);
     const n8nUrl = process.env.N8N_URL;
     const healthy = n8nUrl ? await waitForHealthy(n8nUrl, 90_000) : false;
@@ -63,9 +63,17 @@ export async function importWorkflows(o: { live: boolean }): Promise<void> {
       // version on its own schedule (10 s by default,
       // N8N_WORKFLOW_PUBLICATION_RECONCILE_INTERVAL_SECONDS), so a call made right after the
       // restart can still run the previous version. This fixed wait is longer than that default
-      // interval, not a guarantee against a slower one. Upgrade path: poll
-      // workflow_published_version against workflow_entity.activeVersionId instead of sleeping.
+      // interval, not a guarantee against a slower one. The poll below is the real proof; this
+      // wait just keeps the common case from spending its whole budget on it.
       await new Promise<void>((resolve) => setTimeout(resolve, 15_000));
+
+      if (n8nUrl) {
+        for (const entry of published) {
+          if (!entry.webhookPath) continue;
+          const live = await waitForWebhookLive(n8nUrl, entry.webhookPath, 60_000);
+          if (!live) failures.push(`webhook for ${entry.file} never came up (still 404 after the wait)`);
+        }
+      }
     }
   }
 

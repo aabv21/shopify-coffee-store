@@ -73,3 +73,31 @@ jobs:
           zizmor --format=plain .
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  n8n:
+    name: n8n
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/init-env.ts
+      - run: cp config/config.example.json config/config.json
+      - run: docker compose up -d --wait postgres n8n
+      - run: pnpm run setup
+      - run: node scripts/check-dev-response.ts
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs n8n postgres
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

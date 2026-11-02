@@ -18,13 +18,14 @@ Each item below was verified offline.
 
 **Runtime and tooling**
 
-- `pnpm run typecheck`, `pnpm run lint`, and `pnpm test` (180 tests) pass. CI runs them, with the workflow, theme, and security checks, on every pull request.
+- `pnpm run typecheck`, `pnpm run lint`, and `pnpm test` (229 tests) pass. CI runs them, with the workflow, theme, and security checks, on every pull request. A separate `n8n` CI job boots the real n8n 2.45.6 and Postgres, runs `pnpm run setup`, and calls the dev harness's `load-config` and `intake-order` targets, proving the published workflow chain — including two generated Code nodes and a Postgres write — actually executes, with no Shopify, Google, or Gmail credential needed.
 - Supply-chain hardening: pnpm with a release-age gate, trust-policy enforcement, blocked exotic sub-dependencies, and build-script approval (`pnpm-workspace.yaml`); every Compose image pinned by digest; a Dependabot cooldown on every ecosystem — see AGENTS.md's "Supply-chain hardening" section.
 - Docker Compose runs Postgres 17 and n8n 2.45.6, published on `127.0.0.1` only.
 - Databases `app` and `n8n` each belong to their own role, and neither role can open the other's database.
 - n8n mounts the config, the brewing guides, and the workflows read-only.
 - Queue mode (`compose.queue.yaml`) brings up Redis and two `n8n-worker` containers, all healthy.
 - `pnpm run setup` validates the config, imports credentials without printing them, and publishes the workflows. Running `setup` and `export` a second time leaves `workflows/` unchanged.
+- Credential import streams the decrypted JSON into the n8n container over stdin, and the existing-credentials check reads the (still encrypted) export back over stdout — neither ever touches the host filesystem or the `.n8n-import/` bind mount. This fixes two Linux-only failures: the runner's uid (1001) writing a file n8n's own uid (1000) couldn't read, and the reverse, n8n's uid writing a file the runner couldn't `chmod` or delete. After a publish, `pnpm run setup` waits for `/healthz`, 15 more seconds for the publication reconciler, then polls the dev harness's own webhook until it stops answering 404 — the fix for a third Linux-only failure, the harness 404ing right after the restart.
 - `pnpm run build:workflows -- --check` confirms every Code node matches its TypeScript source, and `pnpm run check` finds no hygiene violations in `workflows/`.
 
 **Order backend**
@@ -52,18 +53,16 @@ Each item below was verified offline.
 ## Quick start
 
 ```sh
-cp .env.example .env
-# fill the passwords and N8N_ENCRYPTION_KEY, e.g. with: openssl rand -hex 24
-set -a; . ./.env; set +a
-
+node scripts/init-env.ts   # writes .env with fresh local secrets; leaves ngrok/Shopify/Google blank
 cp config/config.example.json config/config.json
 mkdir -p .n8n-import workflows
 
 docker compose up -d --wait
 curl -s localhost:5678/healthz
+pnpm run setup
 ```
 
-n8n is then at <http://localhost:5678>.
+n8n is then at <http://localhost:5678>. Fill in the blank third-party values (ngrok, Shopify, Google OAuth) in `.env` by hand before relying on anything that needs them; `init-env.ts` already generated the local secrets (Postgres roles, `N8N_ENCRYPTION_KEY`, `DEV_HARNESS_TOKEN`) — see `.env.example` for what's required.
 
 ## Limitations
 
@@ -75,7 +74,7 @@ Deliberate simplifications, each with its ceiling and upgrade path:
 - **"Read stock and brew methods" has no per-request timeout.** The GraphQL node (unlike HTTP Request) exposes no `options.timeout`, so a hung Shopify response blocks this execution until n8n's own default times it out, rather than failing fast on a bounded ceiling. Upgrade path: switch to the HTTP Request node with `options.timeout` plus an explicit `errors` check, trading the GraphQL node's built-in throw-on-`errors` behavior for a manual one.
 - **A wait shorter than 65 seconds doesn't survive a restart.** n8n 2.45.6 only persists a Wait node's sleep past `MAX_IN_PROCESS_WAIT_MS`; anything shorter stays in the process's own memory and is lost if n8n restarts mid-wait. `guide_delay_minutes` is validated at 2 or more precisely because of this ceiling. Upgrade path: none needed at this delay — it's n8n's own design, not something this repo works around.
 - **Queue mode's Redis has no password.** `compose.queue.yaml` publishes no Redis port, so only containers on the Compose network can reach it, but any of them can. Upgrade path: set `QUEUE_BULL_REDIS_PASSWORD` before running queue mode in production.
-- **`pnpm run setup` waits a fixed 15 seconds after restarting n8n.** `/healthz` reports healthy before the publication reconciler syncs the published versions, every 10 seconds by default, so the wait covers that default but not a slower reconciler. Upgrade path: poll `workflow_published_version` against `workflow_entity.activeVersionId` instead of sleeping.
+- **`pnpm run setup` waits 15 seconds after restarting n8n, then polls the dev harness's webhook until it's registered.** `/healthz` reports healthy before the publication reconciler syncs the published versions, every 10 seconds by default. The webhook poll proves the harness is live, not that every sub-workflow already runs its newest published version under a slower reconciler. Upgrade path: poll `workflow_published_version` against `workflow_entity.activeVersionId` instead of the fixed wait.
 - **The free-shipping bar can disagree with checkout.** It reads `cart.total_price`, which is the total after cart-level discounts but before anything applied at checkout. A discount code entered at checkout can still take the order below the free-shipping rate after the bar has already shown "You've got free shipping!".
 
 ## Live checks (pending)
