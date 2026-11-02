@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertNoLiveCredential,
+  checksFor,
   guardedCredentialIds,
   isDuplicateIntakeResponse,
   isFreshIntakeResponse,
@@ -116,6 +117,33 @@ describe('isFreshIntakeResponse', () => {
     expect(isFreshIntakeResponse(null)).toBe(false);
     expect(isFreshIntakeResponse([])).toBe(false);
     expect(isFreshIntakeResponse('x')).toBe(false);
+  });
+});
+
+describe('checksFor', () => {
+  const intakeCheck = (fresh: boolean): { target: string; input: unknown; isExpected: (result: unknown) => boolean } => {
+    const check = checksFor({ fresh }).find((c) => c.target === 'intake-order');
+    if (!check) throw new Error('intake-order check missing from checksFor()');
+    return check;
+  };
+
+  it('with fresh: true, accepts only the fresh shape — a duplicate response fails the check', () => {
+    const { isExpected } = intakeCheck(true);
+    expect(isExpected({ order: FRESH_ORDER, config: EXPECTED_CONFIG })).toBe(true);
+    expect(isExpected({ success: true })).toBe(false);
+  });
+
+  it('with fresh: false, accepts either shape, for a local re-run against a stack that already recorded the fixture order', () => {
+    const { isExpected } = intakeCheck(false);
+    expect(isExpected({ order: FRESH_ORDER, config: EXPECTED_CONFIG })).toBe(true);
+    expect(isExpected({ success: true })).toBe(true);
+  });
+
+  it('the flag has no effect on the load-config check', () => {
+    const loadConfigFresh = checksFor({ fresh: true }).find((c) => c.target === 'load-config');
+    const loadConfigNotFresh = checksFor({ fresh: false }).find((c) => c.target === 'load-config');
+    expect(loadConfigFresh?.isExpected({ config: EXPECTED_CONFIG })).toBe(true);
+    expect(loadConfigNotFresh?.isExpected({ config: EXPECTED_CONFIG })).toBe(true);
   });
 });
 

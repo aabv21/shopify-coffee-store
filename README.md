@@ -25,7 +25,7 @@ Each item below was verified offline.
 - n8n mounts the config, the brewing guides, and the workflows read-only.
 - Queue mode (`compose.queue.yaml`) brings up Redis and two `n8n-worker` containers, all healthy.
 - `pnpm run setup` validates the config, imports credentials without printing them, and publishes the workflows. Running `setup` and `export` a second time leaves `workflows/` unchanged.
-- Credential import streams the decrypted JSON into the n8n container over stdin, and the existing-credentials check reads the (still encrypted) export back over stdout — neither ever touches the host filesystem or the `.n8n-import/` bind mount. This fixes two Linux-only failures: the runner's uid (1001) writing a file n8n's own uid (1000) couldn't read, and the reverse, n8n's uid writing a file the runner couldn't `chmod` or delete. After a publish, `pnpm run setup` waits for `/healthz`, 15 more seconds for the publication reconciler, then polls the dev harness's own webhook until it stops answering 404 — the fix for a third Linux-only failure, the harness 404ing right after the restart.
+- Credential import streams the decrypted JSON into the n8n container over stdin, and the existing-credentials check reads the (still encrypted) export back over stdout — neither ever touches the host filesystem or the `.n8n-import/` bind mount. This fixes two Linux-only failures: the runner's uid (1001) writing a file n8n's own uid (1000) couldn't read, and the reverse, n8n's uid writing a file the runner couldn't `chmod` or delete. After a publish, `pnpm run setup` waits for `/healthz`, 15 more seconds for the publication reconciler, then polls the dev harness's own webhook until it stops answering 404 — the fix for a timing race, not a Linux-only failure: the publication reconciler's own schedule means the harness can still 404 for a few seconds right after the restart, on any platform.
 - `pnpm run build:workflows -- --check` confirms every Code node matches its TypeScript source, and `pnpm run check` finds no hygiene violations in `workflows/`.
 
 **Order backend**
@@ -55,7 +55,6 @@ Each item below was verified offline.
 ```sh
 node scripts/init-env.ts   # writes .env with fresh local secrets; leaves ngrok/Shopify/Google blank
 cp config/config.example.json config/config.json
-mkdir -p .n8n-import workflows
 
 docker compose up -d --wait
 curl -s localhost:5678/healthz

@@ -91,17 +91,32 @@ export function isLoadConfigResponse(result: unknown): boolean {
   return keys.length === 1 && keys[0] === 'config' && JSON.stringify((result as Record<string, unknown>).config) === JSON.stringify(EXPECTED_CONFIG);
 }
 
-const CHECKS: readonly { target: string; input: unknown; isExpected: (result: unknown) => boolean }[] = [
-  { target: 'load-config', input: {}, isExpected: isLoadConfigResponse },
-  { target: 'intake-order', input: FIXTURE, isExpected: (r) => isFreshIntakeResponse(r) || isDuplicateIntakeResponse(r) },
-];
+/**
+ * The checks this script runs. `intake-order`'s predicate depends on `fresh`: with it (CI, which
+ * always starts from an empty database), only `isFreshIntakeResponse` counts, so a bug that made
+ * `Record order` never return its row — and so every order read as a duplicate — fails loudly
+ * instead of passing on CI's own fresh database. Without it (a local re-run against a stack that
+ * already recorded this fixture's order), either shape is accepted, since a duplicate response is
+ * the correct, expected outcome there.
+ */
+export function checksFor({ fresh }: { fresh: boolean }): readonly { target: string; input: unknown; isExpected: (result: unknown) => boolean }[] {
+  return [
+    { target: 'load-config', input: {}, isExpected: isLoadConfigResponse },
+    {
+      target: 'intake-order',
+      input: FIXTURE,
+      isExpected: fresh ? isFreshIntakeResponse : (r: unknown) => isFreshIntakeResponse(r) || isDuplicateIntakeResponse(r),
+    },
+  ];
+}
 
 async function main(): Promise<void> {
   loadDotEnv();
+  const fresh = process.argv.includes('--fresh');
   const existingIds = await existingCredentialIds();
   assertNoLiveCredential(existingIds);
 
-  for (const { target, input, isExpected } of CHECKS) {
+  for (const { target, input, isExpected } of checksFor({ fresh })) {
     const result = await callDev(target, input);
     console.log(JSON.stringify({ target, result }, null, 2));
     if (!isExpected(result)) {
