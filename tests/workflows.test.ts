@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
-import { expect, it } from 'vitest';
+import { expect, it, test } from 'vitest';
 import { listJsonFiles } from '../scripts/lib/list-json-files.ts';
 import type { WorkflowJson, WorkflowNode } from '../scripts/lib/workflow-types.ts';
 
@@ -97,6 +97,22 @@ it('no Execute Workflow node retries, across all workflows', () => {
     }
   }
   expect(seen).toBeGreaterThan(0);
+});
+
+// A manual execution (run from the editor) is saved by default, with every node's input and
+// output. No workflow here may save one, with no per-workflow exception: even load-config and
+// error-handler start from a passthrough Execute Workflow Trigger whose callers send no input
+// schema, so each receives its caller's whole item — load-config's caller's order and config,
+// error-handler's caller's failed execution data. docs/database.md explains why there's no
+// per-workflow list.
+const workflowFiles = listJsonFiles('workflows').map((path) => basename(path));
+
+it('workflows/ is not empty, so the check below covers something', () => {
+  expect(workflowFiles.length).toBeGreaterThan(0);
+});
+
+test.each(workflowFiles)('%s never saves a manual execution', (file) => {
+  expect((wf(file).settings as Record<string, unknown>).saveManualExecutions).toBe(false);
 });
 
 it('the sheet upsert is keyed by order number and writes raw values', () => {

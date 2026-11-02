@@ -1,4 +1,6 @@
 import { checkConfigFile } from './check-config.ts';
+import { migrate } from './db-migrate.ts';
+import { loadDotEnv } from './lib/compose.ts';
 import { parseRefreshIds, setupCredentials } from './setup-credentials.ts';
 import { importWorkflows } from './import-workflows.ts';
 
@@ -9,11 +11,13 @@ async function main(): Promise<void> {
   const live = args.includes('--live');
   const refresh = parseRefreshIds(args);
 
-  // A bad config.json would reach every workflow that loads it; stop before touching credentials
-  // or workflows at all.
+  // A bad config.json would reach every workflow that loads it; stop before touching the
+  // database, credentials, or workflows at all.
   checkConfigFile(CONFIG_PATH);
   console.log('config OK');
 
+  loadDotEnv();
+  await migrate();
   await setupCredentials({ refresh });
   await importWorkflows({ live });
 }

@@ -14,6 +14,7 @@
     "check": "node scripts/check-workflows.ts workflows",
     "check:config": "node scripts/check-config.ts config/config.json",
     "build:workflows": "node scripts/build-workflows.ts",
+    "db:migrate": "node scripts/db-migrate.ts",
     "setup": "node scripts/setup.ts",
     "export": "node scripts/export-workflows.ts",
     "shopify:token": "node scripts/shopify-token.ts",

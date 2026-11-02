@@ -18,10 +18,10 @@ Each item below was verified offline.
 
 **Runtime and tooling**
 
-- `pnpm run typecheck`, `pnpm run lint`, and `pnpm test` (229 tests) pass. CI runs them, with the workflow, theme, and security checks, on every pull request. A separate `n8n` CI job boots the real n8n 2.45.6 and Postgres, runs `pnpm run setup`, and calls the dev harness's `load-config` and `intake-order` targets, proving the published workflow chain — including two generated Code nodes and a Postgres write — actually executes, with no Shopify, Google, or Gmail credential needed.
+- `pnpm run typecheck`, `pnpm run lint`, and `pnpm test` pass. CI runs them, with the workflow, theme, and security checks, on every pull request. A separate `n8n` CI job boots the real n8n 2.45.6 and Postgres, runs `pnpm run setup`, runs `node scripts/check-db.ts`, and calls the dev harness's `load-config` and `intake-order` targets, proving the published workflow chain — including two generated Code nodes and a least-privilege Postgres write — actually executes, with no Shopify, Google, or Gmail credential needed.
 - Supply-chain hardening: pnpm with a release-age gate, trust-policy enforcement, blocked exotic sub-dependencies, and build-script approval (`pnpm-workspace.yaml`); every Compose image pinned by digest; a Dependabot cooldown on every ecosystem — see AGENTS.md's "Supply-chain hardening" section.
 - Docker Compose runs Postgres 17 and n8n 2.45.6, published on `127.0.0.1` only.
-- Databases `app` and `n8n` each belong to their own role, and neither role can open the other's database.
+- Databases `app` and `n8n` each belong to their own role, and neither role can open the other's database. n8n's own Postgres node never connects as the app role; it connects as `app_runtime`, a least-privilege role with `SELECT, INSERT` on `orders` only, maintained by `pnpm run db:migrate` and proved by `node scripts/check-db.ts` — see [docs/database.md](docs/database.md).
 - n8n mounts the config, the brewing guides, and the workflows read-only.
 - Queue mode (`compose.queue.yaml`) brings up Redis and two `n8n-worker` containers, all healthy.
 - `pnpm run setup` validates the config, imports credentials without printing them, and publishes the workflows. Running `setup` and `export` a second time leaves `workflows/` unchanged.

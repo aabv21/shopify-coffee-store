@@ -770,7 +770,8 @@
     "executionOrder": "v1",
     "timezone": "America/Bogota",
     "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": "nbcErrorHandler1"
+    "errorWorkflow": "nbcErrorHandler1",
+    "saveManualExecutions": false
   },
   "meta": null,
   "nodeGroups": [],
