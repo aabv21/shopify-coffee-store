@@ -63,7 +63,10 @@ export function run(order: ShopifyOrderPayload): NormalizedOrder {
   if (!order.line_items || order.line_items.length === 0) throw new Error('Order payload has no line items');
 
   const emailRaw = (order.email || order.contact_email || '').trim();
-  const email = emailRaw === '' ? null : emailRaw;
+  // A comma, whitespace, `;`, `<` or `>` inside an otherwise-plausible email string could add a
+  // second recipient or header-inject when later used as a Gmail "To" address, so treat it the
+  // same as no address at all rather than passing it through.
+  const email = emailRaw === '' || /[,;<>\s]/.test(emailRaw) ? null : emailRaw;
 
   const firstName = firstNonEmpty(order.customer?.first_name, order.shipping_address?.first_name, order.billing_address?.first_name);
 

@@ -80,6 +80,10 @@ Deliberate simplifications, each with its ceiling and upgrade path:
 
 ## Live checks (pending)
 
+These need the owner's existing Google account, so they aren't run yet:
+
+- **Gmail re-consent.** After this change, run `pnpm run setup -- --refresh nbcCredGmail0001` and re-authorize the Gmail credential in the n8n editor; the Google consent screen should show only "Send email on your behalf", not the broader mailbox access the previous default scope implied.
+
 These need a live, `--live`-published `shopify-orders` trigger with a real Shopify credential, so they aren't run yet:
 
 - A valid order (`pnpm run send-test-order -- --fixture below-threshold --order-id <digits>`) produces one "Shopify orders" execution, one "Intake order" execution, and one `orders` row.
@@ -87,6 +91,7 @@ These need a live, `--live`-published `shopify-orders` trigger with a real Shopi
 - A signed test order (`--fixture free-shipping`) adds exactly one `Orders` row and sends one owner email. The row matches the first test in `tests/nodes/order-row.test.ts`, except `order_number` (`#T<digits>`).
 - Deleting that order's `orders` row (`docker compose exec -T postgres sh -c "psql -U \"\$APP_DB_USER\" -d app -c \"DELETE FROM orders WHERE order_id = '<digits>'\""`, so the container expands `$APP_DB_USER` from its own environment, not the host's) and sending it again with the same `--order-id` updates its `Orders` row; it doesn't add a second one. n8n refuses to retry a successful execution, so this re-sends the order instead.
 - An order whose shipping name is `=1+1` shows the literal text `=1+1` in the `customer` cell.
+- An order whose shipping name is `| json` or contains `<!--` shows the literal text in the `customer` cell and the owner email body, with no n8n expression evaluated and no HTML comment swallowing the rest of the email.
 - A tampered signature (`pnpm run send-test-order -- --tamper --order-id <digits>`) gets HTTP 200, starts no execution at all, and creates no row.
 - In one real order's execution data, every field `normalize-order` reads is present (`admin_graphql_api_id`, `name`, `email`, `shipping_address.name`/`city`, `line_items[].variant_id`/`variant_title`/`sku`, `total_shipping_price_set`, `shipping_lines`). If a field moved, update the fixture and the mapper.
 - **Low stock.** A real order of 2 × Sierra Nevada 500 g (stock 6) sends `Low stock after order <#>` with the line `Sierra Nevada (500 g), SKU NBC-SNV-500: 4 left (threshold 5)`. An order of Huila 250 g sends no alert.
@@ -102,9 +107,11 @@ These need a live, `--live`-published `shopify-orders` trigger with a real Shopi
 These need the ngrok tunnel, or queue mode with the live trigger, so they aren't run yet:
 
 - **Tunnel.** Through the public ngrok URL, `/`, `/rest/login`, `/webhook-test/x`, `/webhook/dev/x`, and `//webhook/x` each return 404, and only the trigger's own path reaches n8n.
+- **Rate limit.** A burst of unsigned POSTs to the tunnel's own path gets HTTP 429 once it exceeds the policy's capacity, and a signed `pnpm run send-test-order` right after still makes exactly one "Shopify orders" execution.
 - **Queue mode.** With `compose.queue.yaml` and two workers, a signed order runs on a worker and adds its `Orders` row.
+- **Container hardening.** With `compose.queue.yaml` added, `docker inspect` on the `ngrok`, `redis`, and `n8n-worker` containers shows `no-new-privileges:true`; the queue-mode `n8n-worker` also shows `CapDrop: ["ALL"]`, inherited from the `n8n` service it extends.
 
-These need `npx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme`, so they aren't run yet:
+These need `pnpm dlx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme`, so they aren't run yet:
 
 - **Drawer.** With Sierra Nevada 250 g in the cart, it shows "You're $82.000 away from free shipping" at 31%.
 - **Live updates.** Raising the quantity to 4 (152,000 COP) switches it to "You've got free shipping!" without a reload, in the drawer and on `/cart`. Lowering it again restores the remaining message.

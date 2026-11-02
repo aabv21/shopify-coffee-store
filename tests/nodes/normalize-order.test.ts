@@ -74,6 +74,14 @@ it('falls back to shipping lines when shop_money.amount is null or empty, instea
   expect(run({ ...fx('below-threshold'), total_shipping_price_set: { shop_money: { amount: null as unknown as string } } }).shipping).toBe(12000);
   expect(run({ ...fx('below-threshold'), total_shipping_price_set: { shop_money: { amount: '' } } }).shipping).toBe(12000);
 });
+
+it('treats an email containing a comma, whitespace, ;, < or > as no address, so it can\'t add a recipient', () => {
+  for (const email of ['a@example.com,b@example.com', 'a @example.com', 'a@example.com;b@example.com', '<a@example.com>', 'a@example.com\tb@example.com']) {
+    expect(run({ ...fx('below-threshold'), email }).email).toBeNull();
+  }
+});
+it('still accepts an ordinary email with no comma, whitespace, ;, < or >', () =>
+  expect(run({ ...fx('below-threshold'), email: 'plain@example.com' }).email).toBe('plain@example.com'));
 it('throws when a shipping line price is null or empty', () => {
   expect(() => run({ ...fx('below-threshold'), total_shipping_price_set: {}, shipping_lines: [{ title: 'Standard shipping', price: null as unknown as string }] }))
     .toThrow('Order payload has an invalid amount');

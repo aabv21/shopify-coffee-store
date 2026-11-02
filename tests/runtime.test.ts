@@ -22,6 +22,9 @@ test('n8n reads config and data read-only, and workflows read-only', () => {
   expect(service('n8n')).toContain('./workflows:/workflows:ro');
   expect(service('n8n')).toContain('127.0.0.1:5678:5678');
 });
+test('n8n caps its payload size well above a real Shopify order but well below the default', () => {
+  expect(service('n8n')).toContain('N8N_PAYLOAD_SIZE_MAX: "2"');
+});
 test('the tunnel policy pins the Shopify trigger path and denies unsafe encodings', () => {
   expect(policy).toContain(`req.url.raw_path.matches("^/webhook/${triggerWebhookId}/webhook$")`);
   expect(policy).toContain(`req.url.raw_path.contains("%")`);
@@ -30,6 +33,16 @@ test('the tunnel policy pins the Shopify trigger path and denies unsafe encoding
   expect(policy).toContain(`req.url.raw_path.contains("/./")`);
   expect(policy).toContain(`req.url.raw_path.contains("/../")`);
   expect(service('ngrok')).toContain('./ngrok/traffic-policy.yml:/etc/ngrok/traffic-policy.yml:ro');
+});
+test('the tunnel disables request inspection, since captured requests hold order PII', () => {
+  expect(service('ngrok')).toContain('--inspect=false');
+});
+test('the tunnel policy rate-limits by client IP, well above a small store\'s delivery rate', () => {
+  expect(policy).toContain('type: rate-limit');
+  expect(policy).toContain('algorithm: sliding_window');
+  expect(policy).toContain('capacity: 60');
+  expect(policy).toContain('rate: 60s');
+  expect(policy).toContain('- conn.client_ip');
 });
 test('the webhook allowlist regex only accepts the Shopify trigger path', () => {
   const source = /\.matches\("([^"]+)"\)/.exec(policy)?.[1] ?? '';

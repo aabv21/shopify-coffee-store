@@ -165,8 +165,8 @@ warnings, all in `sections/header.liquid` and `snippets/divider.liquid`.
 These need a real dev store, so they haven't been run yet:
 
 ```sh
-npx @shopify/cli@5.0.0 theme dev --store <store>.myshopify.com --path .theme-build/theme
-npx @shopify/cli@5.0.0 theme push --unpublished --theme "Nubandina demo" --path .theme-build/theme
+pnpm dlx @shopify/cli@5.0.0 theme dev --store <store>.myshopify.com --path .theme-build/theme
+pnpm dlx @shopify/cli@5.0.0 theme push --unpublished --theme "Nubandina demo" --path .theme-build/theme
 ```
 
 `--theme` on `theme push --unpublished` names the new theme — without `--development`, the CLI's
@@ -174,7 +174,7 @@ own help says to use `--theme` to provide the new theme's name, and `--unpublish
 an unnamed one. On a password-protected dev store, `theme dev` also needs
 `--store-password <value>`.
 
-Confirmed against `npx @shopify/cli@5.0.0 theme push --help` and `theme dev --help`:
+Confirmed against `pnpm dlx @shopify/cli@5.0.0 theme push --help` and `theme dev --help`:
 
 ```
 -t, --theme=<value>
@@ -192,7 +192,7 @@ Confirmed against `npx @shopify/cli@5.0.0 theme push --help` and `theme dev --he
 
 ### Free shipping bar (deferred live checks)
 
-These need `npx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme`, so they haven't been
+These need `pnpm dlx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme`, so they haven't been
 run yet:
 
 - **Drawer.** With Sierra Nevada 250 g in the cart, it shows "You're $82.000 away from free
@@ -207,7 +207,7 @@ run yet:
 
 ### Coffee finder (deferred live checks)
 
-These need `npx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme`, keyboard only, with
+These need `pnpm dlx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme`, keyboard only, with
 Chrome DevTools open, so they haven't been run yet:
 
 - **Keyboard path.** Tab reaches each radio group and arrow keys move within it. Submitting

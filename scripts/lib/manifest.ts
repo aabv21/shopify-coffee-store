@@ -79,11 +79,21 @@ export const CREDENTIALS: readonly CredentialEntry[] = [
     data: (env) => ({ clientId: readEnv(env, 'GOOGLE_OAUTH_CLIENT_ID'), clientSecret: readEnv(env, 'GOOGLE_OAUTH_CLIENT_SECRET') }),
   },
   {
+    // Every Gmail node in this repo only sends (see workflows/*.json); n8n's default gmailOAuth2
+    // scope set also grants full mailbox read and delete (https://mail.google.com/ and others).
+    // customScopes + enabledScopes narrow the OAuth consent to gmail.send only (verified against
+    // n8n 2.45.6's own GmailOAuth2Api.credentials.js, whose default enabledScopes is the full set
+    // this overrides).
     id: 'nbcCredGmail0001',
     name: 'Gmail',
     type: 'gmailOAuth2',
     env: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
-    data: (env) => ({ clientId: readEnv(env, 'GOOGLE_OAUTH_CLIENT_ID'), clientSecret: readEnv(env, 'GOOGLE_OAUTH_CLIENT_SECRET') }),
+    data: (env) => ({
+      clientId: readEnv(env, 'GOOGLE_OAUTH_CLIENT_ID'),
+      clientSecret: readEnv(env, 'GOOGLE_OAUTH_CLIENT_SECRET'),
+      customScopes: true,
+      enabledScopes: 'https://www.googleapis.com/auth/gmail.send',
+    }),
   },
   {
     // The dev harness is localhost-only, never exposed through the tunnel, and its workflow must

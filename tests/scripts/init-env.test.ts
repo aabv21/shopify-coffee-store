@@ -1,8 +1,12 @@
+import { execFile } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import { ensureN8nImportDir, fillSecrets, writeEnvFile } from '../../scripts/init-env.ts';
+
+const execFileAsync = promisify(execFile);
 
 const example = ['# Postgres', 'POSTGRES_USER=postgres', 'POSTGRES_PASSWORD=', 'N8N_DB_PASSWORD=', 'APP_DB_PASSWORD=',
   'APP_RUNTIME_DB_USER=app_runtime', 'APP_RUNTIME_DB_PASSWORD=', 'N8N_ENCRYPTION_KEY=', 'N8N_URL=http://localhost:5678', 'NGROK_AUTHTOKEN=', 'NGROK_DOMAIN=',
@@ -17,6 +21,12 @@ describe('fillSecrets', () => {
       'APP_DB_PASSWORD=hex3', 'APP_RUNTIME_DB_USER=app_runtime', 'APP_RUNTIME_DB_PASSWORD=hex4', 'N8N_ENCRYPTION_KEY=hex5', 'N8N_URL=http://localhost:5678', 'NGROK_AUTHTOKEN=', 'NGROK_DOMAIN=',
       'SHOPIFY_STORE=', 'SHOPIFY_CLIENT_ID=', 'SHOPIFY_CLIENT_SECRET=', 'SHOPIFY_ACCESS_TOKEN=',
       'GOOGLE_OAUTH_CLIENT_ID=', 'GOOGLE_OAUTH_CLIENT_SECRET=', 'DEV_HARNESS_TOKEN=hex6', ''].join('\n'));
+  });
+});
+
+describe('.env.tmp', () => {
+  it('is git-ignored, so a crashed writeEnvFile run never leaves secrets in a tracked file', async () => {
+    await expect(execFileAsync('git', ['check-ignore', '-q', '.env.tmp'])).resolves.toBeDefined();
   });
 });
 

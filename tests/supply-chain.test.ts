@@ -34,10 +34,10 @@ test('package-lock.json does not exist', () => {
   expect(existsSync('package-lock.json')).toBe(false);
 });
 
-test('no tracked file still teaches npm commands', async () => {
+test('no tracked file still teaches npm or npx commands', async () => {
   const { stdout } = await execFileAsync('git', ['ls-files']);
   const files = stdout.split('\n').filter(Boolean);
-  const pattern = /\bnpm (ci|run|test|install|audit)\b|command npm/;
+  const pattern = /\bnpm (ci|run|test|install|audit)\b|command npm|\bnpx\b/;
   const offenders: string[] = [];
   for (const file of files) {
     if (file === 'tests/supply-chain.test.ts') continue;
@@ -59,4 +59,61 @@ test('every Compose image is pinned by digest', () => {
     expect(images.length).toBeGreaterThan(0);
     for (const image of images) expect(image).toMatch(/@sha256:[a-f0-9]{64}$/);
   }
+});
+
+test('every docker run image in a GitHub Actions workflow is pinned by digest', async () => {
+  const { stdout } = await execFileAsync('git', ['ls-files', '.github/workflows/*.yml', '.github/workflows/*.yaml']);
+  const files = stdout.split('\n').filter(Boolean);
+  expect(files.length).toBeGreaterThan(0);
+  let totalImages = 0;
+  for (const file of files) {
+    const content = readFileSync(file, 'utf8');
+    // An image reference looks like `owner/repo:tag`, optionally `@sha256:<64 hex>`. A volume
+    // mount argument or a quoted shell variable (`"$PWD:/mnt"`) always carries a `"`, `$`, or `-`
+    // before the first `/`, which no image reference ever does.
+    const looksLikeImage = (word: string): boolean => {
+      const slash = word.indexOf('/');
+      const colon = word.indexOf(':');
+      if (slash < 1 || colon < slash) return false;
+      const owner = word.slice(0, slash);
+      return !owner.startsWith('-') && !owner.includes('"') && !owner.includes('$');
+    };
+    const images = content
+      .split('\n')
+      .filter((line) => line.includes('docker run'))
+      .map((line) => line.split(/\s+/).find(looksLikeImage))
+      .filter((image): image is string => image !== undefined);
+    totalImages += images.length;
+    for (const image of images) expect(image).toMatch(/@sha256:[a-f0-9]{64}$/);
+  }
+  // At least one workflow must actually use `docker run`, or this test would pass vacuously.
+  expect(totalImages).toBeGreaterThan(0);
+});
+
+// Reads the merged, effective Compose config (not the raw YAML text) so `n8n-worker`'s own
+// settings, inherited from `n8n` through `extends` in compose.queue.yaml, are checked too, and
+// `--profile tunnel` so the profile-gated `ngrok` service is included.
+const composeConfig = async (args: string[]): Promise<Record<string, { security_opt?: string[]; cap_drop?: string[] }>> => {
+  const { stdout } = await execFileAsync('docker', ['compose', ...args, 'config', '--format', 'json']);
+  return (JSON.parse(stdout) as { services: Record<string, { security_opt?: string[]; cap_drop?: string[] }> }).services;
+};
+
+test('every long-running service disables privilege escalation', async () => {
+  const queue = await composeConfig(['-f', 'compose.yaml', '-f', 'compose.queue.yaml']);
+  const tunnel = await composeConfig(['-f', 'compose.yaml', '--profile', 'tunnel']);
+  for (const name of ['postgres', 'n8n', 'redis', 'n8n-worker']) {
+    expect(queue[name]?.security_opt, name).toContain('no-new-privileges:true');
+  }
+  expect(tunnel.ngrok?.security_opt).toContain('no-new-privileges:true');
+});
+
+test('only n8n (and the worker that extends it) drops every Linux capability', async () => {
+  const queue = await composeConfig(['-f', 'compose.yaml', '-f', 'compose.queue.yaml']);
+  const tunnel = await composeConfig(['-f', 'compose.yaml', '--profile', 'tunnel']);
+  expect(queue.n8n?.cap_drop).toEqual(['ALL']);
+  expect(queue['n8n-worker']?.cap_drop).toEqual(['ALL']);
+  for (const name of ['postgres', 'redis']) {
+    expect(queue[name]?.cap_drop, name).toBeUndefined();
+  }
+  expect(tunnel.ngrok?.cap_drop).toBeUndefined();
 });

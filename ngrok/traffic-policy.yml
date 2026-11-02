@@ -18,3 +18,16 @@ on_http_request:
       - type: deny
         config:
           status_code: 404
+  # n8n decrypts the Shopify credential and computes the HMAC over the whole body before
+  # rejecting a bad signature, so an unsigned flood can still burn CPU and push real deliveries
+  # past Shopify's 5 s budget. Capacity is well above a small store's real delivery rate.
+  - name: Rate limit by client IP
+    actions:
+      - type: rate-limit
+        config:
+          name: Rate limit by client IP
+          algorithm: sliding_window
+          capacity: 60
+          rate: 60s
+          bucket_key:
+            - conn.client_ip
