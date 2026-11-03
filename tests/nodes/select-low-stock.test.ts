@@ -36,3 +36,15 @@ it('treats a genuinely empty nodes array as no known variants, not an error', ()
   const r = run({ order: order('two-methods'), response: { data: { nodes: [] } }, threshold: 5 });
   expect([r.variants, r.low_stock]).toEqual([[], []]);
 });
+it("writes the alert in the team's language", () => {
+  const r = run({ order: order('low-stock'), response: stock('sierra-500-at-4'), threshold: 5, team_locale: 'es' });
+  expect([r.subject, r.text]).toEqual(['Inventario bajo tras el pedido #T1003', 'Sierra Nevada (500 g), SKU NBC-SNV-500: quedan 4 (umbral 5)']);
+});
+it('writes the alert in English for a blank, missing, or unknown team locale', () => {
+  for (const team_locale of ['en', '', 'fr', undefined]) {
+    const input = { order: order('low-stock'), response: stock('sierra-500-at-4'), threshold: 5, ...(team_locale === undefined ? {} : { team_locale }) };
+    expect(run(input).subject).toBe('Low stock after order #T1003');
+  }
+});
+it("ignores the customer's own locale", () =>
+  expect(run({ order: { ...order('low-stock'), locale: 'es' }, response: stock('sierra-500-at-4'), threshold: 5, team_locale: 'en' }).subject).toBe('Low stock after order #T1003'));

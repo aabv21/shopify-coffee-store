@@ -15,6 +15,8 @@ const EXPECTED_CONFIG = {
   shopify: { store: 'replace-me', api_version: '2026-10' },
   low_stock_threshold: 5,
   guide_delay_minutes: 60,
+  default_locale: 'en',
+  team_locale: 'en',
 };
 
 const FRESH_ORDER = {
@@ -25,6 +27,7 @@ const FRESH_ORDER = {
   first_name: 'Ana',
   customer_name: 'Ana Torres',
   city: 'Medellín',
+  locale: 'es',
   currency: 'COP',
   subtotal: 38000,
   shipping: 12000,
@@ -103,6 +106,12 @@ describe('isFreshIntakeResponse', () => {
   });
   it('rejects a mismatched order number', () => {
     expect(isFreshIntakeResponse({ order: { ...FRESH_ORDER, order_number: '#T9999' }, config: EXPECTED_CONFIG })).toBe(false);
+  });
+  it("rejects an order whose es-CO customer locale didn't normalize to es", () => {
+    expect(isFreshIntakeResponse({ order: { ...FRESH_ORDER, locale: null }, config: EXPECTED_CONFIG })).toBe(false);
+    const withoutLocale: Record<string, unknown> = { ...FRESH_ORDER };
+    delete withoutLocale.locale;
+    expect(isFreshIntakeResponse({ order: withoutLocale, config: EXPECTED_CONFIG })).toBe(false);
   });
   it('rejects a mismatched config', () => {
     expect(isFreshIntakeResponse({ order: FRESH_ORDER, config: { ...EXPECTED_CONFIG, low_stock_threshold: 1 } })).toBe(false);

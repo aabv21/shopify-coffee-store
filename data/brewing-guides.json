@@ -6,7 +6,18 @@
       "Rinse the paper filter with hot water, then discard the rinse water.",
       "Add the ground coffee and pour a small amount of water to let it bloom for 30 seconds.",
       "Pour the rest of the water in slow circles over 3 minutes, then let it drain fully."
-    ]
+    ],
+    "translations": {
+      "es": {
+        "name": "Filtrado",
+        "ratio": "1:16 (15 g de café por 250 ml de agua)",
+        "steps": [
+          "Enjuague el filtro de papel con agua caliente y deseche esa agua.",
+          "Agregue el café molido y vierta un poco de agua para que florezca durante 30 segundos.",
+          "Vierta el resto del agua en círculos lentos durante 3 minutos y deje que filtre por completo."
+        ]
+      }
+    }
   },
   "espresso": {
     "name": "Espresso",
@@ -15,7 +26,18 @@
       "Grind fine and dose 18 g into the portafilter, then level and tamp evenly.",
       "Lock the portafilter in and start the shot right away to avoid losing heat.",
       "Stop the shot at 36 g of liquid, around 25 to 30 seconds."
-    ]
+    ],
+    "translations": {
+      "es": {
+        "name": "Espresso",
+        "ratio": "1:2 (18 g de café por 36 g de espresso)",
+        "steps": [
+          "Muela fino, ponga 18 g en el portafiltro, nivele y apisone de manera uniforme.",
+          "Ajuste el portafiltro e inicie la extracción de inmediato para no perder temperatura.",
+          "Detenga la extracción al llegar a 36 g de bebida, entre 25 y 30 segundos."
+        ]
+      }
+    }
   },
   "french-press": {
     "name": "French press",
@@ -24,6 +46,17 @@
       "Add the coarse ground coffee to the press and pour in all the hot water at once.",
       "Stir gently, place the lid on with the plunger pulled up, and steep for 4 minutes.",
       "Press the plunger down slowly and pour right away to stop extraction."
-    ]
+    ],
+    "translations": {
+      "es": {
+        "name": "Prensa francesa",
+        "ratio": "1:15 (20 g de café por 300 ml de agua)",
+        "steps": [
+          "Ponga el café de molienda gruesa en la prensa y vierta toda el agua caliente de una vez.",
+          "Revuelva suavemente, tape con el émbolo arriba y deje reposar durante 4 minutos.",
+          "Baje el émbolo despacio y sirva de inmediato para detener la extracción."
+        ]
+      }
+    }
   }
 }

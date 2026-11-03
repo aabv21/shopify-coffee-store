@@ -3,7 +3,8 @@ import { parse } from 'csv-parse/sync';
 import { expect, it } from 'vitest';
 
 const rows = parse<Record<string, string>>(readFileSync('data/products.csv'), { columns: true, bom: true });
-const guides = JSON.parse(readFileSync('data/brewing-guides.json', 'utf8')) as Record<string, { name: string; ratio: string; steps: string[] }>;
+interface GuideText { name: string; ratio: string; steps: string[] }
+const guides = JSON.parse(readFileSync('data/brewing-guides.json', 'utf8')) as Record<string, GuideText & { translations?: Record<string, GuideText> }>;
 const ROAST = 'Roast (product.metafields.coffee.roast)';
 const NOTES = 'Tasting notes (product.metafields.coffee.tasting_notes)';
 const METHOD = 'Brew method (product.metafields.coffee.brew_method)';
@@ -34,5 +35,18 @@ it('has one guide per brew method with a ratio and three short steps', () => {
   for (const g of Object.values(guides)) {
     expect(g.steps).toHaveLength(3);
     for (const s of g.steps) expect(s.length).toBeLessThanOrEqual(140);
+  }
+});
+it('translates every guide into Spanish, field for field, with the same ratio', () => {
+  for (const [method, g] of Object.entries(guides)) {
+    expect(Object.keys(g.translations ?? {}), method).toEqual(['es']);
+    const es = g.translations?.es;
+    expect(es?.name.trim(), method).not.toBe('');
+    expect(es?.ratio.split(' ')[0], method).toBe(g.ratio.split(' ')[0]);
+    expect(es?.steps, method).toHaveLength(3);
+    for (const s of es?.steps ?? []) {
+      expect(s.trim(), method).not.toBe('');
+      expect(s.length, method).toBeLessThanOrEqual(140);
+    }
   }
 });

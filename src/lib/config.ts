@@ -1,5 +1,6 @@
 // Validates the config just loaded from /files/config/config.json. Pure: no I/O, no clock, no
 // Node imports, because pnpm run build:workflows bundles it into the Check config Code node.
+import { isLocale, type Locale } from './locale.ts';
 
 export interface Config {
   owner_email: string;
@@ -13,7 +14,14 @@ export interface Config {
   };
   low_stock_threshold: number;
   guide_delay_minutes: number;
+  /** The customer emails' language when an order carries no usable `customer_locale`. */
+  default_locale: Locale;
+  /** The language of every email to the owner: the order summary, low-stock, and error alerts. */
+  team_locale: Locale;
 }
+
+// A config written before these keys existed keeps working, in English.
+const LOCALE_DEFAULT: Locale = 'en';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SHOPIFY_STORE_RE = /^[a-z0-9][a-z0-9-]*$/;
@@ -38,7 +46,17 @@ function requireIntegerAtLeast(path: string, value: unknown, min: number): void 
   }
 }
 
-/** Validates every config value a downstream node depends on, and throws a clear `Error` naming the first bad key it finds. */
+function readLocale(path: string, value: unknown): Locale {
+  if (value === undefined) return LOCALE_DEFAULT;
+  if (!isLocale(value)) throw new Error(`${path} must be "en" or "es"`);
+  return value;
+}
+
+/**
+ * Validates every config value a downstream node depends on, and throws a clear `Error` naming
+ * the first bad key it finds. Returns the config unchanged, except that a missing `default_locale`
+ * or `team_locale` is filled in as `en`.
+ */
 export function validateConfig(value: unknown): Config {
   const root = asObject(value, 'config');
 
@@ -61,5 +79,8 @@ export function validateConfig(value: unknown): Config {
   requireIntegerAtLeast('low_stock_threshold', root.low_stock_threshold, 1);
   requireIntegerAtLeast('guide_delay_minutes', root.guide_delay_minutes, 2);
 
-  return value as Config;
+  const defaultLocale = readLocale('default_locale', root.default_locale);
+  const teamLocale = readLocale('team_locale', root.team_locale);
+  if (root.default_locale !== undefined && root.team_locale !== undefined) return value as Config;
+  return { ...(root as unknown as Config), default_locale: defaultLocale, team_locale: teamLocale };
 }

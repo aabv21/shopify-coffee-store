@@ -17,13 +17,14 @@ files, producing a complete, pushable theme at `.theme-build/theme/`.
 3. **Insertions.** `scripts/lib/theme-insertions.ts`'s `INSERTIONS` list makes small, surgical
    edits to Horizon's own files that a whole-file overlay can't express: a line inserted before an
    exact anchor, an exact anchor replaced, a settings group appended once, a section added once to
-   a JSON template, or theme settings changed in `config/settings_data.json`. Each insertion names
-   the file and either an anchor string (which must appear in it exactly once), a key that must not
-   already exist, or the exact current value of each setting it changes; a mismatch fails assembly
+   a JSON template, theme settings changed in `config/settings_data.json`, or a translation
+   namespace added once to a locale file. Each insertion names the file and either an anchor string
+   (which must appear in it exactly once), a key that must not already exist, or the exact current
+   value of each setting it changes; a missing file or a mismatch fails assembly
    immediately and names the file and anchor, rather than silently applying to the wrong spot or
    duplicating. Every touched file counts as `modified`.
 
-The free-shipping bar, the coffee finder, and the brand (below) fill these lists. A new feature adds
+The free-shipping bar, the coffee finder, the brand, and the translations (below) fill these lists. A new feature adds
 its theme files and insertions the same way, and documents the exact file, anchor, and content
 here.
 
@@ -52,7 +53,8 @@ shipping threshold, updating live as the cart changes.
 - `src/theme/free-shipping-bar.ts` — the `<free-shipping-bar>` custom element. Bundled by
   `THEME_ENTRIES` into `theme/assets/free-shipping-bar.js` (generated; never hand-edited).
 - `theme/snippets/free-shipping-bar.liquid` — renders the `<free-shipping-bar>` markup from the
-  Theme contracts' DOM contract, reads the settings below, and loads the bundled script. The first
+  Theme contracts' DOM contract, reads the settings below (each blank message falling back to its
+  translation; see Translations), and loads the bundled script. The first
   render is server-side: the message, the fill, `aria-valuenow`, `aria-valuetext`, and
   `data-state` (`remaining` or `reached`) are already right before the script runs, so nothing
   starts empty or shifts.
@@ -63,10 +65,12 @@ shipping threshold, updating live as the cart changes.
    on its own line, anchored immediately before `<div class="cart-totals">` (that line appears
    exactly once in Horizon's file).
 2. `config/settings_schema.json`: an `append-settings-group` insertion adding the group "Free
-   shipping bar" with five settings: `free_shipping_bar_enabled` (checkbox, default on),
-   `free_shipping_threshold` (number, default 120000), `free_shipping_message_remaining` (text,
-   `[amount]` placeholder), `free_shipping_message_reached` (text), and
-   `free_shipping_progress_label` (text, the progress bar's accessible label).
+   shipping bar" (`t:nubandina.free_shipping_bar.name`) with five settings:
+   `free_shipping_bar_enabled` (checkbox, default on), `free_shipping_threshold` (number, default
+   120000), `free_shipping_message_remaining` (text, `[amount]` placeholder),
+   `free_shipping_message_reached` (text), and `free_shipping_progress_label` (text, the progress
+   bar's accessible label). Every label and info text is a `t:` key, and the three texts have no
+   default: left blank, each shows its storefront translation.
 
 **States and accessibility.** The track is a `role="progressbar"` with `aria-valuenow` (the
 percent), `aria-valuetext` (the same message the bar shows), and the progress label setting as its
@@ -109,7 +113,8 @@ two coffees from product metafields, and adds the chosen bag to the cart.
 - `theme/sections/coffee-finder.liquid` — the section markup from the Theme contracts' DOM
   contract: the three-question form, the results region, the card `<template>`, and the embedded
   product JSON (up to 50 products from the configured collection, or every product when it's
-  blank), reads the settings below, and loads the bundled script. It sits in Horizon's own
+  blank), reads its text settings (each blank one falling back to its translation; see
+  Translations), and loads the bundled script. It sits in Horizon's own
   `section section--page-width` grid, so it gets the theme's page margins.
 
 **Layout and states.** Mobile first: each answer is a full-width option at least 48px tall, the
@@ -232,6 +237,66 @@ Horizon draws muted text as the foreground at `--opacity-muted-text: 0.6`, which
 on the cream background, so the brand raises it to 0.65 (5.06:1), the smallest step that passes.
 Sand on cream (1.27:1) is decorative only.
 
+## Translations
+
+The storefront speaks English and Spanish. English is the source language: every string starts in
+English, and Spanish exists only in the translation files.
+
+**Files.** `theme-locales/` (at the repo root, outside this overlay, since an overlay file named
+`locales/es.json` would replace Horizon's whole file) holds four partial Shopify locale files, each
+with a single top-level key, `nubandina`:
+
+- `en.default.json` and `es.json` — storefront strings: the coffee finder's 22 texts and the
+  free-shipping bar's three, including the status and error messages the scripts read from data
+  attributes (`data-message`, `data-added`, `data-error`, `data-message-remaining`,
+  `data-message-reached`).
+- `en.default.schema.json` and `es.schema.json` — the theme editor's labels and help text, which
+  the section schema and the free-shipping settings group reference as `t:nubandina.…`.
+
+**Insertions.** Each locale file gets one `add-locale-namespace` insertion: `nubandina` is added as
+the first top-level key, as text right after the file's opening brace, so Horizon's leading
+`/* ... */` notice and its `//` notes for translators stay intact. It fails assembly if the target
+file is missing or already has a top-level `nubandina`.
+
+6. `locales/en.default.json` and `locales/es.json`: the storefront strings, in their own language.
+7. `locales/en.default.schema.json` and `locales/es.schema.json`: the editor strings, likewise.
+8. Horizon's 32 other storefront locales (`HORIZON_OTHER_STOREFRONT_LOCALES`) and 21 other schema
+   locales (`HORIZON_OTHER_SCHEMA_LOCALES`): the English strings. See "Why the other locales get
+   English" below.
+
+**Merchant text is an optional override.** No text setting has a default any more. The snippet
+`snippets/nubandina-text.liquid` prints the setting when the merchant filled it in, escaped, and
+otherwise the translation for its key (`{{ key | t }}`), so a blank setting shows each visitor
+their own language. Shopify's `t` filter escapes its output unless the key ends in `_html`
+([storefront locale files](https://shopify.dev/docs/storefronts/themes/architecture/locales/storefront-locale-files)),
+so neither branch is escaped twice. A merchant value saved before this change keeps working as-is,
+in whatever language it was written, on every storefront language; clearing it brings the
+translations back.
+
+**Why the other locales get English.** Theme check's `MatchingTranslations` reports every key of
+the default locale missing from another locale file as an error (severity 0), and an error anywhere
+fails the gate, so leaving Horizon's other 32 storefront and 21 schema locales untouched isn't an
+option: with only the default locale carrying the namespace, theme check reported 33 errors, one per
+other storefront locale. Each of those files gets the English strings instead, which is what a
+visitor in that language would otherwise see. The cost is that Shopify's language editor shows
+these strings as already translated in those languages, not as missing. Every touched locale file is
+now this repo's (`modified`), so any offense in it fails the check.
+
+**Money.** Prices and the free-shipping amount come from the shop's own `money_format`
+(`${{amount_no_decimals_with_comma_separator}}`, so `$48.000`), a store setting rather than a
+translation, so COP keeps Colombia's separators in both languages.
+
+**Product content** (titles, tasting notes, variant names, image alt text) is store data, not theme
+text. It's translated in Shopify's Translate & Adapt app, a deferred live check below; until then a
+Spanish storefront shows those in English.
+
+**Adding a language.** Add `theme-locales/<code>.json` and `<code>.schema.json` (IETF tag, such as
+`pt-BR`), give them every key the English files have, switch that locale's insertion in
+`scripts/lib/theme-insertions.ts` from the English strings to the new file, and publish the
+language in Shopify's admin. `tests/theme/translations.test.ts` asserts that English and Spanish
+carry the same keys, each non-empty and actually translated with the same placeholders, and that
+the Liquid and the editor schema use exactly those keys.
+
 ## Offline preview
 
 `pnpm run theme:preview` assembles the theme, then renders the real
@@ -241,9 +306,12 @@ writes `.theme-build/preview/index.html` (gitignored), next to copies of Horizon
 `assets/base.css` and the two built component scripts. Serve it and open it in a browser:
 
 ```sh
-pnpm run theme:preview
+pnpm run theme:preview                 # English, from locales/en.default.json
+pnpm run theme:preview -- --locale es  # Spanish, from locales/es.json
 python3 -m http.server 8765 --directory .theme-build/preview
 ```
+
+Each run replaces the last one's page, in the language it was given, with `<html lang>` to match.
 
 `?demo=finder`, `?demo=cart-0`, `?demo=cart-60`, and `?demo=cart-100` show one state at a time.
 
@@ -255,7 +323,8 @@ wrapper, and a real cart can all differ; the real check is `shopify theme dev` a
   the `product` objects the finder's Liquid reads, with synthetic ids (products from 1001,
   variants from 2001), prices in cents, availability from stock and the selling policy, the first
   row's image and alt text, and the three `coffee` metafields. `section.settings` comes from the
-  section's own `{% schema %}` defaults, `settings` from the assembled `settings_schema.json`
+  section's own `{% schema %}` defaults (none for its texts, so they show their translations),
+  `settings` from the assembled `settings_schema.json`
   defaults overlaid with `settings_data.json`'s `current` values (palette references resolved),
   `shop.money_format` is `${{amount_no_decimals_with_comma_separator}}` (from
   `docs/shopify-setup.md`), and `cart.total_price` is 0%, 60%, and 100% of the threshold.
@@ -276,6 +345,8 @@ instead of rendering wrongly:
 | `{% schema %}` | Prints nothing; the preview reads its defaults separately. |
 | `{% stylesheet %}` | Prints nothing in place; its CSS goes once into the page's `<head>`, as Shopify bundles it. |
 | `{% doc %}` | Prints nothing. |
+| `{% render %}` | liquidjs's own, reading snippets from the theme's `snippets/` (`nubandina-text`). |
+| `t` | Looks the key up in the chosen locale file (`en.default.json` or `es.json`), interpolates `{{ name }}` arguments, and escapes the result unless the key ends in `_html`, as Shopify documents. A key missing from that file fails the preview: there's no fallback to English, so an untranslated string can't hide. The mock cart's own labels use Horizon's keys (`content.your_cart`, `content.cart_estimated_total`, `content.checkout`). |
 | `money` | Formats cents with the same `formatMoney` the bar's script uses, in the store's format. |
 | `asset_url` | Returns `assets/<name>`, next to the page. |
 | `image_url` | Returns the image's URL with its `width` parameter set. |
@@ -288,9 +359,13 @@ rest) is liquidjs's own standard Liquid, with two known differences from Shopify
 data contains no `</`), and its `divided_by` doesn't truncate two integers, which the bar's
 `| floor` makes moot.
 
+liquidjs's `escape` writes `"` as `&#34;` where Shopify writes `&quot;`; both are safe in an
+attribute.
+
 `tests/theme/preview.test.ts` covers the mock shaping, the settings resolution, the color math
-(checked against shopify.dev's own `color_lighten` example), the type sizes, each stub, and a
-render of both real component files.
+(checked against shopify.dev's own `color_lighten` example), the type sizes, each stub, a render of
+both real component files in English, a merchant override, and a Spanish render of both, which
+asserts the Spanish text and that none of this repo's English strings is left in it.
 
 ## Screenshots
 
@@ -304,6 +379,15 @@ From the offline preview, so an approximation of the storefront (see above). Eac
 | Cart at 0% | ![The free-shipping bar, empty, on a phone](../docs/screenshots/cart-0-390.png) | ![The free-shipping bar, empty, on a laptop](../docs/screenshots/cart-0-1280.png) |
 | Cart at 60% | ![The free-shipping bar at 60% on a phone](../docs/screenshots/cart-60-390.png) | ![The free-shipping bar at 60% on a laptop](../docs/screenshots/cart-60-1280.png) |
 | Cart at 100% | ![The free-shipping bar, complete, on a phone](../docs/screenshots/cart-100-390.png) | ![The free-shipping bar, complete, on a laptop](../docs/screenshots/cart-100-1280.png) |
+
+In Spanish (`pnpm run theme:preview -- --locale es`). The tasting notes stay English: they're
+product content, translated in Translate & Adapt, not theme text.
+
+| | 390 × 844 | 1280 × 800 |
+| --- | --- | --- |
+| Coffee finder | ![The coffee finder's three questions in Spanish on a phone](../docs/screenshots/finder-empty-es-390.png) | ![The coffee finder's three questions in Spanish on a laptop](../docs/screenshots/finder-empty-es-1280.png) |
+| Finder results | ![Two recommended coffees with Spanish labels on a phone](../docs/screenshots/finder-results-es-390.png) | ![Two recommended coffees with Spanish labels on a laptop](../docs/screenshots/finder-results-es-1280.png) |
+| Cart at 60% | ![The free-shipping bar at 60% in Spanish on a phone](../docs/screenshots/cart-60-es-390.png) | ![The free-shipping bar at 60% in Spanish on a laptop](../docs/screenshots/cart-60-es-1280.png) |
 
 ## Theme check
 
@@ -319,7 +403,10 @@ informational, not asserted.
 At the time of writing, an unmodified pinned Horizon reports 0 errors and a baseline of 6
 warnings, all in `sections/header.liquid` and `snippets/divider.liquid`. The brand's two
 insertions make `config/settings_data.json` and `snippets/theme-styles-variables.liquid` this
-repo's files too, so any offense in them now fails the check; neither has one.
+repo's files too, so any offense in them now fails the check; neither has one. The translations make
+all 57 of Horizon's locale files this repo's as well (5 added and 62 modified files in all), with no
+offense in any of them; the baseline stays at the same 6 warnings. Without the English copies in
+the other locales, `MatchingTranslations` would report 33 errors (see Translations).
 
 ## Commands
 
@@ -329,8 +416,8 @@ repo's files too, so any offense in them now fails the check; neither has one.
   reports drift and exits 1 instead of writing.
 - `pnpm run theme:check` — assembles, then runs theme check; prints any failing offenses and the
   baseline count, and exits 1 on any failure.
-- `pnpm run theme:preview` — assembles, then writes the offline preview to
-  `.theme-build/preview/index.html` (see "Offline preview" above).
+- `pnpm run theme:preview [-- --locale es]` — assembles, then writes the offline preview to
+  `.theme-build/preview/index.html`, in English or Spanish (see "Offline preview" above).
 
 ## Pushing to a store (deferred live check)
 
@@ -408,3 +495,19 @@ run yet:
 - **Fonts.** Both families load from Shopify's font CDN, with no console errors and no fallback
   font in DevTools' rendered fonts.
 - **Muted text.** Horizon's own muted text, such as the footer copyright, uses the 0.65 opacity.
+
+### Translations (deferred live checks)
+
+These need a dev store with Spanish published as a second language (Settings > Languages), and
+`pnpm dlx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme`, so they haven't been run yet:
+
+- **Spanish storefront.** On `/es`, the coffee finder and the free-shipping bar show the Spanish
+  strings, including "Elija una respuesta para cada pregunta." after an incomplete submit, "Se
+  agregó a su carrito." after an add, and "Le faltan $82.000 para el envío gratis" with Sierra
+  Nevada 250 g in the cart.
+- **Merchant override.** A heading typed into the section's settings shows on both `/` and `/es`;
+  clearing it brings back "Find your coffee" and "Encuentre su café".
+- **Theme editor.** With the admin in Spanish, the section and the free-shipping settings show the
+  Spanish labels from `es.schema.json`.
+- **Product content.** Translate & Adapt translates each product's title, tasting notes, and image
+  alt text, and `/es` shows them in the finder's cards.

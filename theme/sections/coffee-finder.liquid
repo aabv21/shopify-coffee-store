@@ -1,4 +1,4 @@
-{%- comment -%} The doc tag is snippet/block-only in Shopify's Liquid; sections carry no top-of-file doc block. {%- endcomment -%}
+{%- comment -%} The doc tag is snippet/block-only in Shopify's Liquid; sections carry no top-of-file doc block. Every visible string, including the status and error messages the script reads from data attributes, is the merchant's text setting when set and the storefront translation otherwise (snippets/nubandina-text.liquid). {%- endcomment -%}
 {%- liquid
   assign finder_collection = section.settings.collection
   if finder_collection == blank
@@ -10,82 +10,82 @@
 <div class="section section--page-width coffee-finder-section">
   <coffee-finder class="coffee-finder" data-cart-add-url="{{ routes.cart_add_url }}" data-cart-url="{{ routes.cart_url }}">
     <div class="coffee-finder__intro">
-      <h2 class="coffee-finder__heading">{{ section.settings.heading | escape }}</h2>
-      <p class="coffee-finder__text">{{ section.settings.intro | escape }}</p>
+      <h2 class="coffee-finder__heading">{% render 'nubandina-text', value: section.settings.heading, key: 'nubandina.coffee_finder.heading' %}</h2>
+      <p class="coffee-finder__text">{% render 'nubandina-text', value: section.settings.intro, key: 'nubandina.coffee_finder.intro' %}</p>
     </div>
 
     <form data-finder-form class="coffee-finder__form" novalidate>
       <fieldset class="coffee-finder__fieldset">
-        <legend class="coffee-finder__legend">{{ section.settings.brew_question | escape }}</legend>
+        <legend class="coffee-finder__legend">{% render 'nubandina-text', value: section.settings.brew_question, key: 'nubandina.coffee_finder.brew_question' %}</legend>
         <div class="coffee-finder__options">
           <label class="coffee-finder__option">
             <input class="coffee-finder__radio" type="radio" name="brew_method" value="pour-over" required>
-            <span>{{ section.settings.brew_pour_over | escape }}</span>
+            <span>{% render 'nubandina-text', value: section.settings.brew_pour_over, key: 'nubandina.coffee_finder.brew_pour_over' %}</span>
           </label>
           <label class="coffee-finder__option">
             <input class="coffee-finder__radio" type="radio" name="brew_method" value="espresso">
-            <span>{{ section.settings.brew_espresso | escape }}</span>
+            <span>{% render 'nubandina-text', value: section.settings.brew_espresso, key: 'nubandina.coffee_finder.brew_espresso' %}</span>
           </label>
           <label class="coffee-finder__option">
             <input class="coffee-finder__radio" type="radio" name="brew_method" value="french-press">
-            <span>{{ section.settings.brew_french_press | escape }}</span>
+            <span>{% render 'nubandina-text', value: section.settings.brew_french_press, key: 'nubandina.coffee_finder.brew_french_press' %}</span>
           </label>
         </div>
       </fieldset>
 
       <fieldset class="coffee-finder__fieldset">
-        <legend class="coffee-finder__legend">{{ section.settings.taste_question | escape }}</legend>
+        <legend class="coffee-finder__legend">{% render 'nubandina-text', value: section.settings.taste_question, key: 'nubandina.coffee_finder.taste_question' %}</legend>
         <div class="coffee-finder__options">
           <label class="coffee-finder__option">
             <input class="coffee-finder__radio" type="radio" name="taste" value="mild" required>
-            <span>{{ section.settings.taste_mild | escape }}</span>
+            <span>{% render 'nubandina-text', value: section.settings.taste_mild, key: 'nubandina.coffee_finder.taste_mild' %}</span>
           </label>
           <label class="coffee-finder__option">
             <input class="coffee-finder__radio" type="radio" name="taste" value="balanced">
-            <span>{{ section.settings.taste_balanced | escape }}</span>
+            <span>{% render 'nubandina-text', value: section.settings.taste_balanced, key: 'nubandina.coffee_finder.taste_balanced' %}</span>
           </label>
           <label class="coffee-finder__option">
             <input class="coffee-finder__radio" type="radio" name="taste" value="intense">
-            <span>{{ section.settings.taste_intense | escape }}</span>
+            <span>{% render 'nubandina-text', value: section.settings.taste_intense, key: 'nubandina.coffee_finder.taste_intense' %}</span>
           </label>
         </div>
       </fieldset>
 
       <fieldset class="coffee-finder__fieldset">
-        <legend class="coffee-finder__legend">{{ section.settings.people_question | escape }}</legend>
+        <legend class="coffee-finder__legend">{% render 'nubandina-text', value: section.settings.people_question, key: 'nubandina.coffee_finder.people_question' %}</legend>
         <div class="coffee-finder__options">
           <label class="coffee-finder__option">
             <input class="coffee-finder__radio" type="radio" name="people" value="1" required>
-            <span>{{ section.settings.people_one | escape }}</span>
+            <span>{% render 'nubandina-text', value: section.settings.people_one, key: 'nubandina.coffee_finder.people_one' %}</span>
           </label>
           <label class="coffee-finder__option">
             <input class="coffee-finder__radio" type="radio" name="people" value="2">
-            <span>{{ section.settings.people_two | escape }}</span>
+            <span>{% render 'nubandina-text', value: section.settings.people_two, key: 'nubandina.coffee_finder.people_two' %}</span>
           </label>
           <label class="coffee-finder__option">
             <input class="coffee-finder__radio" type="radio" name="people" value="3">
-            <span>{{ section.settings.people_three_plus | escape }}</span>
+            <span>{% render 'nubandina-text', value: section.settings.people_three_plus, key: 'nubandina.coffee_finder.people_three_plus' %}</span>
           </label>
         </div>
       </fieldset>
 
       <div class="coffee-finder__actions">
-        <button type="submit" class="button coffee-finder__submit">{{ section.settings.submit_label | escape }}</button>
+        <button type="submit" class="button coffee-finder__submit">{% render 'nubandina-text', value: section.settings.submit_label, key: 'nubandina.coffee_finder.submit_label' %}</button>
         <div
           id="CoffeeFinderError-{{ section.id }}"
           data-finder-error
           class="coffee-finder__error"
           role="alert"
-          data-message="{{ section.settings.required_text | escape }}"
+          data-message="{% render 'nubandina-text', value: section.settings.required_text, key: 'nubandina.coffee_finder.required_text' %}"
         ></div>
       </div>
     </form>
 
     <div data-finder-results class="coffee-finder__results" aria-live="polite" hidden>
-      <h3 data-finder-heading class="coffee-finder__results-heading" tabindex="-1">{{ section.settings.results_heading | escape }}</h3>
+      <h3 data-finder-heading class="coffee-finder__results-heading" tabindex="-1">{% render 'nubandina-text', value: section.settings.results_heading, key: 'nubandina.coffee_finder.results_heading' %}</h3>
       <div data-finder-empty class="coffee-finder__empty" hidden>
-        <p class="coffee-finder__empty-text">{{ section.settings.empty_text | escape }}</p>
-        <a class="button-secondary coffee-finder__empty-link" href="{{ routes.all_products_collection_url }}">{{ section.settings.empty_link_label | escape }}</a>
+        <p class="coffee-finder__empty-text">{% render 'nubandina-text', value: section.settings.empty_text, key: 'nubandina.coffee_finder.empty_text' %}</p>
+        <a class="button-secondary coffee-finder__empty-link" href="{{ routes.all_products_collection_url }}">{% render 'nubandina-text', value: section.settings.empty_link_label, key: 'nubandina.coffee_finder.empty_link_label' %}</a>
       </div>
       <ul data-finder-list class="coffee-finder__list" role="list"></ul>
     </div>
@@ -103,7 +103,7 @@
             <span data-card-price class="coffee-finder__card-price"></span>
           </p>
           <button type="button" data-card-add class="button coffee-finder__card-add">
-            <span>{{ section.settings.add_label | escape }}</span>
+            <span>{% render 'nubandina-text', value: section.settings.add_label, key: 'nubandina.coffee_finder.add_label' %}</span>
             <span class="visually-hidden" data-card-add-name></span>
           </button>
           <div data-card-status class="coffee-finder__card-status" role="status"></div>
@@ -111,7 +111,12 @@
       </li>
     </template>
 
-    <span data-finder-messages hidden data-added="{{ section.settings.added_text | escape }}" data-error="{{ section.settings.error_text | escape }}"></span>
+    <span
+      data-finder-messages
+      hidden
+      data-added="{% render 'nubandina-text', value: section.settings.added_text, key: 'nubandina.coffee_finder.added_text' %}"
+      data-error="{% render 'nubandina-text', value: section.settings.error_text, key: 'nubandina.coffee_finder.error_text' %}"
+    ></span>
 
     {%- capture finder_products_json -%}
       [
@@ -570,32 +575,33 @@
 
 {% schema %}
 {
-  "name": "Coffee finder",
+  "name": "t:nubandina.coffee_finder.name",
   "settings": [
-    { "type": "text", "id": "heading", "label": "Heading", "default": "Find your coffee" },
-    { "type": "text", "id": "intro", "label": "Intro text", "default": "Answer three quick questions and we’ll pick a bag for you." },
-    { "type": "collection", "id": "collection", "label": "Collection", "info": "Leave blank to search every product." },
-    { "type": "text", "id": "brew_question", "label": "Brew method question", "default": "How do you brew at home?" },
-    { "type": "text", "id": "brew_pour_over", "label": "Brew method: pour-over", "default": "Pour-over" },
-    { "type": "text", "id": "brew_espresso", "label": "Brew method: espresso", "default": "Espresso" },
-    { "type": "text", "id": "brew_french_press", "label": "Brew method: French press", "default": "French press" },
-    { "type": "text", "id": "taste_question", "label": "Taste question", "default": "What flavor do you enjoy?" },
-    { "type": "text", "id": "taste_mild", "label": "Taste: mild", "default": "Mild and bright" },
-    { "type": "text", "id": "taste_balanced", "label": "Taste: balanced", "default": "Balanced" },
-    { "type": "text", "id": "taste_intense", "label": "Taste: intense", "default": "Bold and intense" },
-    { "type": "text", "id": "people_question", "label": "People question", "default": "How many people drink it?" },
-    { "type": "text", "id": "people_one", "label": "People: one", "default": "Just me" },
-    { "type": "text", "id": "people_two", "label": "People: two", "default": "Two of us" },
-    { "type": "text", "id": "people_three_plus", "label": "People: three or more", "default": "Three or more" },
-    { "type": "text", "id": "submit_label", "label": "Submit button label", "default": "Find my coffee" },
-    { "type": "text", "id": "required_text", "label": "Unanswered question message", "default": "Choose an answer for each question." },
-    { "type": "text", "id": "results_heading", "label": "Results heading", "default": "Our pick for you" },
-    { "type": "text", "id": "empty_text", "label": "No match text", "default": "No coffee matches those answers right now. Try a different option, or browse every coffee." },
-    { "type": "text", "id": "empty_link_label", "label": "No match link label", "default": "Browse all coffees" },
-    { "type": "text", "id": "add_label", "label": "Add to cart button label", "default": "Add to cart" },
-    { "type": "text", "id": "added_text", "label": "Added to cart message", "default": "Added to your cart." },
-    { "type": "text", "id": "error_text", "label": "Cart error message", "default": "We couldn’t add this to your cart. Please try again." }
+    { "type": "paragraph", "content": "t:nubandina.coffee_finder.texts_info" },
+    { "type": "text", "id": "heading", "label": "t:nubandina.coffee_finder.heading" },
+    { "type": "text", "id": "intro", "label": "t:nubandina.coffee_finder.intro" },
+    { "type": "collection", "id": "collection", "label": "t:nubandina.coffee_finder.collection", "info": "t:nubandina.coffee_finder.collection_info" },
+    { "type": "text", "id": "brew_question", "label": "t:nubandina.coffee_finder.brew_question" },
+    { "type": "text", "id": "brew_pour_over", "label": "t:nubandina.coffee_finder.brew_pour_over" },
+    { "type": "text", "id": "brew_espresso", "label": "t:nubandina.coffee_finder.brew_espresso" },
+    { "type": "text", "id": "brew_french_press", "label": "t:nubandina.coffee_finder.brew_french_press" },
+    { "type": "text", "id": "taste_question", "label": "t:nubandina.coffee_finder.taste_question" },
+    { "type": "text", "id": "taste_mild", "label": "t:nubandina.coffee_finder.taste_mild" },
+    { "type": "text", "id": "taste_balanced", "label": "t:nubandina.coffee_finder.taste_balanced" },
+    { "type": "text", "id": "taste_intense", "label": "t:nubandina.coffee_finder.taste_intense" },
+    { "type": "text", "id": "people_question", "label": "t:nubandina.coffee_finder.people_question" },
+    { "type": "text", "id": "people_one", "label": "t:nubandina.coffee_finder.people_one" },
+    { "type": "text", "id": "people_two", "label": "t:nubandina.coffee_finder.people_two" },
+    { "type": "text", "id": "people_three_plus", "label": "t:nubandina.coffee_finder.people_three_plus" },
+    { "type": "text", "id": "submit_label", "label": "t:nubandina.coffee_finder.submit_label" },
+    { "type": "text", "id": "required_text", "label": "t:nubandina.coffee_finder.required_text" },
+    { "type": "text", "id": "results_heading", "label": "t:nubandina.coffee_finder.results_heading" },
+    { "type": "text", "id": "empty_text", "label": "t:nubandina.coffee_finder.empty_text" },
+    { "type": "text", "id": "empty_link_label", "label": "t:nubandina.coffee_finder.empty_link_label" },
+    { "type": "text", "id": "add_label", "label": "t:nubandina.coffee_finder.add_label" },
+    { "type": "text", "id": "added_text", "label": "t:nubandina.coffee_finder.added_text" },
+    { "type": "text", "id": "error_text", "label": "t:nubandina.coffee_finder.error_text" }
   ],
-  "presets": [{ "name": "Coffee finder" }]
+  "presets": [{ "name": "t:nubandina.coffee_finder.name" }]
 }
 {% endschema %}

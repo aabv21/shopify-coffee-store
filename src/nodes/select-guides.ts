@@ -1,12 +1,44 @@
-// Builds the brewing-guide email: one guide per brew method found among the order's known
-// variants, plus a list of the coffees bought. Pure: no I/O, no clock.
-import type { BrewingGuide, BrewingGuides, GuideEmail, NormalizedOrder, VariantInfo } from './types.ts';
+// Builds the brewing-guide email in the customer's language: one guide per brew method found
+// among the order's known variants, plus a list of the coffees bought. Pure: no I/O, no clock.
+import { normalizeLocale, type Locale } from '../lib/locale.ts';
+import type { BrewingGuide, BrewingGuides, GuideEmail, GuideText, NormalizedOrder, VariantInfo } from './types.ts';
 
 export interface SelectGuidesInput {
   order: NormalizedOrder;
   variants: VariantInfo[];
   guides: BrewingGuides;
+  /** `config.default_locale`, as the workflow reads it: blank or missing means English. */
+  default_locale?: string;
 }
+
+// Every argument a message receives is already HTML-escaped.
+interface Messages {
+  subject: string;
+  greeting: (firstName: string | null) => string;
+  intro: (orderNumber: string) => string;
+  roast: (roast: string) => string;
+  ratio: string;
+  signOff: string;
+}
+
+const MESSAGES: Record<Locale, Messages> = {
+  en: {
+    subject: 'How to brew your Nubandina coffee',
+    greeting: (firstName) => `Hi ${firstName ?? 'there'},`,
+    intro: (orderNumber) => `Thanks for your order ${orderNumber}. Here's how to get the best from your coffee.`,
+    roast: (roast) => `${roast} roast`,
+    ratio: 'Ratio',
+    signOff: 'Enjoy your coffee,',
+  },
+  es: {
+    subject: 'Cómo preparar su café Nubandina',
+    greeting: (firstName) => (firstName === null ? 'Hola:' : `Hola, ${firstName}:`),
+    intro: (orderNumber) => `Gracias por su pedido ${orderNumber}. Así puede sacarle el máximo provecho a su café.`,
+    roast: (roast) => `tostión ${new Map([['light', 'clara'], ['medium', 'media'], ['dark', 'oscura']]).get(roast) ?? roast}`,
+    ratio: 'Proporción',
+    signOff: 'Que disfrute su café,',
+  },
+};
 
 const ESCAPE_RE = /[&<>"']/g;
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -16,26 +48,27 @@ function escapeHtml(value: string): string {
   return value.replace(ESCAPE_RE, (char) => ESCAPES[char] ?? char);
 }
 
-function greeting(firstName: string | null): string {
-  return `<p>Hi ${escapeHtml(firstName ?? 'there')},</p>`;
-}
-
-function intro(orderNumber: string): string {
-  return `<p>Thanks for your order ${escapeHtml(orderNumber)}. Here's how to get the best from your coffee.</p>`;
-}
-
-function productListItem(variant: VariantInfo): string {
-  const roastSuffix = variant.roast === null ? '' : `, ${escapeHtml(variant.roast)} roast`;
+function productListItem(variant: VariantInfo, m: Messages): string {
+  const roastSuffix = variant.roast === null ? '' : `, ${m.roast(escapeHtml(variant.roast))}`;
   return `<li>${escapeHtml(variant.product_title)} (${escapeHtml(variant.variant_title)})${roastSuffix}</li>`;
 }
 
-function guideSection(method: string, guide: BrewingGuide): string {
+/** The guide's text in `locale`, or its English text when that translation is missing. */
+function guideText(guide: BrewingGuide, locale: Locale): GuideText {
+  // eslint-disable-next-line security/detect-object-injection -- locale is always one of LOCALES
+  return locale === 'en' ? guide : (guide.translations?.[locale] ?? guide);
+}
+
+function guideSection(guide: GuideText, m: Messages): string {
   const steps = guide.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join('');
-  return `<h2>${escapeHtml(guide.name)}</h2><p>Ratio: ${escapeHtml(guide.ratio)}</p><ol>${steps}</ol>`;
+  return `<h2>${escapeHtml(guide.name)}</h2><p>${m.ratio}: ${escapeHtml(guide.ratio)}</p><ol>${steps}</ol>`;
 }
 
 export function run(input: SelectGuidesInput): GuideEmail {
   const { order, variants, guides } = input;
+  const locale = normalizeLocale(order.locale, normalizeLocale(input.default_locale, 'en'));
+  // eslint-disable-next-line security/detect-object-injection -- locale is always one of LOCALES
+  const m = MESSAGES[locale];
 
   const byGid = new Map<string, VariantInfo>();
   for (const variant of variants) byGid.set(variant.variant_gid, variant);
@@ -57,20 +90,21 @@ export function run(input: SelectGuidesInput): GuideEmail {
   const methods = [...methodGuides.keys()];
   const send = order.email !== null && methods.length > 0;
 
-  const productList = `<ul>${knownVariants.map(productListItem).join('')}</ul>`;
-  const guideSections = [...methodGuides.entries()].map(([method, guide]) => guideSection(method, guide)).join('');
+  const productList = `<ul>${knownVariants.map((variant) => productListItem(variant, m)).join('')}</ul>`;
+  const guideSections = [...methodGuides.values()].map((guide) => guideSection(guideText(guide, locale), m)).join('');
   const html = [
-    greeting(order.first_name),
-    intro(order.order_number),
+    `<p>${m.greeting(order.first_name === null ? null : escapeHtml(order.first_name))}</p>`,
+    `<p>${m.intro(escapeHtml(order.order_number))}</p>`,
     productList,
     guideSections,
-    '<p>Enjoy your coffee,<br>Nubandina Coffee</p>',
+    `<p>${m.signOff}<br>Nubandina Coffee</p>`,
   ].join('');
 
   return {
     send,
+    locale,
     to: order.email,
-    subject: 'How to brew your Nubandina coffee',
+    subject: m.subject,
     html,
     methods,
   };

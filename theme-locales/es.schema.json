@@ -1,0 +1,43 @@
+{
+  "nubandina": {
+    "coffee_finder": {
+      "name": "Buscador de café",
+      "texts_info": "Si deja un texto en blanco, la tienda muestra el texto predeterminado traducido a cada idioma.",
+      "heading": "Título",
+      "intro": "Texto de introducción",
+      "collection": "Colección",
+      "collection_info": "Déjela en blanco para buscar en todos los productos.",
+      "brew_question": "Pregunta sobre el método de preparación",
+      "brew_pour_over": "Método: filtrado",
+      "brew_espresso": "Método: espresso",
+      "brew_french_press": "Método: prensa francesa",
+      "taste_question": "Pregunta sobre el sabor",
+      "taste_mild": "Sabor: suave",
+      "taste_balanced": "Sabor: balanceado",
+      "taste_intense": "Sabor: intenso",
+      "people_question": "Pregunta sobre las personas",
+      "people_one": "Personas: una",
+      "people_two": "Personas: dos",
+      "people_three_plus": "Personas: tres o más",
+      "submit_label": "Texto del botón de búsqueda",
+      "required_text": "Mensaje de pregunta sin responder",
+      "results_heading": "Título de los resultados",
+      "empty_text": "Texto cuando no hay coincidencias",
+      "empty_link_label": "Texto del enlace cuando no hay coincidencias",
+      "add_label": "Texto del botón para agregar al carrito",
+      "added_text": "Mensaje de producto agregado",
+      "error_text": "Mensaje de error del carrito"
+    },
+    "free_shipping_bar": {
+      "name": "Barra de envío gratis",
+      "enabled": "Mostrar la barra de envío gratis",
+      "threshold": "Monto mínimo para envío gratis",
+      "threshold_info": "Monto entero en la moneda de la tienda. Debe coincidir con la tarifa de envío gratis en Configuración > Envío y entrega.",
+      "message_remaining": "Mensaje: monto restante",
+      "message_remaining_info": "Déjelo en blanco para mostrar el texto predeterminado traducido a cada idioma. [amount] muestra el monto restante.",
+      "message_reached": "Mensaje: envío gratis alcanzado",
+      "progress_label": "Etiqueta accesible de la barra de progreso",
+      "blank_info": "Déjelo en blanco para mostrar el texto predeterminado traducido a cada idioma."
+    }
+  }
+}

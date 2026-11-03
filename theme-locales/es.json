@@ -1,0 +1,33 @@
+{
+  "nubandina": {
+    "coffee_finder": {
+      "heading": "Encuentre su café",
+      "intro": "Responda tres preguntas rápidas y elegimos un café para usted.",
+      "brew_question": "¿Cómo prepara el café en casa?",
+      "brew_pour_over": "Filtrado",
+      "brew_espresso": "Espresso",
+      "brew_french_press": "Prensa francesa",
+      "taste_question": "¿Qué sabor prefiere?",
+      "taste_mild": "Suave y brillante",
+      "taste_balanced": "Balanceado",
+      "taste_intense": "Intenso y con cuerpo",
+      "people_question": "¿Cuántas personas lo toman?",
+      "people_one": "Solo yo",
+      "people_two": "Dos personas",
+      "people_three_plus": "Tres o más",
+      "submit_label": "Encontrar mi café",
+      "required_text": "Elija una respuesta para cada pregunta.",
+      "results_heading": "Nuestra recomendación para usted",
+      "empty_text": "En este momento ningún café coincide con sus respuestas. Pruebe otra opción o vea todos nuestros cafés.",
+      "empty_link_label": "Ver todos los cafés",
+      "add_label": "Agregar al carrito",
+      "added_text": "Se agregó a su carrito.",
+      "error_text": "No pudimos agregar este producto a su carrito. Inténtelo de nuevo."
+    },
+    "free_shipping_bar": {
+      "message_remaining": "Le faltan [amount] para el envío gratis",
+      "message_reached": "¡Su pedido tiene envío gratis!",
+      "progress_label": "Progreso hacia el envío gratis"
+    }
+  }
+}

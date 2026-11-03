@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { run } from '../../src/nodes/select-guides.ts';
 import { run as normalize } from '../../src/nodes/normalize-order.ts';
 import { run as selectStock } from '../../src/nodes/select-low-stock.ts';
@@ -40,3 +40,57 @@ it('does not send when no item has a known brew method', () => {
 });
 it('falls back to a generic greeting', () =>
   expect(run({ order: { ...order('two-methods'), first_name: null }, variants: variants('two-methods'), guides }).html).toContain('<p>Hi there,</p>'));
+
+describe('in Spanish', () => {
+  const es = run({ order: order('two-methods-es'), variants: variants('two-methods'), guides });
+
+  it("writes the subject, greeting, and guides in the customer's language", () => {
+    expect(es).toMatchObject({ send: true, to: 'lucia.restrepo@example.com', subject: 'Cómo preparar su café Nubandina', locale: 'es', methods: ['pour-over', 'espresso'] });
+    expect(es.html).toContain('<p>Hola, Lucía:</p>');
+    expect(es.html).toContain('<p>Gracias por su pedido #T1006. Así puede sacarle el máximo provecho a su café.</p>');
+    expect(es.html).toContain(`<h2>${guides['pour-over']?.translations?.es?.name ?? 'missing'}</h2>`);
+    expect(es.html).toContain(`<p>Proporción: ${guides['pour-over']?.translations?.es?.ratio ?? 'missing'}</p>`);
+    expect(es.html).toContain('<p>Que disfrute su café,<br>Nubandina Coffee</p>');
+  });
+  it('names each roast the Colombian way', () => {
+    expect(es.html).toContain('<li>Nariño (250 g), tostión clara</li>');
+    expect(es.html).toContain('<li>Sierra Nevada (250 g), tostión oscura</li>');
+    const v = variants('two-methods').map((x) => ({ ...x, roast: 'medium' }));
+    expect(run({ order: order('two-methods-es'), variants: v, guides }).html).toContain('tostión media');
+    const unknown = variants('two-methods').map((x) => ({ ...x, roast: 'city+' }));
+    expect(run({ order: order('two-methods-es'), variants: unknown, guides }).html).toContain('tostión city+');
+  });
+  it('leaves no English template text behind', () => {
+    for (const english of ['Hi ', 'Thanks', 'Ratio', ' roast', 'Enjoy', 'How to brew']) expect(es.html + es.subject).not.toContain(english);
+  });
+  it('greets without a name when there is none', () =>
+    expect(run({ order: { ...order('two-methods-es'), first_name: null }, variants: variants('two-methods'), guides }).html).toContain('<p>Hola:</p>'));
+  it("falls back to a guide's English text when it has no Spanish translation", () => {
+    const englishOnly: BrewingGuides = { 'pour-over': { name: 'Pour-over', ratio: '1:16', steps: ['a', 'b', 'c'] } };
+    const html = run({ order: order('two-methods-es'), variants: variants('two-methods'), guides: englishOnly }).html;
+    expect(html).toContain('<h2>Pour-over</h2>');
+    expect(html).toContain('<p>Proporción: 1:16</p>');
+  });
+});
+
+describe('the configured default locale', () => {
+  const withoutLocale = () => {
+    const o: Record<string, unknown> = { ...order('two-methods') };
+    delete o.locale;
+    return o as unknown as ReturnType<typeof order>;
+  };
+
+  it("applies when the order's locale is unknown", () => {
+    const o = { ...order('two-methods'), locale: null };
+    expect(run({ order: o, variants: variants('two-methods'), guides, default_locale: 'es' }).locale).toBe('es');
+    expect(run({ order: o, variants: variants('two-methods'), guides, default_locale: 'en' }).locale).toBe('en');
+  });
+  it('applies to an order normalized before the locale field existed', () =>
+    expect(run({ order: withoutLocale(), variants: variants('two-methods'), guides, default_locale: 'es' }).subject).toBe('Cómo preparar su café Nubandina'));
+  it('is English when the config predates it too, or holds anything else', () => {
+    expect(run({ order: withoutLocale(), variants: variants('two-methods'), guides }).subject).toBe('How to brew your Nubandina coffee');
+    expect(run({ order: withoutLocale(), variants: variants('two-methods'), guides, default_locale: '' }).locale).toBe('en');
+  });
+  it("never overrides the customer's own locale", () =>
+    expect(run({ order: order('two-methods'), variants: variants('two-methods'), guides, default_locale: 'es' }).locale).toBe('en'));
+});

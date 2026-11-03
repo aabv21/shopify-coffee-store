@@ -1,0 +1,12 @@
+{% doc %}
+  Prints a merchant's text setting when it has one, HTML-escaped, and otherwise the storefront
+  translation for `key` in the visitor's language. Shopify's t filter escapes its own output, so
+  neither branch escapes twice, and the result is safe in element text and attribute values alike.
+
+  @param {string} [value] - The text setting's value; blank falls back to the translation.
+  @param {string} key - A storefront translation key, such as nubandina.coffee_finder.heading.
+
+  @example
+  {% render 'nubandina-text', value: section.settings.heading, key: 'nubandina.coffee_finder.heading' %}
+{% enddoc %}
+{%- if value != blank -%}{{ value | escape }}{%- else -%}{{ key | t }}{%- endif -%}

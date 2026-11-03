@@ -1,6 +1,7 @@
 // Turns the GraphQL stock read into the report "Any low stock?" and "Email low-stock alert" use:
 // one VariantInfo per ordered variant Shopify still has, and the subset that fell below the
-// configured threshold. Pure: no I/O, no clock.
+// configured threshold, with the owner's alert in the team's language. Pure: no I/O, no clock.
+import { normalizeLocale, type Locale } from '../lib/locale.ts';
 import type { LowStockItem, NormalizedOrder, StockReport, VariantInfo } from './types.ts';
 
 interface GraphQlError {
@@ -29,7 +30,25 @@ export interface SelectLowStockInput {
   order: NormalizedOrder;
   response: unknown;
   threshold: number;
+  /** `config.team_locale`, as the workflow reads it: blank or missing means English. */
+  team_locale?: string;
 }
+
+interface Messages {
+  subject: (orderNumber: string) => string;
+  line: (item: LowStockItem, threshold: number) => string;
+}
+
+const MESSAGES: Record<Locale, Messages> = {
+  en: {
+    subject: (orderNumber) => `Low stock after order ${orderNumber}`,
+    line: (item, threshold) => `${item.product_title} (${item.variant_title}), SKU ${item.sku ?? ''}: ${String(item.available)} left (threshold ${String(threshold)})`,
+  },
+  es: {
+    subject: (orderNumber) => `Inventario bajo tras el pedido ${orderNumber}`,
+    line: (item, threshold) => `${item.product_title} (${item.variant_title}), SKU ${item.sku ?? ''}: quedan ${String(item.available)} (umbral ${String(threshold)})`,
+  },
+};
 
 function toVariantInfo(gid: string, node: VariantNode): VariantInfo {
   return {
@@ -46,10 +65,6 @@ function toVariantInfo(gid: string, node: VariantNode): VariantInfo {
 
 function toLowStockItem(variant: VariantInfo): LowStockItem {
   return { product_title: variant.product_title, variant_title: variant.variant_title, sku: variant.sku, available: variant.available };
-}
-
-function formatLine(item: LowStockItem, threshold: number): string {
-  return `${item.product_title} (${item.variant_title}), SKU ${item.sku ?? ''}: ${String(item.available)} left (threshold ${String(threshold)})`;
 }
 
 export function run(input: SelectLowStockInput): StockReport {
@@ -74,11 +89,12 @@ export function run(input: SelectLowStockInput): StockReport {
   }
 
   const lowStock = variants.filter((v) => v.tracked && v.available < input.threshold).map(toLowStockItem);
+  const m = MESSAGES[normalizeLocale(input.team_locale, 'en')];
 
   return {
     variants,
     low_stock: lowStock,
-    subject: `Low stock after order ${input.order.order_number}`,
-    text: lowStock.map((item) => formatLine(item, input.threshold)).join('\n'),
+    subject: m.subject(input.order.order_number),
+    text: lowStock.map((item) => m.line(item, input.threshold)).join('\n'),
   };
 }

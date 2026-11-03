@@ -10,6 +10,8 @@ it('config example has every runtime key', () => {
     shopify: { store: 'replace-me', api_version: '2026-10' },
     low_stock_threshold: 5,
     guide_delay_minutes: 60,
+    default_locale: 'en',
+    team_locale: 'en',
   });
 });
 

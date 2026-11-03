@@ -12,8 +12,8 @@ Nubandina Coffee is a fictional Shopify store in Colombia. It sells three coffee
 
 The repo holds two parts:
 
-- **The storefront**: Shopify’s Horizon theme, plus a free-shipping progress bar in the cart and a coffee finder on the home page.
-- **The order backend**: n8n workflows that record each new order once, log it to a Google Sheet, and email the owner. They also alert the owner to low stock and email the customer a brewing guide after a delay.
+- **The storefront**: Shopify’s Horizon theme, plus a free-shipping progress bar in the cart and a coffee finder on the home page, both in English and Spanish.
+- **The order backend**: n8n workflows that record each new order once, log it to a Google Sheet, and email the owner. They also alert the owner to low stock and email the customer a brewing guide after a delay, in the customer’s language. The owner’s emails follow the team’s language.
 
 The backend runs as one Docker Compose project, `nubandina-coffee`:
 
@@ -34,19 +34,22 @@ Six n8n workflows make up the backend. Their fixed IDs live in `scripts/lib/mani
 | `intake-order` | `shopify-orders`, or the dev harness | Normalizes the order, records it once, stops a repeat, loads and checks the config, then starts `process-order` without waiting |
 | `process-order` | `intake-order` | Writes the sheet row, emails the owner, reads stock from Shopify, alerts on low stock, waits, then emails the brewing guide |
 | `load-config` | `intake-order`, `error-handler`, and the dev harness | Reads `/files/config/config.json` and returns `{ config }`, unvalidated |
-| `error-handler` | Any other workflow’s failure, including a trigger that fails to activate | Emails the owner a plain-text alert with the failed node, the error, the execution link, and the time |
+| `error-handler` | Any other workflow’s failure, including a trigger that fails to activate | Emails the owner a plain-text alert, in `team_locale`, with the failed node, the error, the execution link, and the time |
 | `dev-harness` | `POST /webhook/dev` with an `X-Dev-Token` header, from localhost | Runs one of two targets, `load-config` or `intake-order` |
 
 `shopify-orders` holds only the trigger and the handoff. A run started by a webhook can call only published workflows. n8n can’t publish `shopify-orders` without the live Shopify credential, because its trigger registers a webhook with Shopify on activation.
 
 The rest of the chain sits in `intake-order`, whose trigger needs no credential, so it publishes and runs offline through the dev harness. `pnpm run setup` publishes `shopify-orders` only when it runs with `--live`.
 
-Five Code nodes do work that no native node does. Each is a pure TypeScript function in `src/nodes/`, which `pnpm run build:workflows` bundles into the workflow JSON:
+Seven Code nodes do work that no native node does. Each is a pure TypeScript function in `src/nodes/`, which `pnpm run build:workflows` bundles into the workflow JSON:
 
 - `Normalize order` and `Check config`, in `intake-order`
-- `Build order row`, `Select low-stock variants`, and `Build guide email`, in `process-order`
+- `Build order row`, `Build owner summary`, `Select low-stock variants`, and `Build guide email`, in `process-order`
+- `Build error alert`, in `error-handler`
 
-The workflows read their settings from `config/config.json`, which Compose mounts read-only at `/files/config/`. It holds the owner’s email, the sheet ID and tab name, the store subdomain and API version, the low-stock threshold, and the guide delay. Git ignores the file, and `config/config.example.json` is its template. `validateConfig` (`src/lib/config.ts`) checks it in `pnpm run check:config`, in `pnpm run setup`, and in the `Check config` node.
+Every email’s text comes from an `{ en, es }` message table in its Code node, so no workflow expression holds a translatable string.
+
+The workflows read their settings from `config/config.json`, which Compose mounts read-only at `/files/config/`. It holds the owner’s email, the sheet ID and tab name, the store subdomain and API version, the low-stock threshold, the guide delay, and two languages: `default_locale` for customer emails when an order carries no usable locale, and `team_locale` for the owner’s emails. Both are `en` or `es` and default to `en`. Git ignores the file, and `config/config.example.json` is its template. `validateConfig` (`src/lib/config.ts`) checks it in `pnpm run check:config`, in `pnpm run setup`, and in the `Check config` node.
 
 ## The storefront and the token script
 
@@ -72,10 +75,10 @@ The sequence diagram groups the path into seven bands, and the numbered steps be
 1. **Delivery and HMAC check**: After checkout, Shopify posts the `orders/create` webhook to the ngrok address, which forwards only `/webhook/4b1d2c3e-5f60-4a7b-8c9d-0e1f2a3b4c5d/webhook`. The Shopify Trigger requires the topic, shop, and API-version headers. It computes the body’s HMAC-SHA256, a hash-based message authentication code, with the app’s client secret and compares it with `X-Shopify-Hmac-Sha256`. A match starts an execution. n8n answers HTTP 200 on receipt, before any node runs.
 2. **Idempotency gate**: `Hand to intake` passes the order to `intake-order` and waits. `Normalize order` turns the payload into one order object, taking the ID from `admin_graphql_api_id`. It throws on a payload with no ID, order number, or line items, or with a missing or non-numeric amount. `Record order` then runs `INSERT INTO orders … ON CONFLICT (order_id) DO NOTHING RETURNING order_id`. A repeat inserts nothing, but the Postgres node still emits one `{ success: true }` item. So `Is new order?` checks for `order_id`, and stops a repeat there.
 3. **Config, then hand-off**: `Load config` reads the mounted file, and `Check config` validates it. A bad value fails the run here, after `Record order`. `Process order` then starts `process-order` with the order and the checked config, without waiting for it.
-4. **Sheet row and owner email**: `Build order row` converts the order time to Bogota time and joins the line items into one text field. `Upsert order row` writes the row to the `Orders` tab, keyed by `order_number`, with raw cell values. `Email owner` sends a plain-text summary.
-5. **Stock check**: `Read stock and brew methods` sends one GraphQL `nodes` query for the order’s variants. It reads each variant’s stock and tracking, and its product’s `coffee.roast` and `coffee.brew_method`. `Select low-stock variants` keeps each tracked variant with less stock than `low_stock_threshold`, and skips variants Shopify no longer has. When any are low, `Email low-stock alert` sends the owner one plain-text list.
+4. **Sheet row and owner email**: `Build order row` converts the order time to Bogota time and joins the line items into one text field. `Upsert order row` writes the row to the `Orders` tab, keyed by `order_number`, with raw cell values. `Build owner summary` writes a plain-text summary in `team_locale`, with amounts in that locale’s digit grouping, and `Email owner` sends it.
+5. **Stock check**: `Read stock and brew methods` sends one GraphQL `nodes` query for the order’s variants. It reads each variant’s stock and tracking, and its product’s `coffee.roast` and `coffee.brew_method`. `Select low-stock variants` keeps each tracked variant with less stock than `low_stock_threshold`, and skips variants Shopify no longer has. When any are low, `Email low-stock alert` sends the owner one plain-text list, in `team_locale`.
 6. **Persisted wait**: `Wait before guide` waits `guide_delay_minutes`, 60 in the example config. n8n stores the waiting execution in Postgres and resumes it when the time comes, even after a restart.
-7. **Brewing guide**: `Read brewing guides` reads `/files/data/brewing-guides.json`. `Build guide email` picks one guide per brew method among the order’s variants and builds an HTML email with every value escaped. `Email brewing guide` sends it only when the order has an email address and at least one guide matched.
+7. **Brewing guide**: `Read brewing guides` reads `/files/data/brewing-guides.json`. `Build guide email` picks one guide per brew method among the order’s variants and builds an HTML email with every value escaped, in the order’s `customer_locale` as `Normalize order` normalized it, else `default_locale`. `Email brewing guide` sends it only when the order has an email address and at least one guide matched.
 
 ## What the system stores, and for how long
 
@@ -191,6 +194,8 @@ Each entry names a choice and the option it beat, then gives the reason:
 - **A primary-key gate in Postgres, over checking first**: One `INSERT … ON CONFLICT DO NOTHING` checks and records in a single statement. Two deliveries of one order can’t both pass, which a `SELECT` before an `INSERT` would allow. The cost is the lost-response row in the failure table.
 - **Validating config in the order chain, over validating it in `load-config`**: `error-handler` loads the same config to find the owner’s address. A check inside `load-config` would make a bad hand edit silence its own alert. In `intake-order`, the check fails the run and the alert still goes out.
 - **Loading config after the gate, over at the start of the entry**: A repeat stops before any config read, and a retry that resumes at or before the gate reads the file afresh. The cost: an order that fails at `Check config` is already recorded, so it needs its row deleted before a retry.
+- **Email text in Code-node message tables, over expressions in the Gmail nodes**: A language switch in an expression would put Spanish into workflow JSON and repeat the choice in every field. One typed `{ en, es }` table per email keeps both languages side by side, makes a missing translation a compile error, and lets each language be unit-tested. The cost is two more Code nodes and their Set nodes.
+- **Spanish theme strings in Horizon’s locale files, over Spanish section defaults**: A section default is one value for every language, so a Spanish storefront would show it in English. With no defaults, a blank setting shows Shopify’s own translation for the visitor, and a merchant’s text still overrides it.
 - **Code nodes built from TypeScript, over JavaScript written into the workflow JSON**: Each Code node is a pure, strictly typed, unit-tested function in `src/nodes/`. CI fails when the generated JSON is stale, and `pnpm run check` rejects a Code node that `scripts/lib/manifest.ts` doesn’t list.
 - **A thin `shopify-orders` in front of `intake-order`, over one workflow**: A run started by a webhook calls only published workflows, and `shopify-orders` publishes only with the live Shopify credential. With the chain behind `intake-order`, the dev harness runs all of it offline. The cost: a failure in `intake-order` sends two alerts.
 

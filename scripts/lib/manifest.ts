@@ -127,14 +127,26 @@ export const CODE_NODES: readonly CodeNodeEntry[] = [
   },
   {
     file: 'process-order.json',
+    node: 'Build owner summary',
+    source: 'src/nodes/owner-summary.ts',
+    why: "writes the owner's order summary from an en/es message table with locale-aware amounts",
+  },
+  {
+    file: 'process-order.json',
     node: 'Select low-stock variants',
     source: 'src/nodes/select-low-stock.ts',
-    why: 'parses the GraphQL response, de-duplicates variants, and fails loudly on API errors',
+    why: 'parses the GraphQL response, de-duplicates variants, fails loudly on API errors, and words the alert in the team locale',
   },
   {
     file: 'process-order.json',
     node: 'Build guide email',
     source: 'src/nodes/select-guides.ts',
-    why: 'picks one guide per brew method and renders escaped HTML',
+    why: "picks one guide per brew method and renders escaped HTML in the customer's language",
+  },
+  {
+    file: 'error-handler.json',
+    node: 'Build error alert',
+    source: 'src/nodes/error-alert.ts',
+    why: 'writes the alert from an en/es message table and never throws on an unvalidated config',
   },
 ];

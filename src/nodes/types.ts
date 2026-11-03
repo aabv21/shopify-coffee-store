@@ -1,5 +1,6 @@
 // Fixed data contracts shared across Code nodes. Pure types only: no I/O, no clock, no Node
 // imports, so every Code node source can compile against them.
+import type { Locale } from '../lib/locale.ts';
 
 /** The subset of Shopify's `orders/create` webhook payload normalize-order.ts reads. */
 export interface ShopifyOrderPayload {
@@ -10,6 +11,8 @@ export interface ShopifyOrderPayload {
   email?: string | null;
   contact_email?: string | null;
   currency: string;
+  /** The customer's language at checkout, such as `en`, `es-CO`, or `fr-CA`; nullable. */
+  customer_locale?: string | null;
   subtotal_price: string;
   total_price: string;
   total_shipping_price_set?: { shop_money?: { amount?: string } };
@@ -43,6 +46,11 @@ export interface NormalizedOrder {
   first_name: string | null;
   customer_name: string;
   city: string;
+  /**
+   * The customer's language, or null when the order carries none this store speaks; readers then
+   * use `config.default_locale`. An order normalized before this field existed has none at all.
+   */
+  locale: Locale | null;
   currency: string;
   subtotal: number;
   shipping: number;
@@ -90,16 +98,26 @@ export interface StockReport {
   text: string;
 }
 
-export interface BrewingGuide {
+/** One guide's text in one language. */
+export interface GuideText {
   name: string;
   ratio: string;
   steps: [string, string, string];
+}
+
+/**
+ * A guide in English, the source language, at the top level (the shape a workflow version from
+ * before translations still reads), plus its other languages under `translations`.
+ */
+export interface BrewingGuide extends GuideText {
+  translations?: Partial<Record<Exclude<Locale, 'en'>, GuideText>>;
 }
 
 export type BrewingGuides = Record<string, BrewingGuide>;
 
 export interface GuideEmail {
   send: boolean;
+  locale: Locale;
   to: string | null;
   subject: string;
   html: string;

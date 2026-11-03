@@ -1,6 +1,7 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
+import { parseJsonc, stripJsonComments } from './jsonc.ts';
 
 /**
  * One theme setting to change in `settings_data.json`'s `current` values. With `from`, the
@@ -15,7 +16,8 @@ export type Insertion =
   | { kind: 'replace-anchor'; file: string; anchor: string; content: string }
   | { kind: 'append-settings-group'; file: 'config/settings_schema.json'; group: { name: string; settings: readonly Record<string, unknown>[] } }
   | { kind: 'add-section-after'; file: string; after: string; key: string; section: { type: string; settings: Record<string, unknown> } }
-  | { kind: 'set-theme-settings'; file: 'config/settings_data.json'; changes: readonly SettingChange[] };
+  | { kind: 'set-theme-settings'; file: 'config/settings_data.json'; changes: readonly SettingChange[] }
+  | { kind: 'add-locale-namespace'; file: string; namespace: string; translations: Readonly<Record<string, unknown>> };
 
 export class InsertionError extends Error {}
 
@@ -52,6 +54,48 @@ export const BRAND_SETTINGS: readonly SettingChange[] = [
   { id: 'palette_selected_variant_border', to: '{{ settings.color_palette.color1 }}' },
 ];
 
+// Every storefront and editor string this repo adds lives under one top-level namespace in each
+// locale file, so it never collides with Horizon's own keys.
+export const LOCALE_NAMESPACE = 'nubandina';
+
+export const THEME_LOCALES_DIR = new URL('../../theme-locales/', import.meta.url);
+
+/** One of `theme-locales/`'s files: the strings under `LOCALE_NAMESPACE`, as Shopify's locale format nests them. */
+export function readThemeLocale(file: string): Readonly<Record<string, unknown>> {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is one of theme-locales/'s own fixed names
+  const parsed = JSON.parse(readFileSync(new URL(file, THEME_LOCALES_DIR), 'utf8')) as Record<string, unknown>;
+  const strings = new Map(Object.entries(parsed)).get(LOCALE_NAMESPACE);
+  if (typeof strings !== 'object' || strings === null || Object.keys(parsed).length !== 1) {
+    throw new Error(`theme-locales/${file}: expected exactly one top-level key, ${LOCALE_NAMESPACE}`);
+  }
+  return strings as Record<string, unknown>;
+}
+
+// Horizon v4.3.0's other languages. Theme check's MatchingTranslations reports a missing key in any
+// of them as an error, so each gets the English strings, which is also what Shopify would show
+// there. A locale Horizon adds fails theme check; one it drops fails assembly (file not found).
+export const HORIZON_OTHER_STOREFRONT_LOCALES = [
+  'ar', 'bg', 'cs', 'da', 'de', 'el', 'fi', 'fr', 'he', 'hr', 'hu', 'id', 'it', 'ja', 'ko', 'lt',
+  'nb', 'nl', 'pl', 'pt-BR', 'pt-PT', 'ro', 'ru', 'sk', 'sl', 'sv', 'th', 'tr', 'ur', 'vi', 'zh-CN', 'zh-TW',
+] as const;
+export const HORIZON_OTHER_SCHEMA_LOCALES = [
+  'ar', 'cs', 'da', 'de', 'fi', 'fr', 'he', 'it', 'ja', 'ko', 'nb', 'nl', 'pl', 'pt-BR', 'pt-PT', 'sv', 'th', 'tr', 'ur', 'zh-CN', 'zh-TW',
+] as const;
+
+function localeInsertions(): Insertion[] {
+  const add = (file: string, translations: Readonly<Record<string, unknown>>): Insertion => ({ kind: 'add-locale-namespace', file, namespace: LOCALE_NAMESPACE, translations });
+  const storefront = readThemeLocale('en.default.json');
+  const schema = readThemeLocale('en.default.schema.json');
+  return [
+    add('locales/en.default.json', storefront),
+    add('locales/es.json', readThemeLocale('es.json')),
+    add('locales/en.default.schema.json', schema),
+    add('locales/es.schema.json', readThemeLocale('es.schema.json')),
+    ...HORIZON_OTHER_STOREFRONT_LOCALES.map((locale) => add(`locales/${locale}.json`, storefront)),
+    ...HORIZON_OTHER_SCHEMA_LOCALES.map((locale) => add(`locales/${locale}.schema.json`, schema)),
+  ];
+}
+
 export const INSERTIONS: readonly Insertion[] = [
   {
     kind: 'before-line',
@@ -63,34 +107,35 @@ export const INSERTIONS: readonly Insertion[] = [
     kind: 'append-settings-group',
     file: 'config/settings_schema.json',
     group: {
-      name: 'Free shipping bar',
+      name: 't:nubandina.free_shipping_bar.name',
       settings: [
-        { type: 'checkbox', id: 'free_shipping_bar_enabled', label: 'Show the free shipping bar', default: true },
+        { type: 'checkbox', id: 'free_shipping_bar_enabled', label: 't:nubandina.free_shipping_bar.enabled', default: true },
         {
           type: 'number',
           id: 'free_shipping_threshold',
-          label: 'Free shipping threshold',
+          label: 't:nubandina.free_shipping_bar.threshold',
           default: 120000,
-          info: 'Whole amount in the store currency. Match the free shipping rate in Settings > Shipping and delivery.',
+          info: 't:nubandina.free_shipping_bar.threshold_info',
         },
+        // No defaults: a blank message falls back to the storefront translation (see
+        // snippets/free-shipping-bar.liquid), so each language gets its own text.
         {
           type: 'text',
           id: 'free_shipping_message_remaining',
-          label: 'Message: amount remaining',
-          default: 'You’re [amount] away from free shipping',
-          info: '[amount] shows the amount left.',
+          label: 't:nubandina.free_shipping_bar.message_remaining',
+          info: 't:nubandina.free_shipping_bar.message_remaining_info',
         },
         {
           type: 'text',
           id: 'free_shipping_message_reached',
-          label: 'Message: free shipping reached',
-          default: 'You’ve got free shipping!',
+          label: 't:nubandina.free_shipping_bar.message_reached',
+          info: 't:nubandina.free_shipping_bar.blank_info',
         },
         {
           type: 'text',
           id: 'free_shipping_progress_label',
-          label: 'Progress bar accessible label',
-          default: 'Progress toward free shipping',
+          label: 't:nubandina.free_shipping_bar.progress_label',
+          info: 't:nubandina.free_shipping_bar.blank_info',
         },
       ],
     },
@@ -111,6 +156,7 @@ export const INSERTIONS: readonly Insertion[] = [
     anchor: '--opacity-muted-text: 0.6;',
     content: '--opacity-muted-text: 0.65;',
   },
+  ...localeInsertions(),
 ];
 
 function readThemeFile(themeDir: string, file: string): string {
@@ -212,6 +258,27 @@ function applySetThemeSettings(themeDir: string, insertion: { file: 'config/sett
   writeThemeFile(themeDir, insertion.file, comment ? `${comment}\n${body}` : body);
 }
 
+/**
+ * Adds `namespace` as the first top-level key of a locale file. Horizon's locale files are JSON
+ * with comments (a leading notice, notes for translators), so this inserts text right after the
+ * top-level object's opening brace instead of rewriting the file, and keeps every comment.
+ */
+function applyAddLocaleNamespace(themeDir: string, insertion: { file: string; namespace: string; translations: Readonly<Record<string, unknown>> }): void {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is an insertion's own fixed path, not user input
+  if (!existsSync(join(themeDir, insertion.file))) throw new InsertionError(`${insertion.file}: file not found`);
+  const text = readThemeFile(themeDir, insertion.file);
+  const parsed = parseJsonc(text);
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new InsertionError(`${insertion.file}: not a JSON object`);
+  if (Object.hasOwn(parsed, insertion.namespace)) throw new InsertionError(`${insertion.file}: namespace exists: ${insertion.namespace}`);
+
+  // Comments are blanked, not removed, so the first brace found in the stripped text sits at the
+  // same offset in the original.
+  const brace = stripJsonComments(text).indexOf('{');
+  const body = JSON.stringify({ [insertion.namespace]: insertion.translations }, null, 2);
+  const entry = body.slice(1, -1).trimEnd() + (Object.keys(parsed).length > 0 ? ',' : '\n');
+  writeThemeFile(themeDir, insertion.file, `${text.slice(0, brace + 1)}${entry}${text.slice(brace + 1)}`);
+}
+
 export function applyInsertion(themeDir: string, insertion: Insertion): void {
   switch (insertion.kind) {
     case 'before-line':
@@ -228,6 +295,9 @@ export function applyInsertion(themeDir: string, insertion: Insertion): void {
       return;
     case 'add-section-after':
       applyAddSectionAfter(themeDir, insertion);
+      return;
+    case 'add-locale-namespace':
+      applyAddLocaleNamespace(themeDir, insertion);
       return;
   }
 }

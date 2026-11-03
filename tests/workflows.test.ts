@@ -24,13 +24,26 @@ it('load-config reads the config file loudly instead of silently skipping a miss
   expect(n.executeOnce).toBe(true);
 });
 
-it('error emails reach the owner and cover activation errors', () => {
+it('error emails reach the owner, built in the team locale by a Code node from the error data', () => {
   const p = params('error-handler.json', 'Email owner');
-  expect(p).toContain('config.owner_email');
-  expect(p).toContain("execution?.lastNodeExecuted ?? 'activation'");
-  expect(p).toContain('execution?.error?.message ?? trigger?.error?.message');
-  expect(p).toContain("execution?.url ?? 'n/a (activation error)'");
+  expect(p).toContain("$('Load config').first().json.config.owner_email");
+  // A failed Code node (task runner down) still sends an English alert from the trigger data.
+  expect(node('error-handler.json', 'Build error alert').onError).toBe('continueRegularOutput');
+  expect(node('error-handler.json', 'Email owner').parameters).toMatchObject({
+    subject: "={{ $json.subject ?? '[Nubandina demo] Workflow failed: ' + ($('On workflow error').first().json.workflow?.name ?? 'unknown') }}",
+    message:
+      "={{ $json.text ?? 'The alert could not be built in the team language. Error: ' + ($('On workflow error').first().json.execution?.error?.message ?? $('On workflow error').first().json.trigger?.error?.message ?? 'unknown') }}",
+    emailType: 'text',
+  });
   expect(p).toContain('"appendAttribution":false');
+  const collect = params('error-handler.json', 'Collect alert input');
+  expect(collect).toContain("$('On workflow error').first().json");
+  expect(collect).toContain("$json.config.team_locale ?? ''");
+  expect(collect).toContain("$now.setZone('America/Bogota').toFormat('yyyy-LL-dd HH:mm')");
+  const connections = wf('error-handler.json').connections as Record<string, { main?: { node: string }[][] }>;
+  expect(connections['Load config']?.main?.[0]?.map((c) => c.node)).toEqual(['Collect alert input']);
+  expect(connections['Collect alert input']?.main?.[0]?.map((c) => c.node)).toEqual(['Build error alert']);
+  expect(connections['Build error alert']?.main?.[0]?.map((c) => c.node)).toEqual(['Email owner']);
 });
 
 it('the entry trigger is the HMAC-checking Shopify Trigger on orders/create', () => {
@@ -150,12 +163,25 @@ it('the sheet upsert is keyed by order number and writes raw values', () => {
   expect(p.options).toMatchObject({ cellFormat: 'RAW' });
   expect(JSON.stringify(p)).toContain('config.google.orders_sheet_id');
 });
-it('the owner email is plain text to the configured owner', () => {
+it('the owner email is plain text to the configured owner, built in the team locale after the upsert', () => {
   const p = node('process-order.json', 'Email owner').parameters;
   expect([p.emailType, JSON.stringify(p).includes('config.owner_email')]).toEqual(['text', true]);
+  expect(p).toMatchObject({ subject: '={{ $json.subject }}', message: '={{ $json.text }}' });
   expect(p.options).toMatchObject({ appendAttribution: false });
+  const collect = params('process-order.json', 'Collect summary input');
+  expect(collect).toContain("$('Build order row').first().json");
+  expect(collect).toContain("config.team_locale ?? ''");
+  const connections = wf('process-order.json').connections as Record<string, { main?: { node: string }[][] }>;
+  expect(connections['Upsert order row']?.main?.[0]?.map((c) => c.node)).toEqual(['Collect summary input']);
+  expect(connections['Collect summary input']?.main?.[0]?.map((c) => c.node)).toEqual(['Build owner summary']);
+  expect(connections['Build owner summary']?.main?.[0]?.map((c) => c.node)).toEqual(['Email owner']);
 });
-
+// An execution already past these Set nodes, or a config from before the locale keys, carries no
+// locale at all: '' reaches the Code node, which reads it as English.
+it('the low-stock alert follows the team locale and the guide falls back to the default locale', () => {
+  expect(params('process-order.json', 'Collect stock input')).toContain("config.team_locale ?? ''");
+  expect(params('process-order.json', 'Collect guide input')).toContain("config.default_locale ?? ''");
+});
 it('stock and brew methods come from one authenticated GraphQL call', () => {
   const n = node('process-order.json', 'Read stock and brew methods');
   expect(n.type).toBe('n8n-nodes-base.graphql');

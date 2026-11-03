@@ -2,20 +2,31 @@
   Renders the free-shipping progress bar: how far the cart is from the free-shipping threshold,
   updating live as the cart changes. Hidden when the feature is off or the threshold is blank or
   zero. The first render comes from the server, so the message and the bar never start empty.
+  Each message is the merchant's theme setting when set and the storefront translation otherwise.
 {% enddoc %}
 
 {%- assign free_shipping_threshold_cents = settings.free_shipping_threshold | times: 100 -%}
 {%- if settings.free_shipping_bar_enabled and free_shipping_threshold_cents > 0 -%}
+  {%- comment -%} Each capture is already HTML-escaped (see nubandina-text), so it's printed as is below. {%- endcomment -%}
+  {%- capture free_shipping_template_remaining -%}
+    {%- render 'nubandina-text', value: settings.free_shipping_message_remaining, key: 'nubandina.free_shipping_bar.message_remaining' -%}
+  {%- endcapture -%}
+  {%- capture free_shipping_message_reached -%}
+    {%- render 'nubandina-text', value: settings.free_shipping_message_reached, key: 'nubandina.free_shipping_bar.message_reached' -%}
+  {%- endcapture -%}
+  {%- capture free_shipping_progress_label -%}
+    {%- render 'nubandina-text', value: settings.free_shipping_progress_label, key: 'nubandina.free_shipping_bar.progress_label' -%}
+  {%- endcapture -%}
   {%- liquid
     assign free_shipping_total_cents = cart.total_price | at_least: 0
     assign free_shipping_percent = free_shipping_total_cents | times: 100 | divided_by: free_shipping_threshold_cents | floor | at_most: 100
     if free_shipping_total_cents >= free_shipping_threshold_cents
       assign free_shipping_state = 'reached'
-      assign free_shipping_message = settings.free_shipping_message_reached
+      assign free_shipping_message = free_shipping_message_reached
     else
       assign free_shipping_state = 'remaining'
-      assign free_shipping_remaining = free_shipping_threshold_cents | minus: free_shipping_total_cents | money
-      assign free_shipping_message = settings.free_shipping_message_remaining | replace_first: '[amount]', free_shipping_remaining
+      assign free_shipping_remaining = free_shipping_threshold_cents | minus: free_shipping_total_cents | money | escape
+      assign free_shipping_message = free_shipping_template_remaining | replace_first: '[amount]', free_shipping_remaining
     endif
   -%}
   {%- comment -%} data-skip-subtree-update keeps Horizon's section morph from wiping the JS-rendered children while it still updates data-total-cents and data-state. {%- endcomment -%}
@@ -25,8 +36,8 @@
     data-total-cents="{{ cart.total_price }}"
     data-threshold-cents="{{ free_shipping_threshold_cents }}"
     data-money-format="{{ shop.money_format | escape }}"
-    data-message-remaining="{{ settings.free_shipping_message_remaining | escape }}"
-    data-message-reached="{{ settings.free_shipping_message_reached | escape }}"
+    data-message-remaining="{{ free_shipping_template_remaining }}"
+    data-message-reached="{{ free_shipping_message_reached }}"
     data-cart-url="{{ routes.cart_url }}"
     data-skip-subtree-update
   >
@@ -43,7 +54,7 @@
         <circle cx="10" cy="10" r="8.25" stroke="currentColor" stroke-width="1.5"/>
         <path d="m6.5 10.25 2.25 2.25 4.75-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <span data-bar-message aria-live="polite">{{ free_shipping_message | escape }}</span>
+      <span data-bar-message aria-live="polite">{{ free_shipping_message }}</span>
     </p>
     <div
       class="free-shipping-bar__track"
@@ -52,8 +63,8 @@
       aria-valuemin="0"
       aria-valuemax="100"
       aria-valuenow="{{ free_shipping_percent }}"
-      aria-valuetext="{{ free_shipping_message | escape }}"
-      aria-label="{{ settings.free_shipping_progress_label | escape }}"
+      aria-valuetext="{{ free_shipping_message }}"
+      aria-label="{{ free_shipping_progress_label }}"
     >
       <div
         class="free-shipping-bar__fill"

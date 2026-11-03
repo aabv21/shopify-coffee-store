@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { INSERTIONS } from '../../scripts/lib/theme-insertions.ts';
+import { INSERTIONS, readThemeLocale } from '../../scripts/lib/theme-insertions.ts';
 import {
   createPreviewEngine,
   hoverShift,
@@ -16,14 +16,23 @@ import {
   staticRootVariables,
   themeCssVariables,
   toHex,
+  translate,
 } from '../../scripts/lib/theme-preview.ts';
-import { previewPage } from '../../scripts/theme-preview.ts';
+import { parsePreviewArgs, previewPage } from '../../scripts/theme-preview.ts';
 import { parseProducts, readAnswers, recommend } from '../../src/theme/recommend.ts';
 
 const MONEY = '${{amount_no_decimals_with_comma_separator}}';
 const catalog = () => parseCatalog(readFileSync('data/products.csv', 'utf8'));
 const section = readFileSync('theme/sections/coffee-finder.liquid', 'utf8');
 const snippet = readFileSync('theme/snippets/free-shipping-bar.liquid', 'utf8');
+const SNIPPETS = 'theme/snippets';
+// The storefront strings exactly as the insertions add them to en.default.json and es.json.
+const STRINGS = {
+  en: { nubandina: readThemeLocale('en.default.json') },
+  es: { nubandina: readThemeLocale('es.json') },
+} as const;
+const engineFor = (locale: 'en' | 'es' = 'en') =>
+  createPreviewEngine({ moneyFormat: MONEY, assetUrl: (name) => `assets/${name}`, snippetsDir: SNIPPETS, locale, translations: STRINGS[locale] });
 
 // The free-shipping settings exactly as the insertion adds them to settings_schema.json.
 const freeShippingGroup = INSERTIONS.flatMap((i) => (i.kind === 'append-settings-group' ? [i.group] : []));
@@ -77,9 +86,9 @@ describe('settings', () => {
   it('fails on a reference to a palette key that does not exist', () =>
     expect(() => resolveSettings(schema, { current: { button: '{{ settings.palette.accent }}' } })).toThrow(/palette\.accent/));
   it("reads a section's schema defaults", () => {
-    const defaults = sectionSettingDefaults(section);
-    expect(defaults.heading).toBe('Find your coffee');
-    expect(defaults).not.toHaveProperty('collection');
+    expect(sectionSettingDefaults('{% schema %}{ "settings": [{ "id": "a", "default": "x" }, { "id": "b" }, { "type": "paragraph" }] }{% endschema %}')).toEqual({ a: 'x' });
+    // The finder's texts have no defaults: a blank one falls back to its translation.
+    expect(sectionSettingDefaults(section)).toEqual({});
   });
 });
 
@@ -158,20 +167,28 @@ describe('CSS variables', () => {
 });
 
 describe('preview engine', () => {
-  const render = (source: string, cartTotalCents: number, settings = barSettings) => {
-    const preview = createPreviewEngine({ moneyFormat: MONEY, assetUrl: (name) => `assets/${name}` });
-    const scope = previewScope({ products: catalog(), sectionSettings: sectionSettingDefaults(section), settings, moneyFormat: MONEY, cartTotalCents });
+  const render = (source: string, cartTotalCents: number, settings = barSettings, o: { locale?: 'en' | 'es'; sectionSettings?: Record<string, unknown> } = {}) => {
+    const preview = engineFor(o.locale);
+    const scope = previewScope({ products: catalog(), sectionSettings: o.sectionSettings ?? sectionSettingDefaults(section), settings, moneyFormat: MONEY, cartTotalCents });
     return { html: preview.engine.parseAndRenderSync(source, scope) as string, stylesheets: preview.stylesheets() };
   };
 
   it('stubs money, asset_url, and image_url, and fails on any other Shopify-only filter', () => {
-    const { engine } = createPreviewEngine({ moneyFormat: MONEY, assetUrl: (name) => `/a/${name}` });
+    const { engine } = createPreviewEngine({ moneyFormat: MONEY, assetUrl: (name) => `/a/${name}`, snippetsDir: SNIPPETS, locale: 'en', translations: {} });
     expect(engine.parseAndRenderSync("{{ 4600000 | money }} {{ 'x.js' | asset_url }} {{ img | image_url: width: 400 }}", { img: { src: 'https://cdn.example.com/a.jpg?width=1000' } }))
       .toBe('$46.000 /a/x.js https://cdn.example.com/a.jpg?width=400');
-    expect(() => { engine.parseAndRenderSync("{{ 'a' | t }}"); }).toThrow(/undefined filter: t/);
+    expect(() => { engine.parseAndRenderSync("{{ 'a' | payment_type_svg_tag }}"); }).toThrow(/undefined filter: payment_type_svg_tag/);
+  });
+  it('stubs t like Shopify: escaped output, interpolation, _html keys raw, and a loud miss with no English fallback', () => {
+    const translations = { a: { plain: 'Tom & <Jerry>', hello: 'Hola, {{ name }}', note_html: '<b>bold</b>' } };
+    const { engine } = createPreviewEngine({ moneyFormat: MONEY, assetUrl: (name) => name, snippetsDir: SNIPPETS, locale: 'es', translations });
+    expect(engine.parseAndRenderSync("{{ 'a.plain' | t }}|{{ 'a.hello' | t: name: who }}|{{ 'a.note_html' | t }}", { who: 'Ana' })).toBe('Tom &amp; &lt;Jerry&gt;|Hola, Ana|<b>bold</b>');
+    expect(() => { engine.parseAndRenderSync("{{ 'a.missing' | t }}"); }).toThrow(/translation missing: es\.a\.missing/);
+    expect(() => { engine.parseAndRenderSync("{{ 'a' | t }}"); }).toThrow(/translation missing: es\.a/);
+    expect(translate(translations, 'a.hello', { name: 'Luis' })).toBe('Hola, Luis');
   });
   it('drops schema and doc blocks and collects each stylesheet once', () => {
-    const preview = createPreviewEngine({ moneyFormat: MONEY, assetUrl: (name) => name });
+    const preview = createPreviewEngine({ moneyFormat: MONEY, assetUrl: (name) => name, snippetsDir: SNIPPETS, locale: 'en', translations: {} });
     const source = '{% doc %} @param {string} x {% enddoc %}a{% schema %}{ "name": "x" }{% endschema %}{% stylesheet %} .a { color: red; } {% endstylesheet %}';
     expect(preview.engine.parseAndRenderSync(source)).toBe('a');
     preview.engine.parseAndRenderSync(source);
@@ -202,6 +219,69 @@ describe('preview engine', () => {
     const answers = readAnswers([['brew_method', 'pour-over'], ['taste', 'mild'], ['people', '1']]);
     expect(recommend(products, answers!).map((r) => [r.product.title, r.variant.title])).toEqual([['Nariño', '250 g']]);
     expect(html).toContain('data-message="Choose an answer for each question."');
+    expect(html).toContain('<h2 class="coffee-finder__heading">Find your coffee</h2>');
+    expect(html).toContain('data-added="Added to your cart."');
+  });
+  it("prints a merchant's own text, escaped, in place of the translation", () => {
+    const { html } = render(section, 0, barSettings, { locale: 'es', sectionSettings: { heading: 'Café & <b>Co</b>', added_text: 'Listo "ya"' } });
+    expect(html).toContain('<h2 class="coffee-finder__heading">Café &amp; &lt;b&gt;Co&lt;/b&gt;</h2>');
+    // liquidjs's escape writes &#34; where Shopify's writes &quot;; both keep the attribute closed.
+    expect(html).toMatch(/data-added="Listo &(quot|#34);ya&(quot|#34);"/);
+    expect(html).toContain('data-error="No pudimos agregar este producto a su carrito. Inténtelo de nuevo."');
+    const bar = render(snippet, 7_200_000, { ...barSettings, free_shipping_message_remaining: 'Only [amount] to <go>' }).html;
+    expect(bar).toContain('data-message-remaining="Only [amount] to &lt;go&gt;"');
+    expect(bar).toContain('aria-valuetext="Only $48.000 to &lt;go&gt;"');
+  });
+});
+
+// Every English string this repo adds, except the few that read the same in Spanish.
+const SAME_IN_SPANISH = new Set(['Espresso']);
+const englishStrings = (tree: unknown): string[] =>
+  typeof tree === 'string' ? (SAME_IN_SPANISH.has(tree) ? [] : [tree.split('[amount]')[0] ?? tree]) : Object.values(tree as object).flatMap(englishStrings);
+
+describe('Spanish render', () => {
+  const render = (source: string, cartTotalCents: number) => {
+    const preview = engineFor('es');
+    const scope = previewScope({ products: catalog(), sectionSettings: sectionSettingDefaults(section), settings: barSettings, moneyFormat: MONEY, cartTotalCents });
+    return preview.engine.parseAndRenderSync(source, scope) as string;
+  };
+
+  it('renders the coffee finder in Spanish, including the messages the script reads', () => {
+    const html = render(section, 0);
+    for (const text of [
+      '<h2 class="coffee-finder__heading">Encuentre su café</h2>',
+      '¿Cómo prepara el café en casa?',
+      '<span>Prensa francesa</span>',
+      'Encontrar mi café',
+      'data-message="Elija una respuesta para cada pregunta."',
+      'Nuestra recomendación para usted',
+      'Ver todos los cafés',
+      '<span>Agregar al carrito</span>',
+      'data-added="Se agregó a su carrito."',
+      'data-error="No pudimos agregar este producto a su carrito. Inténtelo de nuevo."',
+    ]) expect(html).toContain(text);
+  });
+  it('renders the free-shipping bar in Spanish, with the template the script fills in', () => {
+    const html = render(snippet, 7_200_000);
+    expect(html).toContain('<span data-bar-message aria-live="polite">Le faltan $48.000 para el envío gratis</span>');
+    expect(html).toContain('data-message-remaining="Le faltan [amount] para el envío gratis"');
+    expect(html).toContain('data-message-reached="¡Su pedido tiene envío gratis!"');
+    expect(html).toContain('aria-label="Progreso hacia el envío gratis"');
+    expect(render(snippet, 12_000_000)).toContain('¡Su pedido tiene envío gratis!</span>');
+  });
+  it('leaves no English string of ours behind', () => {
+    const html = [render(section, 0), render(snippet, 7_200_000), render(snippet, 12_000_000)].join('\n');
+    for (const english of englishStrings(STRINGS.en)) expect(html, english).not.toContain(english);
+  });
+});
+
+describe('preview arguments', () => {
+  it('defaults to English and takes --locale en or es', () => {
+    expect(parsePreviewArgs([])).toEqual({ locale: 'en' });
+    expect(parsePreviewArgs(['--', '--locale', 'es'])).toEqual({ locale: 'es' });
+    expect(parsePreviewArgs(['--locale=es'])).toEqual({ locale: 'es' });
+    expect(() => parsePreviewArgs(['--locale', 'fr'])).toThrow(/--locale must be en or es/);
+    expect(() => parsePreviewArgs(['--locale'])).toThrow(/--locale must be en or es/);
   });
 });
 
@@ -216,7 +296,11 @@ describe('preview page', () => {
       componentCss: [],
       finderHtml: '<coffee-finder></coffee-finder>',
       bars: [{ percent: 60, totalCents: 7_200_000, html: '<free-shipping-bar></free-shipping-bar>' }],
+      locale: 'en',
+      cartLabels: { title: 'Your cart', total: 'Estimated total', checkout: 'Check out' },
     });
+    expect(page).toContain('<html lang="en" dir="ltr">');
+    expect(page).toContain('Your cart</h2>');
     expect(page).toContain('<title>Nubandina theme preview (approximation)</title>');
     expect(page).toContain('Offline preview: an approximation');
     expect(page).toContain('href="assets/base.css"');
@@ -224,5 +308,20 @@ describe('preview page', () => {
     expect(page).toContain('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&amp;display=swap');
     expect(page).toContain('data-preview-demo="cart-60"');
     expect(page).toContain('$72.000');
+  });
+  it("sets the page language and the mock cart's labels for a Spanish preview", () => {
+    const page = previewPage({
+      fontsUrl: 'https://fonts.googleapis.com/css2?family=Inter&display=swap',
+      pageWidth: 'narrow',
+      staticVariables: '',
+      themeVariables: '',
+      componentCss: [],
+      finderHtml: '',
+      bars: [{ percent: 0, totalCents: 0, html: '' }],
+      locale: 'es',
+      cartLabels: { title: 'Tu carrito', total: 'Total estimado', checkout: 'Pagar' },
+    });
+    expect(page).toContain('<html lang="es" dir="ltr">');
+    for (const text of ['Tu carrito</h2>', '<span>Total estimado</span>', '>Pagar</button>']) expect(page).toContain(text);
   });
 });

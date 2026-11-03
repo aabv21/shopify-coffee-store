@@ -13,6 +13,7 @@ export interface WorkflowNode {
   waitBetweenTries?: number;
   alwaysOutputData?: boolean;
   executeOnce?: boolean;
+  onError?: 'stopWorkflow' | 'continueRegularOutput' | 'continueErrorOutput';
 }
 
 export interface WorkflowJson {

@@ -5,13 +5,21 @@ import { fx } from '../lib/orders.ts';
 it('normalizes an order with two coffees', () => expect(run(fx('two-methods'))).toEqual({
   order_id: '7000000004', order_number: '#T1004', created_at: '2026-11-04T15:20:00-05:00',
   email: 'pedro.diaz@example.com', first_name: 'Pedro', customer_name: 'Pedro Diaz', city: 'Barranquilla',
-  currency: 'COP', subtotal: 84000, shipping: 12000, total: 96000, free_shipping: false,
+  locale: 'en', currency: 'COP', subtotal: 84000, shipping: 12000, total: 96000, free_shipping: false,
   lines: [
     { variant_id: '1001', variant_gid: 'gid://shopify/ProductVariant/1001', product_title: 'Nariño', variant_title: '250 g', sku: 'NBC-NAR-250', quantity: 1 },
     { variant_id: '3001', variant_gid: 'gid://shopify/ProductVariant/3001', product_title: 'Sierra Nevada', variant_title: '250 g', sku: 'NBC-SNV-250', quantity: 1 },
   ],
   variant_gids: ['gid://shopify/ProductVariant/1001', 'gid://shopify/ProductVariant/3001'],
 }));
+it("carries the customer's locale as en or es", () =>
+  expect(['two-methods', 'two-methods-es', 'below-threshold', 'free-shipping', 'low-stock'].map((n) => run(fx(n)).locale)).toEqual(['en', 'es', 'es', 'es', 'en']));
+it('leaves the locale null for the configured default when the order has none or one this store does not speak', () => {
+  expect(fx('guest-no-email')).not.toHaveProperty('customer_locale');
+  expect(run(fx('guest-no-email')).locale).toBeNull();
+  expect(run({ ...fx('two-methods'), customer_locale: null }).locale).toBeNull();
+  expect(run({ ...fx('two-methods'), customer_locale: 'fr-CA' }).locale).toBeNull();
+});
 it('marks free shipping only when a shipping line costs nothing', () =>
   expect(['free-shipping', 'below-threshold', 'guest-no-email'].map((n) => run(fx(n)).free_shipping)).toEqual([true, false, false]));
 it('handles a guest order with no email, no addresses, and a custom item', () => {

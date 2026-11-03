@@ -1,0 +1,33 @@
+{
+  "nubandina": {
+    "coffee_finder": {
+      "heading": "Find your coffee",
+      "intro": "Answer three quick questions and we’ll pick a bag for you.",
+      "brew_question": "How do you brew at home?",
+      "brew_pour_over": "Pour-over",
+      "brew_espresso": "Espresso",
+      "brew_french_press": "French press",
+      "taste_question": "What flavor do you enjoy?",
+      "taste_mild": "Mild and bright",
+      "taste_balanced": "Balanced",
+      "taste_intense": "Bold and intense",
+      "people_question": "How many people drink it?",
+      "people_one": "Just me",
+      "people_two": "Two of us",
+      "people_three_plus": "Three or more",
+      "submit_label": "Find my coffee",
+      "required_text": "Choose an answer for each question.",
+      "results_heading": "Our pick for you",
+      "empty_text": "No coffee matches those answers right now. Try a different option, or browse every coffee.",
+      "empty_link_label": "Browse all coffees",
+      "add_label": "Add to cart",
+      "added_text": "Added to your cart.",
+      "error_text": "We couldn’t add this to your cart. Please try again."
+    },
+    "free_shipping_bar": {
+      "message_remaining": "You’re [amount] away from free shipping",
+      "message_reached": "You’ve got free shipping!",
+      "progress_label": "Progress toward free shipping"
+    }
+  }
+}

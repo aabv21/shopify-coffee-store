@@ -1,0 +1,10 @@
+/*
+ * fixture
+ */
+{
+  "actions": {
+    // A note for translators, like Horizon's own.
+    "add": "Add",
+    "nubandina": "a nested key with the namespace's name"
+  }
+}

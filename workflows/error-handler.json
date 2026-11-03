@@ -42,12 +42,65 @@
       }
     },
     {
+      "id": "20000000-0000-4000-8000-000000000005",
+      "name": "Collect alert input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        420,
+        180
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "20000000-0005-4000-8000-0000000a0001",
+              "name": "error",
+              "type": "object",
+              "value": "={{ $('On workflow error').first().json }}"
+            },
+            {
+              "id": "20000000-0005-4000-8000-0000000a0002",
+              "name": "team_locale",
+              "type": "string",
+              "value": "={{ $json.config.team_locale ?? '' }}"
+            },
+            {
+              "id": "20000000-0005-4000-8000-0000000a0003",
+              "name": "time",
+              "type": "string",
+              "value": "={{ $now.setZone('America/Bogota').toFormat('yyyy-LL-dd HH:mm') }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "20000000-0000-4000-8000-000000000006",
+      "name": "Build error alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        180
+      ],
+      "notes": "Why Code: writes the alert from an en/es message table and never throws on an unvalidated config",
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Why Code: writes the alert from an en/es message table and never throws on an unvalidated config. Generated from src/nodes/error-alert.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/error-alert.ts\n  var error_alert_exports = {};\n  __export(error_alert_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var LOCALES = [\"en\", \"es\"];\n  function isLocale(value) {\n    return typeof value === \"string\" && LOCALES.includes(value);\n  }\n  function normalizeLocale(value, fallback) {\n    if (typeof value !== \"string\") return fallback;\n    const language = value.trim().toLowerCase().split(/[-_]/)[0];\n    return isLocale(language) ? language : fallback;\n  }\n\n  // src/nodes/error-alert.ts\n  var MESSAGES = {\n    en: {\n      subject: (workflowName) => `[Nubandina demo] Workflow failed: ${workflowName}`,\n      failedNode: \"Failed node\",\n      activation: \"activation\",\n      error: \"Error\",\n      execution: \"Execution\",\n      noExecution: \"n/a (activation error)\",\n      time: \"Time\"\n    },\n    es: {\n      subject: (workflowName) => `[Nubandina demo] Falló el flujo: ${workflowName}`,\n      failedNode: \"Nodo que falló\",\n      activation: \"activación\",\n      error: \"Error\",\n      execution: \"Ejecución\",\n      noExecution: \"n/d (error de activación)\",\n      time: \"Hora\"\n    }\n  };\n  function field(value, key) {\n    if (typeof value !== \"object\" || value === null) return void 0;\n    return new Map(Object.entries(value)).get(key);\n  }\n  function text(value) {\n    return typeof value === \"string\" ? value : void 0;\n  }\n  function run(input) {\n    const m = MESSAGES[normalizeLocale(input.team_locale, \"en\")];\n    const execution = field(input.error, \"execution\");\n    const workflowName = text(field(field(input.error, \"workflow\"), \"name\")) ?? \"\";\n    const message = text(field(field(execution, \"error\"), \"message\")) ?? text(field(field(field(input.error, \"trigger\"), \"error\"), \"message\")) ?? \"\";\n    return {\n      subject: m.subject(workflowName),\n      text: [\n        `${m.failedNode}: ${text(field(execution, \"lastNodeExecuted\")) ?? m.activation}`,\n        `${m.error}: ${message}`,\n        `${m.execution}: ${text(field(execution, \"url\")) ?? m.noExecution}`,\n        `${m.time}: ${input.time} America/Bogota`\n      ].join(\"\\n\")\n    };\n  }\n  return __toCommonJS(error_alert_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
       "id": "20000000-0000-4000-8000-000000000003",
       "name": "Email owner",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        420,
+        980,
         180
       ],
       "retryOnFail": true,
@@ -56,10 +109,10 @@
       "parameters": {
         "resource": "message",
         "operation": "send",
-        "sendTo": "={{ $json.config.owner_email }}",
-        "subject": "=[Nubandina demo] Workflow failed: {{ $('On workflow error').first().json.workflow.name }}",
+        "sendTo": "={{ $('Load config').first().json.config.owner_email }}",
+        "subject": "={{ $json.subject ?? '[Nubandina demo] Workflow failed: ' + ($('On workflow error').first().json.workflow?.name ?? 'unknown') }}",
         "emailType": "text",
-        "message": "=Failed node: {{ (({ execution }) => execution?.lastNodeExecuted ?? 'activation')($('On workflow error').first().json) }}\nError: {{ (({ execution, trigger }) => execution?.error?.message ?? trigger?.error?.message)($('On workflow error').first().json) }}\nExecution: {{ (({ execution }) => execution?.url ?? 'n/a (activation error)')($('On workflow error').first().json) }}\nTime: {{ $now.setZone('America/Bogota').toFormat('yyyy-LL-dd HH:mm') }} America/Bogota",
+        "message": "={{ $json.text ?? 'The alert could not be built in the team language. Error: ' + ($('On workflow error').first().json.execution?.error?.message ?? $('On workflow error').first().json.trigger?.error?.message ?? 'unknown') }}",
         "options": {
           "appendAttribution": false
         }
@@ -81,9 +134,9 @@
         -60
       ],
       "parameters": {
-        "width": 1080,
+        "width": 1640,
         "height": 160,
-        "content": "## Error handler\nRuns whenever a workflow with errorWorkflow set to this one fails, including a trigger failing at startup (no execution data, only trigger.error). Loads config for owner_email, then emails the owner a plain-text alert naming the failed node, the error, the execution URL, and the time in Bogota. This workflow has no errorWorkflow of its own, so a failure here does not loop back into itself."
+        "content": "## Error handler\nRuns whenever a workflow with errorWorkflow set to this one fails, including a trigger failing at startup (no execution data, only trigger.error). Loads config for owner_email and team_locale, then emails the owner a plain-text alert in that language naming the failed node, the error, the execution URL, and the time in Bogota. The config is unvalidated here, so a missing or malformed team_locale falls back to English instead of failing. This workflow has no errorWorkflow of its own, so a failure here does not loop back into itself."
       }
     }
   ],
@@ -100,6 +153,28 @@
       ]
     },
     "Load config": {
+      "main": [
+        [
+          {
+            "node": "Collect alert input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect alert input": {
+      "main": [
+        [
+          {
+            "node": "Build error alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build error alert": {
       "main": [
         [
           {

@@ -104,3 +104,13 @@ The core order workflow (`process-order`) logs every order to a Google Sheet, no
 3. Copy the sheet's id (the long value between `/d/` and `/edit` in its URL) into `config.google.orders_sheet_id`.
 
 `process-order`'s "Upsert order row" node finds the tab by this name and matches column data to the header row automatically; a missing or renamed header column breaks the write instead of silently landing a value elsewhere.
+
+## 10. Add Spanish
+
+The theme and the emails already speak Spanish; the store needs it published as a second language:
+
+1. In the admin, go to **Settings > Languages**, add **Spanish**, and publish it. The storefront then serves it under `/es`, and the theme's own strings come from `locales/es.json`.
+2. Install Shopify's **Translate & Adapt** app and translate each product's title, tasting notes, and image alt text. These are store data, not theme text, so the theme can't translate them.
+3. Leave the coffee finder's and the free-shipping bar's text settings blank unless the store wants one wording in every language: a blank setting shows each visitor the translated default, and a filled one overrides it everywhere.
+
+An order placed in Spanish carries `customer_locale` `es`, so its brewing guide goes out in Spanish. The owner's emails follow `team_locale` in `config/config.json`.

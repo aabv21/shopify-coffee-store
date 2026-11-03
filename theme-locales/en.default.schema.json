@@ -1,0 +1,43 @@
+{
+  "nubandina": {
+    "coffee_finder": {
+      "name": "Coffee finder",
+      "texts_info": "Leave any text blank to show its default, translated into each store language.",
+      "heading": "Heading",
+      "intro": "Intro text",
+      "collection": "Collection",
+      "collection_info": "Leave blank to search every product.",
+      "brew_question": "Brew method question",
+      "brew_pour_over": "Brew method: pour-over",
+      "brew_espresso": "Brew method: espresso",
+      "brew_french_press": "Brew method: French press",
+      "taste_question": "Taste question",
+      "taste_mild": "Taste: mild",
+      "taste_balanced": "Taste: balanced",
+      "taste_intense": "Taste: intense",
+      "people_question": "People question",
+      "people_one": "People: one",
+      "people_two": "People: two",
+      "people_three_plus": "People: three or more",
+      "submit_label": "Submit button label",
+      "required_text": "Unanswered question message",
+      "results_heading": "Results heading",
+      "empty_text": "No match text",
+      "empty_link_label": "No match link label",
+      "add_label": "Add to cart button label",
+      "added_text": "Added to cart message",
+      "error_text": "Cart error message"
+    },
+    "free_shipping_bar": {
+      "name": "Free shipping bar",
+      "enabled": "Show the free shipping bar",
+      "threshold": "Free shipping threshold",
+      "threshold_info": "Whole amount in the store currency. Match the free shipping rate in Settings > Shipping and delivery.",
+      "message_remaining": "Message: amount remaining",
+      "message_remaining_info": "Leave blank to show the default, translated into each store language. [amount] shows the amount left.",
+      "message_reached": "Message: free shipping reached",
+      "progress_label": "Progress bar accessible label",
+      "blank_info": "Leave blank to show the default, translated into each store language."
+    }
+  }
+}

@@ -182,12 +182,58 @@
       }
     },
     {
+      "id": "30000000-0000-4000-8000-000000000022",
+      "name": "Collect summary input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        420,
+        200
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "30000000-0022-4000-8000-0000000a0001",
+              "name": "row",
+              "type": "object",
+              "value": "={{ $('Build order row').first().json }}"
+            },
+            {
+              "id": "30000000-0022-4000-8000-0000000a0002",
+              "name": "team_locale",
+              "type": "string",
+              "value": "={{ $('When called').first().json.config.team_locale ?? '' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000023",
+      "name": "Build owner summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        200
+      ],
+      "notes": "Why Code: writes the owner's order summary from an en/es message table with locale-aware amounts",
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Why Code: writes the owner's order summary from an en/es message table with locale-aware amounts. Generated from src/nodes/owner-summary.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/owner-summary.ts\n  var owner_summary_exports = {};\n  __export(owner_summary_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var LOCALES = [\"en\", \"es\"];\n  function isLocale(value) {\n    return typeof value === \"string\" && LOCALES.includes(value);\n  }\n  function normalizeLocale(value, fallback) {\n    if (typeof value !== \"string\") return fallback;\n    const language = value.trim().toLowerCase().split(/[-_]/)[0];\n    return isLocale(language) ? language : fallback;\n  }\n\n  // src/nodes/owner-summary.ts\n  var MESSAGES = {\n    en: {\n      numberLocale: \"en-US\",\n      subject: (orderNumber, total) => `New order ${orderNumber}: ${total} COP`,\n      labels: {\n        order: \"Order\",\n        date: \"Date\",\n        customer: \"Customer\",\n        city: \"City\",\n        products: \"Products\",\n        units: \"Units\",\n        subtotal: \"Subtotal\",\n        shipping: \"Shipping\",\n        total: \"Total\",\n        freeShipping: \"Free shipping\"\n      },\n      yes: \"yes\",\n      no: \"no\"\n    },\n    es: {\n      numberLocale: \"es-CO\",\n      subject: (orderNumber, total) => `Nuevo pedido ${orderNumber}: ${total} COP`,\n      labels: {\n        order: \"Pedido\",\n        date: \"Fecha\",\n        customer: \"Cliente\",\n        city: \"Ciudad\",\n        products: \"Productos\",\n        units: \"Unidades\",\n        subtotal: \"Subtotal\",\n        shipping: \"Envío\",\n        total: \"Total\",\n        freeShipping: \"Envío gratis\"\n      },\n      yes: \"sí\",\n      no: \"no\"\n    }\n  };\n  function run(input) {\n    const { row } = input;\n    const m = MESSAGES[normalizeLocale(input.team_locale, \"en\")];\n    const amount = (value) => `${value.toLocaleString(m.numberLocale)} COP`;\n    const { labels } = m;\n    const lines = [\n      [labels.order, row.order_number],\n      [labels.date, row.date],\n      [labels.customer, row.customer],\n      [labels.city, row.city],\n      [labels.products, row.products],\n      [labels.units, String(row.units)],\n      [labels.subtotal, amount(row.subtotal)],\n      [labels.shipping, amount(row.shipping)],\n      [labels.total, amount(row.total)],\n      [labels.freeShipping, row.free_shipping === \"yes\" ? m.yes : m.no]\n    ];\n    return {\n      subject: m.subject(row.order_number, row.total.toLocaleString(m.numberLocale)),\n      text: lines.map(([label, value]) => `${label}: ${value}`).join(\"\\n\")\n    };\n  }\n  return __toCommonJS(owner_summary_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
+      }
+    },
+    {
       "id": "30000000-0000-4000-8000-000000000004",
       "name": "Email owner",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        420,
+        980,
         200
       ],
       "retryOnFail": true,
@@ -197,9 +243,9 @@
         "resource": "message",
         "operation": "send",
         "sendTo": "={{ $('When called').first().json.config.owner_email }}",
-        "subject": "=New order {{ $('Build order row').first().json.order_number }}: {{ $('Build order row').first().json.total.toLocaleString('en-US') }} COP",
+        "subject": "={{ $json.subject }}",
         "emailType": "text",
-        "message": "=Order: {{ $('Build order row').first().json.order_number }}\nDate: {{ $('Build order row').first().json.date }}\nCustomer: {{ $('Build order row').first().json.customer }}\nCity: {{ $('Build order row').first().json.city }}\nProducts: {{ $('Build order row').first().json.products }}\nUnits: {{ $('Build order row').first().json.units }}\nSubtotal: {{ $('Build order row').first().json.subtotal.toLocaleString('en-US') }} COP\nShipping: {{ $('Build order row').first().json.shipping.toLocaleString('en-US') }} COP\nTotal: {{ $('Build order row').first().json.total.toLocaleString('en-US') }} COP\nFree shipping: {{ $('Build order row').first().json.free_shipping }}",
+        "message": "={{ $json.text }}",
         "options": {
           "appendAttribution": false
         }
@@ -221,9 +267,9 @@
         -60
       ],
       "parameters": {
-        "width": 1180,
+        "width": 1740,
         "height": 160,
-        "content": "## Log and notify\nBuilds one flat row from the normalized order, upserts it into the Orders sheet keyed by order number so a retried call updates the same row instead of duplicating it, then emails the owner a plain-text summary."
+        "content": "## Log and notify\nBuilds one flat row from the normalized order, upserts it into the Orders sheet keyed by order number so a retried call updates the same row instead of duplicating it, then emails the owner a plain-text summary in config.team_locale."
       }
     },
     {
@@ -232,7 +278,7 @@
       "type": "n8n-nodes-base.graphql",
       "typeVersion": 1.1,
       "position": [
-        700,
+        1260,
         200
       ],
       "retryOnFail": true,
@@ -261,7 +307,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        980,
+        1540,
         200
       ],
       "parameters": {
@@ -285,6 +331,12 @@
               "name": "response",
               "type": "object",
               "value": "={{ $json }}"
+            },
+            {
+              "id": "30000000-0007-4000-8000-0000000a0004",
+              "name": "team_locale",
+              "type": "string",
+              "value": "={{ $('When called').first().json.config.team_locale ?? '' }}"
             }
           ]
         },
@@ -297,14 +349,14 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1260,
+        1820,
         200
       ],
-      "notes": "Why Code: parses the GraphQL response, de-duplicates variants, and fails loudly on API errors",
+      "notes": "Why Code: parses the GraphQL response, de-duplicates variants, fails loudly on API errors, and words the alert in the team locale",
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Why Code: parses the GraphQL response, de-duplicates variants, and fails loudly on API errors. Generated from src/nodes/select-low-stock.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/select-low-stock.ts\n  var select_low_stock_exports = {};\n  __export(select_low_stock_exports, {\n    run: () => run\n  });\n  function toVariantInfo(gid, node) {\n    return {\n      variant_gid: gid,\n      product_title: node.product.title,\n      variant_title: node.title,\n      sku: node.sku,\n      tracked: node.inventoryItem.tracked,\n      available: node.inventoryQuantity,\n      roast: node.product.roast?.value ?? null,\n      brew_method: node.product.brewMethod?.value ?? null\n    };\n  }\n  function toLowStockItem(variant) {\n    return { product_title: variant.product_title, variant_title: variant.variant_title, sku: variant.sku, available: variant.available };\n  }\n  function formatLine(item, threshold) {\n    return `${item.product_title} (${item.variant_title}), SKU ${item.sku ?? \"\"}: ${String(item.available)} left (threshold ${String(threshold)})`;\n  }\n  function run(input) {\n    const response = input.response;\n    if (response.errors && response.errors.length > 0) {\n      throw new Error(`Shopify GraphQL error: ${response.errors.map((e) => e.message).join(\"; \")}`);\n    }\n    const nodes = response.data?.nodes;\n    if (!Array.isArray(nodes)) throw new Error(\"Shopify GraphQL response has no nodes\");\n    const byGid = /* @__PURE__ */ new Map();\n    for (const node of nodes) {\n      if (node !== null) byGid.set(node.id, node);\n    }\n    const variants = [];\n    for (const gid of input.order.variant_gids) {\n      const node = byGid.get(gid);\n      if (node) variants.push(toVariantInfo(gid, node));\n    }\n    const lowStock = variants.filter((v) => v.tracked && v.available < input.threshold).map(toLowStockItem);\n    return {\n      variants,\n      low_stock: lowStock,\n      subject: `Low stock after order ${input.order.order_number}`,\n      text: lowStock.map((item) => formatLine(item, input.threshold)).join(\"\\n\")\n    };\n  }\n  return __toCommonJS(select_low_stock_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
+        "jsCode": "// Why Code: parses the GraphQL response, de-duplicates variants, fails loudly on API errors, and words the alert in the team locale. Generated from src/nodes/select-low-stock.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/select-low-stock.ts\n  var select_low_stock_exports = {};\n  __export(select_low_stock_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var LOCALES = [\"en\", \"es\"];\n  function isLocale(value) {\n    return typeof value === \"string\" && LOCALES.includes(value);\n  }\n  function normalizeLocale(value, fallback) {\n    if (typeof value !== \"string\") return fallback;\n    const language = value.trim().toLowerCase().split(/[-_]/)[0];\n    return isLocale(language) ? language : fallback;\n  }\n\n  // src/nodes/select-low-stock.ts\n  var MESSAGES = {\n    en: {\n      subject: (orderNumber) => `Low stock after order ${orderNumber}`,\n      line: (item, threshold) => `${item.product_title} (${item.variant_title}), SKU ${item.sku ?? \"\"}: ${String(item.available)} left (threshold ${String(threshold)})`\n    },\n    es: {\n      subject: (orderNumber) => `Inventario bajo tras el pedido ${orderNumber}`,\n      line: (item, threshold) => `${item.product_title} (${item.variant_title}), SKU ${item.sku ?? \"\"}: quedan ${String(item.available)} (umbral ${String(threshold)})`\n    }\n  };\n  function toVariantInfo(gid, node) {\n    return {\n      variant_gid: gid,\n      product_title: node.product.title,\n      variant_title: node.title,\n      sku: node.sku,\n      tracked: node.inventoryItem.tracked,\n      available: node.inventoryQuantity,\n      roast: node.product.roast?.value ?? null,\n      brew_method: node.product.brewMethod?.value ?? null\n    };\n  }\n  function toLowStockItem(variant) {\n    return { product_title: variant.product_title, variant_title: variant.variant_title, sku: variant.sku, available: variant.available };\n  }\n  function run(input) {\n    const response = input.response;\n    if (response.errors && response.errors.length > 0) {\n      throw new Error(`Shopify GraphQL error: ${response.errors.map((e) => e.message).join(\"; \")}`);\n    }\n    const nodes = response.data?.nodes;\n    if (!Array.isArray(nodes)) throw new Error(\"Shopify GraphQL response has no nodes\");\n    const byGid = /* @__PURE__ */ new Map();\n    for (const node of nodes) {\n      if (node !== null) byGid.set(node.id, node);\n    }\n    const variants = [];\n    for (const gid of input.order.variant_gids) {\n      const node = byGid.get(gid);\n      if (node) variants.push(toVariantInfo(gid, node));\n    }\n    const lowStock = variants.filter((v) => v.tracked && v.available < input.threshold).map(toLowStockItem);\n    const m = MESSAGES[normalizeLocale(input.team_locale, \"en\")];\n    return {\n      variants,\n      low_stock: lowStock,\n      subject: m.subject(input.order.order_number),\n      text: lowStock.map((item) => m.line(item, input.threshold)).join(\"\\n\")\n    };\n  }\n  return __toCommonJS(select_low_stock_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
       }
     },
     {
@@ -313,7 +365,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.4,
       "position": [
-        1540,
+        2100,
         200
       ],
       "parameters": {
@@ -346,7 +398,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        1820,
+        2380,
         100
       ],
       "retryOnFail": true,
@@ -376,13 +428,13 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        660,
+        1220,
         -60
       ],
       "parameters": {
         "width": 1180,
         "height": 160,
-        "content": "## Stock check\nReads the ordered variants' current stock and brew method from Shopify, flags any that fell below the configured threshold, and emails the owner one alert per order. No per-request timeout on this node (NOTE below); the GraphQL node retries throttling instead of failing outright, since Shopify returns throttling as a 200 response with an errors array rather than an HTTP error."
+        "content": "## Stock check\nReads the ordered variants' current stock and brew method from Shopify, flags any that fell below the configured threshold, and emails the owner one alert per order, in config.team_locale. No per-request timeout on this node (NOTE below); the GraphQL node retries throttling instead of failing outright, since Shopify returns throttling as a 200 response with an errors array rather than an HTTP error."
       }
     },
     {
@@ -391,7 +443,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        660,
+        1220,
         360
       ],
       "parameters": {
@@ -406,7 +458,7 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        2100,
+        2660,
         200
       ],
       "parameters": {
@@ -420,7 +472,7 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1.1,
       "position": [
-        2380,
+        2940,
         200
       ],
       "alwaysOutputData": true,
@@ -435,7 +487,7 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1.2,
       "position": [
-        2660,
+        3220,
         200
       ],
       "parameters": {
@@ -450,7 +502,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        2940,
+        3500,
         200
       ],
       "parameters": {
@@ -474,6 +526,12 @@
               "name": "guides",
               "type": "object",
               "value": "={{ $json.data }}"
+            },
+            {
+              "id": "30000000-0016-4000-8000-0000000a0004",
+              "name": "default_locale",
+              "type": "string",
+              "value": "={{ $('When called').first().json.config.default_locale ?? '' }}"
             }
           ]
         },
@@ -486,14 +544,14 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3220,
+        3780,
         200
       ],
-      "notes": "Why Code: picks one guide per brew method and renders escaped HTML",
+      "notes": "Why Code: picks one guide per brew method and renders escaped HTML in the customer's language",
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Why Code: picks one guide per brew method and renders escaped HTML. Generated from src/nodes/select-guides.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/select-guides.ts\n  var select_guides_exports = {};\n  __export(select_guides_exports, {\n    run: () => run\n  });\n  var ESCAPE_RE = /[&<>\"']/g;\n  var ESCAPES = { \"&\": \"&amp;\", \"<\": \"&lt;\", \">\": \"&gt;\", '\"': \"&quot;\", \"'\": \"&#39;\" };\n  function escapeHtml(value) {\n    return value.replace(ESCAPE_RE, (char) => ESCAPES[char] ?? char);\n  }\n  function greeting(firstName) {\n    return `<p>Hi ${escapeHtml(firstName ?? \"there\")},</p>`;\n  }\n  function intro(orderNumber) {\n    return `<p>Thanks for your order ${escapeHtml(orderNumber)}. Here's how to get the best from your coffee.</p>`;\n  }\n  function productListItem(variant) {\n    const roastSuffix = variant.roast === null ? \"\" : `, ${escapeHtml(variant.roast)} roast`;\n    return `<li>${escapeHtml(variant.product_title)} (${escapeHtml(variant.variant_title)})${roastSuffix}</li>`;\n  }\n  function guideSection(method, guide) {\n    const steps = guide.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join(\"\");\n    return `<h2>${escapeHtml(guide.name)}</h2><p>Ratio: ${escapeHtml(guide.ratio)}</p><ol>${steps}</ol>`;\n  }\n  function run(input) {\n    const { order, variants, guides } = input;\n    const byGid = /* @__PURE__ */ new Map();\n    for (const variant of variants) byGid.set(variant.variant_gid, variant);\n    const knownVariants = [];\n    const methodGuides = /* @__PURE__ */ new Map();\n    for (const line of order.lines) {\n      if (line.variant_gid === null) continue;\n      const variant = byGid.get(line.variant_gid);\n      if (!variant) continue;\n      knownVariants.push(variant);\n      const method = variant.brew_method;\n      if (method === null || methodGuides.has(method)) continue;\n      const guide = guides[method];\n      if (guide !== void 0) methodGuides.set(method, guide);\n    }\n    const methods = [...methodGuides.keys()];\n    const send = order.email !== null && methods.length > 0;\n    const productList = `<ul>${knownVariants.map(productListItem).join(\"\")}</ul>`;\n    const guideSections = [...methodGuides.entries()].map(([method, guide]) => guideSection(method, guide)).join(\"\");\n    const html = [\n      greeting(order.first_name),\n      intro(order.order_number),\n      productList,\n      guideSections,\n      \"<p>Enjoy your coffee,<br>Nubandina Coffee</p>\"\n    ].join(\"\");\n    return {\n      send,\n      to: order.email,\n      subject: \"How to brew your Nubandina coffee\",\n      html,\n      methods\n    };\n  }\n  return __toCommonJS(select_guides_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
+        "jsCode": "// Why Code: picks one guide per brew method and renders escaped HTML in the customer's language. Generated from src/nodes/select-guides.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/select-guides.ts\n  var select_guides_exports = {};\n  __export(select_guides_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var LOCALES = [\"en\", \"es\"];\n  function isLocale(value) {\n    return typeof value === \"string\" && LOCALES.includes(value);\n  }\n  function normalizeLocale(value, fallback) {\n    if (typeof value !== \"string\") return fallback;\n    const language = value.trim().toLowerCase().split(/[-_]/)[0];\n    return isLocale(language) ? language : fallback;\n  }\n\n  // src/nodes/select-guides.ts\n  var MESSAGES = {\n    en: {\n      subject: \"How to brew your Nubandina coffee\",\n      greeting: (firstName) => `Hi ${firstName ?? \"there\"},`,\n      intro: (orderNumber) => `Thanks for your order ${orderNumber}. Here's how to get the best from your coffee.`,\n      roast: (roast) => `${roast} roast`,\n      ratio: \"Ratio\",\n      signOff: \"Enjoy your coffee,\"\n    },\n    es: {\n      subject: \"Cómo preparar su café Nubandina\",\n      greeting: (firstName) => firstName === null ? \"Hola:\" : `Hola, ${firstName}:`,\n      intro: (orderNumber) => `Gracias por su pedido ${orderNumber}. Así puede sacarle el máximo provecho a su café.`,\n      roast: (roast) => `tostión ${(/* @__PURE__ */ new Map([[\"light\", \"clara\"], [\"medium\", \"media\"], [\"dark\", \"oscura\"]])).get(roast) ?? roast}`,\n      ratio: \"Proporción\",\n      signOff: \"Que disfrute su café,\"\n    }\n  };\n  var ESCAPE_RE = /[&<>\"']/g;\n  var ESCAPES = { \"&\": \"&amp;\", \"<\": \"&lt;\", \">\": \"&gt;\", '\"': \"&quot;\", \"'\": \"&#39;\" };\n  function escapeHtml(value) {\n    return value.replace(ESCAPE_RE, (char) => ESCAPES[char] ?? char);\n  }\n  function productListItem(variant, m) {\n    const roastSuffix = variant.roast === null ? \"\" : `, ${m.roast(escapeHtml(variant.roast))}`;\n    return `<li>${escapeHtml(variant.product_title)} (${escapeHtml(variant.variant_title)})${roastSuffix}</li>`;\n  }\n  function guideText(guide, locale) {\n    return locale === \"en\" ? guide : guide.translations?.[locale] ?? guide;\n  }\n  function guideSection(guide, m) {\n    const steps = guide.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join(\"\");\n    return `<h2>${escapeHtml(guide.name)}</h2><p>${m.ratio}: ${escapeHtml(guide.ratio)}</p><ol>${steps}</ol>`;\n  }\n  function run(input) {\n    const { order, variants, guides } = input;\n    const locale = normalizeLocale(order.locale, normalizeLocale(input.default_locale, \"en\"));\n    const m = MESSAGES[locale];\n    const byGid = /* @__PURE__ */ new Map();\n    for (const variant of variants) byGid.set(variant.variant_gid, variant);\n    const knownVariants = [];\n    const methodGuides = /* @__PURE__ */ new Map();\n    for (const line of order.lines) {\n      if (line.variant_gid === null) continue;\n      const variant = byGid.get(line.variant_gid);\n      if (!variant) continue;\n      knownVariants.push(variant);\n      const method = variant.brew_method;\n      if (method === null || methodGuides.has(method)) continue;\n      const guide = guides[method];\n      if (guide !== void 0) methodGuides.set(method, guide);\n    }\n    const methods = [...methodGuides.keys()];\n    const send = order.email !== null && methods.length > 0;\n    const productList = `<ul>${knownVariants.map((variant) => productListItem(variant, m)).join(\"\")}</ul>`;\n    const guideSections = [...methodGuides.values()].map((guide) => guideSection(guideText(guide, locale), m)).join(\"\");\n    const html = [\n      `<p>${m.greeting(order.first_name === null ? null : escapeHtml(order.first_name))}</p>`,\n      `<p>${m.intro(escapeHtml(order.order_number))}</p>`,\n      productList,\n      guideSections,\n      `<p>${m.signOff}<br>Nubandina Coffee</p>`\n    ].join(\"\");\n    return {\n      send,\n      locale,\n      to: order.email,\n      subject: m.subject,\n      html,\n      methods\n    };\n  }\n  return __toCommonJS(select_guides_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
       }
     },
     {
@@ -502,7 +560,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.4,
       "position": [
-        3500,
+        4060,
         200
       ],
       "parameters": {
@@ -536,7 +594,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        3780,
+        4340,
         100
       ],
       "retryOnFail": true,
@@ -566,13 +624,13 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2060,
+        2620,
         -60
       ],
       "parameters": {
         "width": 1760,
         "height": 160,
-        "content": "## Brewing guide (after the wait)\nWaits the configured number of minutes, then reads the mounted brewing guides, picks one guide per distinct brew method among the order's known variants, and emails the customer an HTML guide listing what they bought and how to brew it. Sends nothing when the order has no email address or no line matches a known brew method."
+        "content": "## Brewing guide (after the wait)\nWaits the configured number of minutes, then reads the mounted brewing guides, picks one guide per distinct brew method among the order's known variants, and emails the customer an HTML guide listing what they bought and how to brew it, in the order's customer locale (config.default_locale when it has none). Sends nothing when the order has no email address or no line matches a known brew method."
       }
     },
     {
@@ -581,7 +639,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2060,
+        2620,
         360
       ],
       "parameters": {
@@ -615,6 +673,28 @@
       ]
     },
     "Upsert order row": {
+      "main": [
+        [
+          {
+            "node": "Collect summary input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect summary input": {
+      "main": [
+        [
+          {
+            "node": "Build owner summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build owner summary": {
       "main": [
         [
           {

@@ -6,6 +6,7 @@
   "email": "ana.torres@example.com",
   "contact_email": "ana.torres@example.com",
   "currency": "COP",
+  "customer_locale": "es-CO",
   "subtotal_price": "38000.00",
   "total_price": "50000.00",
   "total_shipping_price_set": { "shop_money": { "amount": "12000.00" } },

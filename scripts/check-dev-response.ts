@@ -13,6 +13,8 @@ const EXPECTED_CONFIG = {
   shopify: { store: 'replace-me', api_version: '2026-10' },
   low_stock_threshold: 5,
   guide_delay_minutes: 60,
+  default_locale: 'en',
+  team_locale: 'en',
 };
 
 /**
@@ -56,7 +58,8 @@ export function assertNoLiveCredential(existingIds: ReadonlySet<string>): void {
  * config, and hands off to `process-order` fire-and-forget — the dev harness relays that last
  * Execute Workflow node's own *input* mapping (`{ order, config }`) since it isn't waiting on the
  * sub-execution. Reaches `Normalize order` and `Check config`, the two CODE_NODES entries on this
- * path. `order_id`/`order_number` come straight from the fixture, pinned regardless of run date.
+ * path. `order_id`/`order_number` come straight from the fixture, pinned regardless of run date,
+ * and `locale` is the fixture's `es-CO` customer locale as `Normalize order` normalizes it.
  */
 export function isFreshIntakeResponse(result: unknown): result is { order: Record<string, unknown>; config: unknown } {
   if (typeof result !== 'object' || result === null) return false;
@@ -68,6 +71,7 @@ export function isFreshIntakeResponse(result: unknown): result is { order: Recor
   return (
     order.order_id === '7000000001' &&
     order.order_number === '#T1001' &&
+    order.locale === 'es' &&
     JSON.stringify(r.config) === JSON.stringify(EXPECTED_CONFIG)
   );
 }

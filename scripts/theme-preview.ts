@@ -1,9 +1,11 @@
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isLocale, type Locale } from '../src/lib/locale.ts';
 import { formatMoney } from '../src/theme/money.ts';
 import { assembleTheme } from './assemble-theme.ts';
 import { ensureHorizon } from './lib/horizon.ts';
+import { parseJsonc } from './lib/jsonc.ts';
 import { INSERTIONS, splitLeadingComment } from './lib/theme-insertions.ts';
 import {
   createPreviewEngine,
@@ -14,6 +16,7 @@ import {
   sectionSettingDefaults,
   staticRootVariables,
   themeCssVariables,
+  translate,
 } from './lib/theme-preview.ts';
 
 const CACHE_ROOT = '.theme-build';
@@ -87,6 +90,22 @@ const SCAFFOLD_CSS = `
 
 export interface PreviewBar { percent: number; totalCents: number; html: string }
 
+/** The mock cart's own labels, from Horizon's locale keys for its real cart drawer. */
+export interface CartLabels { title: string; total: string; checkout: string }
+
+// Shopify's locale file for each language this store speaks.
+const LOCALE_FILES: ReadonlyMap<Locale, string> = new Map([['en', 'locales/en.default.json'], ['es', 'locales/es.json']]);
+
+/** `--locale <en|es>` (or `--locale=<en|es>`) from the CLI's arguments; English by default. */
+export function parsePreviewArgs(argv: readonly string[]): { locale: Locale } {
+  const index = argv.findIndex((arg) => arg === '--locale' || arg.startsWith('--locale='));
+  if (index === -1) return { locale: 'en' };
+  const flag = argv.at(index) ?? '';
+  const value = flag.includes('=') ? flag.slice(flag.indexOf('=') + 1) : argv.at(index + 1);
+  if (!isLocale(value)) throw new Error('--locale must be en or es');
+  return { locale: value };
+}
+
 const escapeHtml = (text: string): string =>
   text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
@@ -99,6 +118,8 @@ export function previewPage(o: {
   componentCss: readonly string[];
   finderHtml: string;
   bars: readonly PreviewBar[];
+  locale: Locale;
+  cartLabels: CartLabels;
 }): string {
   const demos = [
     { name: 'finder', label: 'Coffee finder' },
@@ -111,17 +132,17 @@ export function previewPage(o: {
       return `
     <section class="section section--page-width preview-cart" data-preview-demo="cart-${bar.percent.toString()}" aria-labelledby="${id}">
       <div class="preview-cart__panel">
-        <h2 class="h4 preview-cart__title" id="${id}">Your cart</h2>
+        <h2 class="h4 preview-cart__title" id="${id}">${escapeHtml(o.cartLabels.title)}</h2>
         ${bar.html}
-        <p class="preview-cart__total"><span>Estimated total</span><span>${escapeHtml(formatMoney(bar.totalCents, MONEY_FORMAT))}</span></p>
-        <button type="button" class="button preview-cart__checkout">Check out</button>
+        <p class="preview-cart__total"><span>${escapeHtml(o.cartLabels.total)}</span><span>${escapeHtml(formatMoney(bar.totalCents, MONEY_FORMAT))}</span></p>
+        <button type="button" class="button preview-cart__checkout">${escapeHtml(o.cartLabels.checkout)}</button>
       </div>
     </section>`;
     })
     .join('');
 
   return `<!doctype html>
-<html lang="en" dir="ltr">
+<html lang="${o.locale}" dir="ltr">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -147,7 +168,7 @@ ${o.componentCss.join('\n\n')}
         <h1 class="preview-banner__title">Offline preview: an approximation</h1>
         <details>
           <summary>What this preview approximates</summary>
-          <p>The real <code>sections/coffee-finder.liquid</code> and <code>snippets/free-shipping-bar.liquid</code> from the assembled theme, rendered with liquidjs, mock data from <code>data/products.csv</code>, and stubbed Shopify filters. Shopify's renderer, its font CDN, and a real cart can differ; the real check is <code>shopify theme dev</code> against a store.</p>
+          <p>The real <code>sections/coffee-finder.liquid</code> and <code>snippets/free-shipping-bar.liquid</code> from the assembled theme, rendered with liquidjs in the <code>${o.locale}</code> locale, mock data from <code>data/products.csv</code>, and stubbed Shopify filters. Shopify's renderer, its font CDN, and a real cart can differ; the real check is <code>shopify theme dev</code> against a store.</p>
           <nav aria-label="Preview states"><ul>${nav}</ul></nav>
         </details>
       </div>
@@ -170,6 +191,7 @@ function readText(path: string): string {
 }
 
 async function main(): Promise<void> {
+  const { locale } = parsePreviewArgs(process.argv.slice(2));
   const horizonDir = await ensureHorizon(CACHE_ROOT);
   await assembleTheme({ baseDir: horizonDir, overlayDir: OVERLAY_DIR, outDir: THEME_DIR, insertions: INSERTIONS });
   const theme = (file: string): string => readText(join(THEME_DIR, file));
@@ -182,7 +204,14 @@ async function main(): Promise<void> {
   const sectionSource = theme('sections/coffee-finder.liquid');
   const snippetSource = theme('snippets/free-shipping-bar.liquid');
   const sectionSettings = sectionSettingDefaults(sectionSource);
-  const { engine, stylesheets } = createPreviewEngine({ moneyFormat: MONEY_FORMAT, assetUrl: (name) => `assets/${name}` });
+  const translations = parseJsonc(theme(LOCALE_FILES.get(locale) ?? 'locales/en.default.json'));
+  const { engine, stylesheets } = createPreviewEngine({
+    moneyFormat: MONEY_FORMAT,
+    assetUrl: (name) => `assets/${name}`,
+    snippetsDir: join(THEME_DIR, 'snippets'),
+    locale,
+    translations,
+  });
   const scope = (cartTotalCents: number) => previewScope({ products, sectionSettings, settings, moneyFormat: MONEY_FORMAT, cartTotalCents });
 
   const thresholdCents = Number(settings.free_shipping_threshold) * 100;
@@ -202,13 +231,19 @@ async function main(): Promise<void> {
     componentCss: stylesheets(),
     finderHtml,
     bars,
+    locale,
+    cartLabels: {
+      title: translate(translations, 'content.your_cart'),
+      total: translate(translations, 'content.cart_estimated_total'),
+      checkout: translate(translations, 'content.checkout'),
+    },
   });
 
   rmSync(PREVIEW_DIR, { recursive: true, force: true });
   mkdirSync(join(PREVIEW_DIR, 'assets'), { recursive: true });
   for (const asset of PREVIEW_ASSETS) copyFileSync(join(THEME_DIR, 'assets', asset), join(PREVIEW_DIR, 'assets', asset));
   writeFileSync(join(PREVIEW_DIR, 'index.html'), html);
-  console.log(`wrote ${PREVIEW_DIR}/index.html (an approximation; serve it with: python3 -m http.server 8765 --directory ${PREVIEW_DIR})`);
+  console.log(`wrote ${PREVIEW_DIR}/index.html in ${locale} (an approximation; serve it with: python3 -m http.server 8765 --directory ${PREVIEW_DIR})`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

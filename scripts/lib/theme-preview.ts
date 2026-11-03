@@ -1,6 +1,7 @@
 // The offline theme preview's pure parts: mock data shaped from data/products.csv, the theme's
 // resolved settings, the Horizon CSS variables the components rely on, and a liquidjs engine with
-// the few Shopify-only tags and filters the two component files use. Everything here is an
+// the few Shopify-only tags and filters the two component files and their text snippet use,
+// including a t filter reading one locale file. Everything here is an
 // approximation of what Shopify renders; `shopify theme dev` against a store is the real check.
 import { parse } from 'csv-parse/sync';
 import { Liquid, Tag, TypeGuards, type TagToken, type TopLevelToken } from 'liquidjs';
@@ -518,21 +519,56 @@ function keywordArgument(args: readonly unknown[], key: string): unknown {
   return undefined;
 }
 
+const HTML_ESCAPES = new Map([['&', '&amp;'], ['<', '&lt;'], ['>', '&gt;'], ['"', '&quot;'], ["'", '&#39;']]);
+const escapeHtml = (text: string): string => text.replace(/[&<>"']/g, (char) => HTML_ESCAPES.get(char) ?? char);
+
+/**
+ * A translation by its dotted key from one parsed locale file, with Shopify's `{{ name }}`
+ * interpolation. Throws when the key isn't a string in that file: there is no fallback to English,
+ * so a string missing from the Spanish file can't hide behind its English one.
+ */
+export function translate(translations: unknown, key: string, variables: Readonly<Record<string, unknown>> = {}): string {
+  let node: unknown = translations;
+  for (const part of key.split('.')) node = isRecord(node) ? new Map(Object.entries(node)).get(part) : undefined;
+  if (typeof node !== 'string') throw new Error(`translation missing: ${key}`);
+  const values = new Map(Object.entries(variables));
+  return node.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, name: string) => (values.has(name) ? String(values.get(name)) : match));
+}
+
 export interface PreviewEngine { engine: Liquid; stylesheets: () => string[] }
 
 /**
  * A liquidjs engine with only the Shopify tags and filters the two component files use, each
  * listed in theme/README.md. `strictFilters` makes any other Shopify-only filter a render error,
- * so a component that starts using one fails the preview instead of rendering it wrongly.
+ * so a component that starts using one fails the preview instead of rendering it wrongly. `render`
+ * reads snippets from `snippetsDir`; `t` reads `translations` (one parsed locale file) and, as
+ * Shopify documents, escapes its output unless the key ends in `_html`.
  */
-export function createPreviewEngine(o: { moneyFormat: string; assetUrl: (name: string) => string }): PreviewEngine {
-  const engine = new Liquid({ strictFilters: true });
+export function createPreviewEngine(o: {
+  moneyFormat: string;
+  assetUrl: (name: string) => string;
+  snippetsDir: string;
+  locale: string;
+  translations: unknown;
+}): PreviewEngine {
+  const engine = new Liquid({ strictFilters: true, root: [o.snippetsDir], extname: '.liquid' });
   const stylesheets = new Set<string>();
 
   engine.registerTag('schema', rawBlockTag('schema', () => undefined));
   engine.registerTag('doc', rawBlockTag('doc', () => undefined));
   engine.registerTag('stylesheet', rawBlockTag('stylesheet', (css) => stylesheets.add(css.trim())));
 
+  engine.registerFilter('t', (key: unknown, ...args: unknown[]) => {
+    const name = String(key);
+    const variables = Object.fromEntries(args.filter((arg): arg is [string, unknown] => Array.isArray(arg) && typeof arg[0] === 'string'));
+    let text: string;
+    try {
+      text = translate(o.translations, name, variables);
+    } catch {
+      throw new Error(`translation missing: ${o.locale}.${name}`);
+    }
+    return name.endsWith('_html') ? text : escapeHtml(text);
+  });
   engine.registerFilter('money', (cents: unknown) => formatMoney(Number(cents), o.moneyFormat));
   engine.registerFilter('asset_url', (name: unknown) => o.assetUrl(String(name)));
   engine.registerFilter('image_url', (image: unknown, ...args: unknown[]) => {

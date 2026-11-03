@@ -1,6 +1,7 @@
 // Turns a raw Shopify orders/create payload into the shape the rest of the chain works with:
 // stable ids, consistent fallbacks for a guest or redacted customer, and amounts as numbers.
 // Pure: no I/O, no clock.
+import { normalizeLocale } from '../lib/locale.ts';
 import type { NormalizedOrder, OrderLine, ShopifyOrderPayload } from './types.ts';
 
 function firstNonEmpty(...values: (string | null | undefined)[]): string | null {
@@ -96,6 +97,7 @@ export function run(order: ShopifyOrderPayload): NormalizedOrder {
     first_name: firstName,
     customer_name: customerName,
     city,
+    locale: normalizeLocale(order.customer_locale, null),
     currency: order.currency,
     subtotal,
     shipping,

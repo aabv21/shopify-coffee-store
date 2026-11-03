@@ -5,6 +5,7 @@ import { expect, it } from 'vitest';
 import { assembleTheme } from '../../scripts/assemble-theme.ts';
 import { applyInsertion, InsertionError } from '../../scripts/lib/theme-insertions.ts';
 import { buildThemeAsset } from '../../scripts/build-theme.ts';
+import { parseJsonc } from '../../scripts/lib/jsonc.ts';
 
 const base = () => { const d = mkdtempSync(join(tmpdir(), 'nbc-theme-')); cpSync('tests/fixtures/theme-base', d, { recursive: true }); return d; };
 const read = (d: string, f: string) => readFileSync(join(d, f), 'utf8');
@@ -49,4 +50,39 @@ it('overlays new files, keeps the overlay README out of the output, and classifi
   expect(existsSync(join(outDir, 'README.md'))).toBe(false);
   expect(added).toEqual(['sections/coffee-finder.liquid']);
   expect(modified).toEqual(['snippets/cart-summary.liquid']);
+});
+
+const strings = { coffee_finder: { heading: 'Find your coffee', note: 'Say "hi" // not a comment' } };
+const addStrings = (file: string) => ({ kind: 'add-locale-namespace', file, namespace: 'nubandina', translations: strings }) as const;
+
+it('adds a namespace to a locale file, keeping its leading comment and translator notes', () => {
+  const d = base();
+  applyInsertion(d, addStrings('locales/en.default.json'));
+  const text = read(d, 'locales/en.default.json');
+  expect(text.startsWith('/*\n * fixture\n */\n{')).toBe(true);
+  expect(text).toContain('// A note for translators, like Horizon\'s own.');
+  const parsed = parseJsonc(text) as Record<string, unknown>;
+  expect(Object.keys(parsed)).toEqual(['nubandina', 'actions']);
+  expect(parsed.nubandina).toEqual(strings);
+  expect(parsed.actions).toEqual({ add: 'Add', nubandina: "a nested key with the namespace's name" });
+});
+it('adds a namespace to a locale file with no comment and to an empty one', () => {
+  const d = base();
+  applyInsertion(d, addStrings('locales/es.json'));
+  expect(parseJsonc(read(d, 'locales/es.json'))).toEqual({ nubandina: strings, actions: { add: 'Agregar' } });
+  writeFileSync(join(d, 'locales/fr.json'), '{}\n');
+  applyInsertion(d, addStrings('locales/fr.json'));
+  expect(parseJsonc(read(d, 'locales/fr.json'))).toEqual({ nubandina: strings });
+});
+it('fails loudly when the namespace already exists at the top level', () => {
+  const d = base();
+  applyInsertion(d, addStrings('locales/es.json'));
+  expect(() => applyInsertion(d, addStrings('locales/es.json'))).toThrow(/locales\/es\.json: namespace exists: nubandina/);
+});
+it('fails loudly when the locale file is missing or is not a JSON object', () => {
+  const d = base();
+  expect(() => applyInsertion(d, addStrings('locales/xx.json'))).toThrow(InsertionError);
+  expect(() => applyInsertion(d, addStrings('locales/xx.json'))).toThrow(/locales\/xx\.json: file not found/);
+  writeFileSync(join(d, 'locales/list.json'), '["a"]');
+  expect(() => applyInsertion(d, addStrings('locales/list.json'))).toThrow(/locales\/list\.json: not a JSON object/);
 });
