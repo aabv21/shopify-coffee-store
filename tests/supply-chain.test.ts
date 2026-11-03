@@ -65,29 +65,19 @@ test('every docker run image in a GitHub Actions workflow is pinned by digest', 
   const { stdout } = await execFileAsync('git', ['ls-files', '.github/workflows/*.yml', '.github/workflows/*.yaml']);
   const files = stdout.split('\n').filter(Boolean);
   expect(files.length).toBeGreaterThan(0);
-  let totalImages = 0;
+  const images: string[] = [];
   for (const file of files) {
-    const content = readFileSync(file, 'utf8');
-    // An image reference looks like `owner/repo:tag`, optionally `@sha256:<64 hex>`. A volume
-    // mount argument or a quoted shell variable (`"$PWD:/mnt"`) always carries a `"`, `$`, or `-`
-    // before the first `/`, which no image reference ever does.
-    const looksLikeImage = (word: string): boolean => {
-      const slash = word.indexOf('/');
-      const colon = word.indexOf(':');
-      if (slash < 1 || colon < slash) return false;
-      const owner = word.slice(0, slash);
-      return !owner.startsWith('-') && !owner.includes('"') && !owner.includes('$');
-    };
-    const images = content
-      .split('\n')
-      .filter((line) => line.includes('docker run'))
-      .map((line) => line.split(/\s+/).find(looksLikeImage))
-      .filter((image): image is string => image !== undefined);
-    totalImages += images.length;
-    for (const image of images) expect(image).toMatch(/@sha256:[a-f0-9]{64}$/);
+    for (const line of readFileSync(file, 'utf8').split('\n').filter((l) => /\bdocker run\b/.test(l))) {
+      // An image reference is `name:tag`, where `name` may carry `/`s (e.g. `owner/repo`) but never
+      // a `/` right at the start (that would be an absolute path, such as a bind-mount argument).
+      // This also catches an image with no `/` at all (e.g. `composer:2.11.0`), which an
+      // `indexOf('/')`-based parser would silently skip.
+      images.push(/\s([a-z0-9][\w./-]*:\S+)/.exec(line)?.[1] ?? `unparsed: ${line.trim()}`);
+    }
   }
   // At least one workflow must actually use `docker run`, or this test would pass vacuously.
-  expect(totalImages).toBeGreaterThan(0);
+  expect(images.length).toBeGreaterThan(0);
+  for (const image of images) expect(image).toMatch(/^[\w./-]+:[\w.-]+@sha256:[a-f0-9]{64}$/);
 });
 
 // Reads the merged, effective Compose config (not the raw YAML text) so `n8n-worker`'s own

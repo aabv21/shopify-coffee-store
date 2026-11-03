@@ -82,7 +82,7 @@ Deliberate simplifications, each with its ceiling and upgrade path:
 
 These need the owner's existing Google account, so they aren't run yet:
 
-- **Gmail re-consent.** After this change, run `pnpm run setup -- --refresh nbcCredGmail0001` and re-authorize the Gmail credential in the n8n editor; the Google consent screen should show only "Send email on your behalf", not the broader mailbox access the previous default scope implied.
+- **Gmail re-consent.** Run `pnpm run setup -- --refresh nbcCredGmail0001` and re-authorize the Gmail credential in the n8n editor; the Google consent screen should show only "Send email on your behalf", not the broader mailbox access n8n's default scope set would otherwise imply. The old, broader grant stays valid until it's revoked under your Google Account's [third-party access](https://myaccount.google.com/connections).
 
 These need a live, `--live`-published `shopify-orders` trigger with a real Shopify credential, so they aren't run yet:
 

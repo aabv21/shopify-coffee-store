@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { expect, it, test } from 'vitest';
+import { CREDENTIALS } from '../scripts/lib/manifest.ts';
 import { listJsonFiles } from '../scripts/lib/list-json-files.ts';
 import type { WorkflowJson, WorkflowNode } from '../scripts/lib/workflow-types.ts';
 
@@ -86,6 +87,31 @@ it('every Postgres node across the workflows is pinned at 2.8 or later', () => {
   }
   expect(seen).toBeGreaterThan(0);
 });
+// n8n 2.45.6's Gmail node calls GET users/me/profile whenever options.senderName is set, to read
+// the account's display name — a call gmail.send doesn't authorize. The manifest's Gmail
+// credential (nbcCredGmail0001) is scoped to gmail.send only (customScopes, enabledScopes), so
+// every Gmail node using it must leave senderName unset, or its send would start failing with a
+// 403 the moment the credential is re-consented to that narrower scope.
+it('no Gmail node sets senderName while its credential is scoped to gmail.send only', () => {
+  const gmailCred = CREDENTIALS.find((c) => c.type === 'gmailOAuth2');
+  if (!gmailCred) throw new Error('no gmailOAuth2 credential in the manifest');
+  const scopeData = gmailCred.data({});
+  expect(scopeData.customScopes).toBe(true);
+  expect(scopeData.enabledScopes).toBe('https://www.googleapis.com/auth/gmail.send');
+
+  let seen = 0;
+  for (const { file, wf: w } of allWorkflows()) {
+    for (const n of w.nodes) {
+      if (n.type !== 'n8n-nodes-base.gmail') continue;
+      if (n.credentials?.gmailOAuth2?.id !== gmailCred.id) continue;
+      seen += 1;
+      const options = n.parameters.options as Record<string, unknown> | undefined;
+      expect(options?.senderName, `${file} › ${n.name}`).toBeUndefined();
+    }
+  }
+  expect(seen).toBeGreaterThan(0);
+});
+
 it('no Execute Workflow node retries, across all workflows', () => {
   let seen = 0;
   for (const { file, wf: w } of allWorkflows()) {
