@@ -29,6 +29,25 @@ This repo builds the order-processing backend for Nubandina Coffee, a fictional 
 - `docs/screenshots/` — the storefront screenshots `README.md` and `theme/README.md` embed, taken from the offline preview at 390 × 844 and 1280 × 800; retake them whenever a component's look changes. The `*-es-*` ones show the Spanish preview (`pnpm run theme:preview -- --locale es`).
 - `.github/workflows/`, `.github/dependabot.yml` — CI (quality, security, actions-lint, and `n8n` jobs; CodeQL once the repo is public) and automated dependency updates. The `n8n` job boots the real stack and proves a workflow executes end to end; see "The `n8n` job" under Supply-chain hardening below.
 
+## Documentation map
+
+| Document | Covers |
+|---|---|
+| [`docs/architecture.md`](docs/architecture.md) | Components, the order flow, the data model, failure modes (with recovery steps), scaling limits, security, and the design decisions behind each part. |
+| [`docs/database.md`](docs/database.md) | The Postgres `app_runtime` role and its exact grant, migrations (`db/migrations/`, applied by `pnpm run db:migrate`), retention, backup and restore, connections, the upgrade path for an existing local volume, and what `node scripts/check-db.ts` proves. |
+| [`docs/testing.md`](docs/testing.md) | Every test suite: its command, what it covers, and how it stays deterministic and clean, plus what CI actually runs. |
+| [`docs/shopify-setup.md`](docs/shopify-setup.md) | The owner's manual, one-time steps for creating the dev store and importing the catalog: metafield definitions, currency format, the CSV import, shipping rates, the test payment gateway, and product image credits. |
+| [`docs/screenshots/`](docs/screenshots/) | The storefront screenshots `README.md` and `theme/README.md` embed, taken from the offline preview at 390 × 844 and 1280 × 800, in English and Spanish. |
+| [`theme/README.md`](theme/README.md) | The Horizon overlay and insertions model: assembly, the free-shipping bar, the coffee finder, the brand settings, and the translations namespace — never shipped to a store itself. |
+| [`docs/diagrams/architecture.json`](docs/diagrams/architecture.json) | The system diagram's archify typed source (type `architecture`): storefront → Shopify → ngrok → `shopify-orders` → `intake-order` → `process-order` → Postgres, Google Sheets, Gmail. |
+| [`docs/diagrams/architecture.html`](docs/diagrams/architecture.html) | The system diagram's interactive page, rendered by archify. Open it directly to read the diagram full-size, pan, and inspect each node. |
+| [`docs/diagrams/architecture.svg`](docs/diagrams/architecture.svg) | The system diagram's exported image (`SVG · Auto`, follows the reader's light or dark theme), embedded in `docs/architecture.md`. |
+| [`docs/diagrams/order-sequence.json`](docs/diagrams/order-sequence.json) | The order lifecycle sequence diagram's archify typed source (type `sequence`): delivery and HMAC check, the idempotency gate, config and hand-off, the sheet row and owner email, the stock check, the persisted wait, and the brewing guide. |
+| [`docs/diagrams/order-sequence.html`](docs/diagrams/order-sequence.html) | The sequence diagram's interactive page. |
+| [`docs/diagrams/order-sequence.svg`](docs/diagrams/order-sequence.svg) | The sequence diagram's exported image, embedded in `docs/architecture.md`. |
+
+`docs/diagrams/*.delivery.json` receipts (one per diagram, written by `archify deliver`) hold local absolute paths and are gitignored; never force-add one.
+
 ## Commands
 
 - `pnpm install --frozen-lockfile` — install dependencies from the lockfile.
