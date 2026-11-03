@@ -6,6 +6,7 @@ var TASTE_TO_ROAST = {
   balanced: "medium",
   intense: "dark"
 };
+var QUESTIONS = ["brew_method", "taste", "people"];
 var BREW_METHODS = ["pour-over", "espresso", "french-press"];
 var TASTES = ["mild", "balanced", "intense"];
 var PEOPLE = /* @__PURE__ */ new Set([1, 2, 3]);
@@ -14,6 +15,9 @@ function isBrewMethod(value) {
 }
 function isTaste(value) {
   return typeof value === "string" && TASTES.includes(value);
+}
+function isPeople(value) {
+  return typeof value === "string" && PEOPLE.has(Number(value));
 }
 function pickVariant(variants, people) {
   const available = variants.filter((v) => v.available);
@@ -56,10 +60,19 @@ function readAnswers(entries) {
   for (const [key, value] of entries) {
     if (key === "brew_method" && isBrewMethod(value)) brewMethod = value;
     else if (key === "taste" && isTaste(value)) taste = value;
-    else if (key === "people" && typeof value === "string" && PEOPLE.has(Number(value))) people = Number(value);
+    else if (key === "people" && isPeople(value)) people = Number(value);
   }
   if (brewMethod === null || taste === null || people === null) return null;
   return { brewMethod, taste, people };
+}
+function missingAnswers(entries) {
+  const answered = /* @__PURE__ */ new Set();
+  for (const [key, value] of entries) {
+    if (key === "brew_method" && isBrewMethod(value)) answered.add("brew_method");
+    else if (key === "taste" && isTaste(value)) answered.add("taste");
+    else if (key === "people" && isPeople(value)) answered.add("people");
+  }
+  return QUESTIONS.filter((question) => !answered.has(question));
 }
 function parseVariant(value) {
   if (typeof value !== "object" || value === null) return null;
@@ -111,9 +124,14 @@ var CoffeeFinder = class extends HTMLElement {
   #warnedMissingContract = false;
   connectedCallback() {
     const form = textOf(this, "[data-finder-form]");
-    if (form instanceof HTMLFormElement) form.addEventListener("submit", (event) => {
-      this.onSubmit(event, form);
-    });
+    if (form instanceof HTMLFormElement) {
+      form.addEventListener("submit", (event) => {
+        this.onSubmit(event, form);
+      });
+      form.addEventListener("change", () => {
+        if (form.querySelector("[data-unanswered]")) this.flagMissing(form, missingAnswers(new FormData(form).entries()), { focus: false });
+      });
+    }
     this.addEventListener("click", (event) => {
       const button = event.target.closest("[data-card-add]");
       if (button) void this.onAdd(button);
@@ -130,13 +148,35 @@ var CoffeeFinder = class extends HTMLElement {
   }
   onSubmit(event, form) {
     event.preventDefault();
-    if (!form.checkValidity()) {
-      form.reportValidity();
-      return;
-    }
-    const answers = readAnswers(new FormData(form).entries());
+    const entries = [...new FormData(form).entries()];
+    const missing = missingAnswers(entries);
+    this.flagMissing(form, missing, { focus: true });
+    if (missing.length > 0) return;
+    const answers = readAnswers(entries);
     const picks = answers ? recommend(this.readProducts(), answers) : [];
     this.renderResults(picks);
+  }
+  /**
+   * Marks each unanswered question's fieldset with `data-unanswered` and its radios as invalid,
+   * described by the form's error text (a `role="alert"` region, so it's announced) while any
+   * remain, and optionally moves focus to the first unanswered question.
+   */
+  flagMissing(form, missing, o) {
+    const error = textOf(this, "[data-finder-error]");
+    if (error) error.textContent = missing.length > 0 ? error.dataset.message ?? "" : "";
+    for (const input of form.querySelectorAll('input[type="radio"]')) {
+      const unanswered = missing.includes(input.name);
+      input.closest("fieldset")?.toggleAttribute("data-unanswered", unanswered);
+      if (unanswered) {
+        input.setAttribute("aria-invalid", "true");
+        if (error?.id) input.setAttribute("aria-describedby", error.id);
+      } else {
+        input.removeAttribute("aria-invalid");
+        input.removeAttribute("aria-describedby");
+      }
+    }
+    const [first] = missing;
+    if (o.focus && first) form.querySelector(`input[name="${first}"]`)?.focus();
   }
   renderResults(picks) {
     const results = textOf(this, "[data-finder-results]");
@@ -183,7 +223,12 @@ var CoffeeFinder = class extends HTMLElement {
     }
     return fragment;
   }
+  setStatus(status, state, text) {
+    status.dataset.state = state;
+    status.textContent = text;
+  }
   async onAdd(button) {
+    if (button.getAttribute("aria-busy") === "true") return;
     const variantId = button.dataset.variantId;
     const status = button.closest(".coffee-finder__card")?.querySelector("[data-card-status]");
     const messages = textOf(this, "[data-finder-messages]");
@@ -196,8 +241,9 @@ var CoffeeFinder = class extends HTMLElement {
     }
     const addedText = messages.dataset.added ?? "";
     const errorText = messages.dataset.error ?? "";
-    button.disabled = true;
     button.setAttribute("aria-busy", "true");
+    status.textContent = "";
+    delete status.dataset.state;
     try {
       const actions = window.Shopify?.actions;
       if (actions) {
@@ -206,9 +252,9 @@ var CoffeeFinder = class extends HTMLElement {
           { event: { context: "standard-action" } }
         );
         if (result.userErrors && result.userErrors.length > 0) {
-          status.textContent = errorText;
+          this.setStatus(status, "error", errorText);
         } else {
-          status.textContent = this.successText(addedText, result.warnings);
+          this.setStatus(status, "success", this.successText(addedText, result.warnings));
           try {
             await actions.openCart();
           } catch (err) {
@@ -219,9 +265,8 @@ var CoffeeFinder = class extends HTMLElement {
         await this.addViaCartAjax(variantId, status, addedText, errorText);
       }
     } catch {
-      status.textContent = errorText;
+      this.setStatus(status, "error", errorText);
     } finally {
-      button.disabled = false;
       button.removeAttribute("aria-busy");
     }
   }
@@ -238,10 +283,10 @@ var CoffeeFinder = class extends HTMLElement {
       body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1 }] })
     });
     if (response.ok) {
-      status.textContent = addedText;
+      this.setStatus(status, "success", addedText);
       window.location.assign(cartUrl);
     } else {
-      status.textContent = errorText;
+      this.setStatus(status, "error", errorText);
     }
   }
 };

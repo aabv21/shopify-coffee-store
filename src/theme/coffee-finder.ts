@@ -1,9 +1,11 @@
 // The coffee finder: a three-question form that recommends one or two coffees from product
 // metafields and adds the chosen bag to the cart. Uses textContent only, never innerHTML.
-import { parseProducts, readAnswers, recommend, type FinderProduct, type FinderVariant } from './recommend.ts';
+import { missingAnswers, parseProducts, readAnswers, recommend, type FinderProduct, type FinderVariant, type Question } from './recommend.ts';
 import './shopify-actions.d.ts';
 
 const TAG_NAME = 'coffee-finder';
+
+type StatusState = 'success' | 'error';
 
 function textOf(root: ParentNode, selector: string): HTMLElement | null {
   return root.querySelector<HTMLElement>(selector);
@@ -14,7 +16,13 @@ class CoffeeFinder extends HTMLElement {
 
   connectedCallback(): void {
     const form = textOf(this, '[data-finder-form]');
-    if (form instanceof HTMLFormElement) form.addEventListener('submit', (event) => { this.onSubmit(event, form); });
+    if (form instanceof HTMLFormElement) {
+      form.addEventListener('submit', (event) => { this.onSubmit(event, form); });
+      // Once an unanswered question is flagged, answering it clears that flag right away.
+      form.addEventListener('change', () => {
+        if (form.querySelector('[data-unanswered]')) this.flagMissing(form, missingAnswers(new FormData(form).entries()), { focus: false });
+      });
+    }
 
     this.addEventListener('click', (event) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-card-add]');
@@ -34,14 +42,40 @@ class CoffeeFinder extends HTMLElement {
 
   private onSubmit(event: SubmitEvent, form: HTMLFormElement): void {
     event.preventDefault();
-    if (!form.checkValidity()) {
-      form.reportValidity();
-      return;
-    }
+    const entries = [...new FormData(form).entries()];
+    const missing = missingAnswers(entries);
+    this.flagMissing(form, missing, { focus: true });
+    if (missing.length > 0) return;
 
-    const answers = readAnswers(new FormData(form).entries());
+    const answers = readAnswers(entries);
     const picks = answers ? recommend(this.readProducts(), answers) : [];
     this.renderResults(picks);
+  }
+
+  /**
+   * Marks each unanswered question's fieldset with `data-unanswered` and its radios as invalid,
+   * described by the form's error text (a `role="alert"` region, so it's announced) while any
+   * remain, and optionally moves focus to the first unanswered question.
+   */
+  private flagMissing(form: HTMLFormElement, missing: readonly Question[], o: { focus: boolean }): void {
+    const error = textOf(this, '[data-finder-error]');
+    if (error) error.textContent = missing.length > 0 ? (error.dataset.message ?? '') : '';
+
+    // Every radio in a fieldset shares its question's name, so each one sets the same flag.
+    for (const input of form.querySelectorAll<HTMLInputElement>('input[type="radio"]')) {
+      const unanswered = (missing as readonly string[]).includes(input.name);
+      input.closest('fieldset')?.toggleAttribute('data-unanswered', unanswered);
+      if (unanswered) {
+        input.setAttribute('aria-invalid', 'true');
+        if (error?.id) input.setAttribute('aria-describedby', error.id);
+      } else {
+        input.removeAttribute('aria-invalid');
+        input.removeAttribute('aria-describedby');
+      }
+    }
+
+    const [first] = missing;
+    if (o.focus && first) form.querySelector<HTMLInputElement>(`input[name="${first}"]`)?.focus();
   }
 
   private renderResults(picks: ReturnType<typeof recommend>): void {
@@ -102,7 +136,14 @@ class CoffeeFinder extends HTMLElement {
     return fragment;
   }
 
+  private setStatus(status: HTMLElement, state: StatusState, text: string): void {
+    status.dataset.state = state;
+    status.textContent = text;
+  }
+
   private async onAdd(button: HTMLButtonElement): Promise<void> {
+    // aria-busy, not disabled: disabling the focused button would drop keyboard focus to <body>.
+    if (button.getAttribute('aria-busy') === 'true') return;
     const variantId = button.dataset.variantId;
     const status = button.closest('.coffee-finder__card')?.querySelector<HTMLElement>('[data-card-status]');
     const messages = textOf(this, '[data-finder-messages]');
@@ -117,8 +158,9 @@ class CoffeeFinder extends HTMLElement {
     const addedText = messages.dataset.added ?? '';
     const errorText = messages.dataset.error ?? '';
 
-    button.disabled = true;
     button.setAttribute('aria-busy', 'true');
+    status.textContent = '';
+    delete status.dataset.state;
 
     try {
       const actions = window.Shopify?.actions;
@@ -128,12 +170,12 @@ class CoffeeFinder extends HTMLElement {
           { event: { context: 'standard-action' } },
         );
         if (result.userErrors && result.userErrors.length > 0) {
-          status.textContent = errorText;
+          this.setStatus(status, 'error', errorText);
         } else {
           // The item is already in the cart once userErrors comes back empty, so the status
           // reflects that right away; opening the drawer is a separate, best-effort step that
           // must never turn a real success into a reported failure.
-          status.textContent = this.successText(addedText, result.warnings);
+          this.setStatus(status, 'success', this.successText(addedText, result.warnings));
           try {
             await actions.openCart();
           } catch (err: unknown) {
@@ -144,9 +186,8 @@ class CoffeeFinder extends HTMLElement {
         await this.addViaCartAjax(variantId, status, addedText, errorText);
       }
     } catch {
-      status.textContent = errorText;
+      this.setStatus(status, 'error', errorText);
     } finally {
-      button.disabled = false;
       button.removeAttribute('aria-busy');
     }
   }
@@ -167,10 +208,10 @@ class CoffeeFinder extends HTMLElement {
     });
 
     if (response.ok) {
-      status.textContent = addedText;
+      this.setStatus(status, 'success', addedText);
       window.location.assign(cartUrl);
     } else {
-      status.textContent = errorText;
+      this.setStatus(status, 'error', errorText);
     }
   }
 }

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { parseProducts, readAnswers, recommend, type FinderProduct } from '../../src/theme/recommend.ts';
+import { missingAnswers, parseProducts, readAnswers, recommend, type FinderProduct } from '../../src/theme/recommend.ts';
 
 const p = (id: number, title: string, roast: string | null, brewMethod: string | null, avail: [boolean, boolean] = [true, true]): FinderProduct => ({
   id, title, url: `/products/${String(id)}`, image: null, roast, brewMethod, tastingNotes: null,
@@ -30,6 +30,12 @@ it('reads complete answers and rejects anything else', () => {
   expect(readAnswers([['brew_method', 'espresso'], ['taste', 'balanced'], ['people', '2']])).toEqual({ brewMethod: 'espresso', taste: 'balanced', people: 2 });
   expect(readAnswers([['brew_method', 'espresso'], ['taste', 'balanced']])).toBeNull();
   expect(readAnswers([['brew_method', 'aeropress'], ['taste', 'balanced'], ['people', '2']])).toBeNull();
+});
+it('names the unanswered questions in form order, counting an unknown value as unanswered', () => {
+  expect(missingAnswers([['brew_method', 'espresso'], ['taste', 'balanced'], ['people', '2']])).toEqual([]);
+  expect(missingAnswers([])).toEqual(['brew_method', 'taste', 'people']);
+  expect(missingAnswers([['people', '3'], ['taste', 'mild']])).toEqual(['brew_method']);
+  expect(missingAnswers([['brew_method', 'aeropress'], ['taste', 'balanced'], ['people', '4']])).toEqual(['brew_method', 'people']);
 });
 it('drops malformed product data', () => {
   expect(parseProducts('nope')).toEqual([]);

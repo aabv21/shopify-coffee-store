@@ -46,9 +46,26 @@ Each item below was verified offline.
 
 **Storefront**
 
-- `pnpm run theme:check` passes on the assembled theme, with no failing offenses in this repo's 4 added and 3 modified files. Horizon's own baseline is 6 warnings.
-- The free-shipping bar's math passes unit tests, including a total exactly at the threshold and a blank or zero threshold.
-- The coffee finder's recommendations pass unit tests for a full match, a partial match, the party-size switch, sold-out products, and malformed input.
+- `pnpm run theme:check` passes on the assembled theme, with no failing offenses in this repo's 4 added and 5 modified files. Horizon's own baseline is 6 warnings.
+- The brand is set in Horizon's own settings at assembly time: Nubandina's palette and the Alegreya and Alegreya Sans fonts from Shopify's font library, with every text and control pair at WCAG AA (unit-tested). Assembly fails if Horizon's settings change under it. See [`theme/README.md`](theme/README.md#brand).
+- The free-shipping bar's math passes unit tests, including a total exactly at the threshold and a blank or zero threshold. Its first render comes from the server, with `aria-valuenow`, `aria-valuetext`, and a completed state.
+- The coffee finder's recommendations pass unit tests for a full match, a partial match, the party-size switch, sold-out products, and malformed input, and so does its check for unanswered questions.
+- `pnpm run theme:preview` renders both components' real Liquid offline, with liquidjs and mock data from `data/products.csv`. In that preview, axe-core 4.14.0 finds no violations in either component, or on the page, in any state at 390 and 1280 px wide, and the finder's keyboard path (questions, submit, results, add buttons) shows a focus ring at every stop. The preview is an approximation; `theme/README.md` lists its stubs.
+
+![The coffee finder's recommendations on a laptop: two coffee cards with photos, notes, prices, and Add to cart buttons beside the three answered questions](docs/screenshots/finder-results-1280.png)
+
+<details>
+<summary>All storefront screenshots (offline preview, 390 × 844 and 1280 × 800)</summary>
+
+| | 390 × 844 | 1280 × 800 |
+| --- | --- | --- |
+| Coffee finder | ![The coffee finder's three questions on a phone](docs/screenshots/finder-empty-390.png) | ![The coffee finder's three questions on a laptop](docs/screenshots/finder-empty-1280.png) |
+| Finder results | ![Two recommended coffees on a phone](docs/screenshots/finder-results-390.png) | ![Two recommended coffees on a laptop](docs/screenshots/finder-results-1280.png) |
+| Cart at 0% | ![The free-shipping bar, empty, on a phone](docs/screenshots/cart-0-390.png) | ![The free-shipping bar, empty, on a laptop](docs/screenshots/cart-0-1280.png) |
+| Cart at 60% | ![The free-shipping bar at 60% on a phone](docs/screenshots/cart-60-390.png) | ![The free-shipping bar at 60% on a laptop](docs/screenshots/cart-60-1280.png) |
+| Cart at 100% | ![The free-shipping bar, complete, on a phone](docs/screenshots/cart-100-390.png) | ![The free-shipping bar, complete, on a laptop](docs/screenshots/cart-100-1280.png) |
+
+</details>
 
 ## Quick start
 
@@ -76,7 +93,7 @@ Deliberate simplifications, each with its ceiling and upgrade path:
 - **A wait shorter than 65 seconds doesn't survive a restart.** n8n 2.45.6 only persists a Wait node's sleep past `MAX_IN_PROCESS_WAIT_MS`; anything shorter stays in the process's own memory and is lost if n8n restarts mid-wait. `guide_delay_minutes` is validated at 2 or more precisely because of this ceiling. Upgrade path: none needed at this delay — it's n8n's own design, not something this repo works around.
 - **Queue mode's Redis has no password.** `compose.queue.yaml` publishes no Redis port, so only containers on the Compose network can reach it, but any of them can. Upgrade path: set `QUEUE_BULL_REDIS_PASSWORD` before running queue mode in production.
 - **`pnpm run setup` waits 15 seconds after restarting n8n, then polls the dev harness's webhook until it's registered.** `/healthz` reports healthy before the publication reconciler syncs the published versions, every 10 seconds by default. The webhook poll proves the harness is live, not that every sub-workflow already runs its newest published version under a slower reconciler. Upgrade path: poll `workflow_published_version` against `workflow_entity.activeVersionId` instead of the fixed wait.
-- **The free-shipping bar can disagree with checkout.** It reads `cart.total_price`, which is the total after cart-level discounts but before anything applied at checkout. A discount code entered at checkout can still take the order below the free-shipping rate after the bar has already shown "You've got free shipping!".
+- **The free-shipping bar can disagree with checkout.** It reads `cart.total_price`, which is the total after cart-level discounts but before anything applied at checkout. A discount code entered at checkout can still take the order below the free-shipping rate after the bar has already shown "You’ve got free shipping!".
 
 ## Live checks (pending)
 
@@ -113,12 +130,14 @@ These need the ngrok tunnel, or queue mode with the live trigger, so they aren't
 
 These need `pnpm dlx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme`, so they aren't run yet:
 
-- **Drawer.** With Sierra Nevada 250 g in the cart, it shows "You're $82.000 away from free shipping" at 31%.
-- **Live updates.** Raising the quantity to 4 (152,000 COP) switches it to "You've got free shipping!" without a reload, in the drawer and on `/cart`. Lowering it again restores the remaining message.
+- **Drawer.** With Sierra Nevada 250 g in the cart, it shows "You’re $82.000 away from free shipping" at 31%.
+- **Live updates.** Raising the quantity to 4 (152,000 COP) switches it to "You’ve got free shipping!" without a reload, in the drawer and on `/cart`. Lowering it again restores the remaining message.
 - **Boundary.** Huila 250 g plus Huila 500 g (exactly 120,000 COP) shows the reached message, and checkout charges 0 shipping.
 - **Disabled.** A blank threshold, or unticking "Show the free shipping bar", hides the bar with no console errors.
 - **Keyboard path.** Tab reaches each radio group and arrow keys move within it. Submitting "Pour-over / Mild and bright / Just me" moves focus to "Our pick for you", which shows one card: Nariño 250 g, its price, and its notes.
-- **Adding to cart.** "Add to cart" with Enter opens the cart drawer, and the free-shipping bar reflects the new total.
+- **Unanswered question.** Submitting with only a brew method chosen marks the other two questions, announces "Choose an answer for each question.", and moves focus to the taste question.
+- **Adding to cart.** "Add to cart" with Enter shows the busy ring, keeps focus on the button, opens the cart drawer, and the free-shipping bar reflects the new total.
 - **Second option.** "Espresso / Mild and bright / Three or more" shows two cards, Sierra Nevada 500 g and then Nariño 500 g.
 - **Theme editor.** The section can be added to another page, its texts edited, and the section removed, all without code.
 - **No errors.** The console shows no errors, and `Shopify.actions` is present. Note it if it's absent: the Cart AJAX fallback then handles "Add to cart".
+- **Brand.** The theme editor shows the six palette colors and the Alegreya fonts, both fonts load from Shopify's font CDN, and Horizon's own muted text (the footer copyright) uses the raised 0.65 opacity.

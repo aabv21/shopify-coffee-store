@@ -9,6 +9,10 @@ const CART_EVENT = 'shopify:cart:lines-update';
 
 interface CartEventDetail { promise?: Promise<unknown> }
 
+function setAttributeIfChanged(element: Element, name: string, value: string): void {
+  if (element.getAttribute(name) !== value) element.setAttribute(name, value);
+}
+
 function readCart(cartUrl: string): Promise<{ total_price: number }> {
   return fetch(`${cartUrl}.js`).then((response) => {
     if (!response.ok) throw new Error(`cart fetch failed: ${response.status.toString()}`);
@@ -74,9 +78,14 @@ class FreeShippingBar extends HTMLElement {
     const messages = { remaining: this.dataset.messageRemaining ?? '', reached: this.dataset.messageReached ?? '' };
     const moneyFormat = this.dataset.moneyFormat ?? '{{amount}}';
 
-    messageEl.textContent = barMessage(state, messages, moneyFormat);
-    trackEl.ariaValueNow = state.percent.toString();
-    fillEl.style.width = `${state.percent.toString()}%`;
+    const message = barMessage(state, messages, moneyFormat);
+    // Only real changes are written, so the polite live region doesn't re-announce the message
+    // the server already rendered.
+    if (messageEl.textContent !== message) messageEl.textContent = message;
+    setAttributeIfChanged(trackEl, 'aria-valuenow', state.percent.toString());
+    setAttributeIfChanged(trackEl, 'aria-valuetext', message);
+    setAttributeIfChanged(this, 'data-state', state.reached ? 'reached' : 'remaining');
+    fillEl.style.setProperty('--free-shipping-progress', (state.percent / 100).toString());
   }
 }
 

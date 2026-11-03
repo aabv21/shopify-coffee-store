@@ -54,6 +54,9 @@ function barMessage(state, messages, moneyFormat) {
 // src/theme/free-shipping-bar.ts
 var TAG_NAME = "free-shipping-bar";
 var CART_EVENT = "shopify:cart:lines-update";
+function setAttributeIfChanged(element, name, value) {
+  if (element.getAttribute(name) !== value) element.setAttribute(name, value);
+}
 function readCart(cartUrl) {
   return fetch(`${cartUrl}.js`).then((response) => {
     if (!response.ok) throw new Error(`cart fetch failed: ${response.status.toString()}`);
@@ -105,9 +108,12 @@ var FreeShippingBar = class extends HTMLElement {
     }
     const messages = { remaining: this.dataset.messageRemaining ?? "", reached: this.dataset.messageReached ?? "" };
     const moneyFormat = this.dataset.moneyFormat ?? "{{amount}}";
-    messageEl.textContent = barMessage(state, messages, moneyFormat);
-    trackEl.ariaValueNow = state.percent.toString();
-    fillEl.style.width = `${state.percent.toString()}%`;
+    const message = barMessage(state, messages, moneyFormat);
+    if (messageEl.textContent !== message) messageEl.textContent = message;
+    setAttributeIfChanged(trackEl, "aria-valuenow", state.percent.toString());
+    setAttributeIfChanged(trackEl, "aria-valuetext", message);
+    setAttributeIfChanged(this, "data-state", state.reached ? "reached" : "remaining");
+    fillEl.style.setProperty("--free-shipping-progress", (state.percent / 100).toString());
   }
 };
 if (!customElements.get(TAG_NAME)) customElements.define(TAG_NAME, FreeShippingBar);

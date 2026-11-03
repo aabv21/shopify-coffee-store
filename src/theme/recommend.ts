@@ -24,6 +24,10 @@ export const TASTE_TO_ROAST: Readonly<Record<Taste, 'light' | 'medium' | 'dark'>
   intense: 'dark',
 };
 
+/** The finder's three questions, by their radio-group names, in form order. */
+export const QUESTIONS = ['brew_method', 'taste', 'people'] as const;
+export type Question = (typeof QUESTIONS)[number];
+
 const BREW_METHODS: readonly BrewMethod[] = ['pour-over', 'espresso', 'french-press'];
 const TASTES: readonly Taste[] = ['mild', 'balanced', 'intense'];
 const PEOPLE = new Set([1, 2, 3]);
@@ -34,6 +38,10 @@ function isBrewMethod(value: unknown): value is BrewMethod {
 
 function isTaste(value: unknown): value is Taste {
   return typeof value === 'string' && TASTES.includes(value as Taste);
+}
+
+function isPeople(value: unknown): value is string {
+  return typeof value === 'string' && PEOPLE.has(Number(value));
 }
 
 /** The best variant for a given party size: lightest available for 1–2 people, heaviest for 3, keeping the first on a tie. */
@@ -86,11 +94,22 @@ export function readAnswers(entries: Iterable<[string, unknown]>): FinderAnswers
   for (const [key, value] of entries) {
     if (key === 'brew_method' && isBrewMethod(value)) brewMethod = value;
     else if (key === 'taste' && isTaste(value)) taste = value;
-    else if (key === 'people' && typeof value === 'string' && PEOPLE.has(Number(value))) people = Number(value) as 1 | 2 | 3;
+    else if (key === 'people' && isPeople(value)) people = Number(value) as 1 | 2 | 3;
   }
 
   if (brewMethod === null || taste === null || people === null) return null;
   return { brewMethod, taste, people };
+}
+
+/** The questions a submission leaves unanswered (or answers with an unknown value), in form order. */
+export function missingAnswers(entries: Iterable<[string, unknown]>): Question[] {
+  const answered = new Set<Question>();
+  for (const [key, value] of entries) {
+    if (key === 'brew_method' && isBrewMethod(value)) answered.add('brew_method');
+    else if (key === 'taste' && isTaste(value)) answered.add('taste');
+    else if (key === 'people' && isPeople(value)) answered.add('people');
+  }
+  return QUESTIONS.filter((question) => !answered.has(question));
 }
 
 function parseVariant(value: unknown): FinderVariant | null {

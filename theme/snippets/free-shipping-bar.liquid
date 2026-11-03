@@ -1,14 +1,27 @@
 {% doc %}
   Renders the free-shipping progress bar: how far the cart is from the free-shipping threshold,
   updating live as the cart changes. Hidden when the feature is off or the threshold is blank or
-  zero.
+  zero. The first render comes from the server, so the message and the bar never start empty.
 {% enddoc %}
 
 {%- assign free_shipping_threshold_cents = settings.free_shipping_threshold | times: 100 -%}
 {%- if settings.free_shipping_bar_enabled and free_shipping_threshold_cents > 0 -%}
-  {%- comment -%} data-skip-subtree-update keeps Horizon's section morph from wiping the JS-rendered children while it still updates data-total-cents. {%- endcomment -%}
+  {%- liquid
+    assign free_shipping_total_cents = cart.total_price | at_least: 0
+    assign free_shipping_percent = free_shipping_total_cents | times: 100 | divided_by: free_shipping_threshold_cents | floor | at_most: 100
+    if free_shipping_total_cents >= free_shipping_threshold_cents
+      assign free_shipping_state = 'reached'
+      assign free_shipping_message = settings.free_shipping_message_reached
+    else
+      assign free_shipping_state = 'remaining'
+      assign free_shipping_remaining = free_shipping_threshold_cents | minus: free_shipping_total_cents | money
+      assign free_shipping_message = settings.free_shipping_message_remaining | replace_first: '[amount]', free_shipping_remaining
+    endif
+  -%}
+  {%- comment -%} data-skip-subtree-update keeps Horizon's section morph from wiping the JS-rendered children while it still updates data-total-cents and data-state. {%- endcomment -%}
   <free-shipping-bar
     class="free-shipping-bar"
+    data-state="{{ free_shipping_state }}"
     data-total-cents="{{ cart.total_price }}"
     data-threshold-cents="{{ free_shipping_threshold_cents }}"
     data-money-format="{{ shop.money_format | escape }}"
@@ -17,16 +30,36 @@
     data-cart-url="{{ routes.cart_url }}"
     data-skip-subtree-update
   >
-    <p class="free-shipping-bar__message" data-bar-message aria-live="polite"></p>
+    <p class="free-shipping-bar__message">
+      <svg
+        class="free-shipping-bar__icon"
+        aria-hidden="true"
+        focusable="false"
+        width="20"
+        height="20"
+        viewBox="0 0 20 20"
+        fill="none"
+      >
+        <circle cx="10" cy="10" r="8.25" stroke="currentColor" stroke-width="1.5"/>
+        <path d="m6.5 10.25 2.25 2.25 4.75-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span data-bar-message aria-live="polite">{{ free_shipping_message | escape }}</span>
+    </p>
     <div
       class="free-shipping-bar__track"
       data-bar-track
       role="progressbar"
       aria-valuemin="0"
       aria-valuemax="100"
+      aria-valuenow="{{ free_shipping_percent }}"
+      aria-valuetext="{{ free_shipping_message | escape }}"
       aria-label="{{ settings.free_shipping_progress_label | escape }}"
     >
-      <div class="free-shipping-bar__fill" data-bar-fill></div>
+      <div
+        class="free-shipping-bar__fill"
+        data-bar-fill
+        style="--free-shipping-progress: {{ free_shipping_percent | divided_by: 100.0 }};"
+      ></div>
     </div>
   </free-shipping-bar>
   <script src="{{ 'free-shipping-bar.js' | asset_url }}" type="module"></script>
@@ -36,33 +69,57 @@
   .free-shipping-bar {
     display: flex;
     flex-direction: column;
-    gap: var(--gap-2xs);
+    gap: var(--gap-xs);
   }
 
   .free-shipping-bar__message {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-xs);
     margin: 0;
-    min-height: 1.5em;
-    font-size: var(--font-size--sm);
     color: var(--color-foreground);
+    text-wrap: pretty;
+  }
+
+  .free-shipping-bar__icon {
+    flex: none;
+    inline-size: var(--icon-size-sm);
+    block-size: var(--icon-size-sm);
+    color: var(--color-primary-button-background);
+  }
+
+  .free-shipping-bar:not([data-state='reached']) .free-shipping-bar__icon {
+    display: none;
+  }
+
+  .free-shipping-bar[data-state='reached'] .free-shipping-bar__message {
+    font-weight: 700;
   }
 
   .free-shipping-bar__track {
-    block-size: 6px;
+    block-size: 0.5rem;
     border-radius: var(--style-border-radius-pills);
     background-color: rgb(var(--color-foreground-rgb) / var(--opacity-10-25));
     overflow: hidden;
   }
 
+  /* The fill is always full width and slides into view, so its rounded end never distorts. The
+     extra pixel keeps an empty bar's antialiased edge out of sight. */
   .free-shipping-bar__fill {
     block-size: 100%;
-    border-radius: var(--style-border-radius-pills);
-    background-color: var(--color-foreground);
-    inline-size: 0%;
+    inline-size: 100%;
+    border-radius: inherit;
+    background-color: var(--color-primary-button-background);
+    transform: translateX(calc((var(--free-shipping-progress, 0) - 1) * (100% + 1px)));
+  }
+
+  [dir='rtl'] .free-shipping-bar__fill {
+    transform: translateX(calc((1 - var(--free-shipping-progress, 0)) * (100% + 1px)));
   }
 
   @media (prefers-reduced-motion: no-preference) {
     .free-shipping-bar__fill {
-      transition: inline-size var(--animation-speed) ease;
+      transition: transform var(--animation-speed-slow) var(--ease-out-cubic);
     }
   }
 {% endstylesheet %}

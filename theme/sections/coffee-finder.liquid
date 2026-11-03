@@ -7,216 +7,565 @@
   assign finder_products = finder_collection.products | slice: 0, 50
 -%}
 
-<coffee-finder class="coffee-finder" data-cart-add-url="{{ routes.cart_add_url }}" data-cart-url="{{ routes.cart_url }}">
-  <div class="coffee-finder__intro">
-    <h2 class="coffee-finder__heading">{{ section.settings.heading | escape }}</h2>
-    <p class="coffee-finder__text">{{ section.settings.intro | escape }}</p>
-  </div>
+<div class="section section--page-width coffee-finder-section">
+  <coffee-finder class="coffee-finder" data-cart-add-url="{{ routes.cart_add_url }}" data-cart-url="{{ routes.cart_url }}">
+    <div class="coffee-finder__intro">
+      <h2 class="coffee-finder__heading">{{ section.settings.heading | escape }}</h2>
+      <p class="coffee-finder__text">{{ section.settings.intro | escape }}</p>
+    </div>
 
-  <form data-finder-form class="coffee-finder__form" novalidate>
-    <fieldset class="coffee-finder__fieldset">
-      <legend class="coffee-finder__legend">{{ section.settings.brew_question | escape }}</legend>
-      <label class="coffee-finder__option">
-        <input type="radio" name="brew_method" value="pour-over" required>
-        <span>{{ section.settings.brew_pour_over | escape }}</span>
-      </label>
-      <label class="coffee-finder__option">
-        <input type="radio" name="brew_method" value="espresso">
-        <span>{{ section.settings.brew_espresso | escape }}</span>
-      </label>
-      <label class="coffee-finder__option">
-        <input type="radio" name="brew_method" value="french-press">
-        <span>{{ section.settings.brew_french_press | escape }}</span>
-      </label>
-    </fieldset>
+    <form data-finder-form class="coffee-finder__form" novalidate>
+      <fieldset class="coffee-finder__fieldset">
+        <legend class="coffee-finder__legend">{{ section.settings.brew_question | escape }}</legend>
+        <div class="coffee-finder__options">
+          <label class="coffee-finder__option">
+            <input class="coffee-finder__radio" type="radio" name="brew_method" value="pour-over" required>
+            <span>{{ section.settings.brew_pour_over | escape }}</span>
+          </label>
+          <label class="coffee-finder__option">
+            <input class="coffee-finder__radio" type="radio" name="brew_method" value="espresso">
+            <span>{{ section.settings.brew_espresso | escape }}</span>
+          </label>
+          <label class="coffee-finder__option">
+            <input class="coffee-finder__radio" type="radio" name="brew_method" value="french-press">
+            <span>{{ section.settings.brew_french_press | escape }}</span>
+          </label>
+        </div>
+      </fieldset>
 
-    <fieldset class="coffee-finder__fieldset">
-      <legend class="coffee-finder__legend">{{ section.settings.taste_question | escape }}</legend>
-      <label class="coffee-finder__option">
-        <input type="radio" name="taste" value="mild" required>
-        <span>{{ section.settings.taste_mild | escape }}</span>
-      </label>
-      <label class="coffee-finder__option">
-        <input type="radio" name="taste" value="balanced">
-        <span>{{ section.settings.taste_balanced | escape }}</span>
-      </label>
-      <label class="coffee-finder__option">
-        <input type="radio" name="taste" value="intense">
-        <span>{{ section.settings.taste_intense | escape }}</span>
-      </label>
-    </fieldset>
+      <fieldset class="coffee-finder__fieldset">
+        <legend class="coffee-finder__legend">{{ section.settings.taste_question | escape }}</legend>
+        <div class="coffee-finder__options">
+          <label class="coffee-finder__option">
+            <input class="coffee-finder__radio" type="radio" name="taste" value="mild" required>
+            <span>{{ section.settings.taste_mild | escape }}</span>
+          </label>
+          <label class="coffee-finder__option">
+            <input class="coffee-finder__radio" type="radio" name="taste" value="balanced">
+            <span>{{ section.settings.taste_balanced | escape }}</span>
+          </label>
+          <label class="coffee-finder__option">
+            <input class="coffee-finder__radio" type="radio" name="taste" value="intense">
+            <span>{{ section.settings.taste_intense | escape }}</span>
+          </label>
+        </div>
+      </fieldset>
 
-    <fieldset class="coffee-finder__fieldset">
-      <legend class="coffee-finder__legend">{{ section.settings.people_question | escape }}</legend>
-      <label class="coffee-finder__option">
-        <input type="radio" name="people" value="1" required>
-        <span>{{ section.settings.people_one | escape }}</span>
-      </label>
-      <label class="coffee-finder__option">
-        <input type="radio" name="people" value="2">
-        <span>{{ section.settings.people_two | escape }}</span>
-      </label>
-      <label class="coffee-finder__option">
-        <input type="radio" name="people" value="3">
-        <span>{{ section.settings.people_three_plus | escape }}</span>
-      </label>
-    </fieldset>
+      <fieldset class="coffee-finder__fieldset">
+        <legend class="coffee-finder__legend">{{ section.settings.people_question | escape }}</legend>
+        <div class="coffee-finder__options">
+          <label class="coffee-finder__option">
+            <input class="coffee-finder__radio" type="radio" name="people" value="1" required>
+            <span>{{ section.settings.people_one | escape }}</span>
+          </label>
+          <label class="coffee-finder__option">
+            <input class="coffee-finder__radio" type="radio" name="people" value="2">
+            <span>{{ section.settings.people_two | escape }}</span>
+          </label>
+          <label class="coffee-finder__option">
+            <input class="coffee-finder__radio" type="radio" name="people" value="3">
+            <span>{{ section.settings.people_three_plus | escape }}</span>
+          </label>
+        </div>
+      </fieldset>
 
-    <button type="submit" class="coffee-finder__submit">{{ section.settings.submit_label | escape }}</button>
-  </form>
-
-  <div data-finder-results class="coffee-finder__results" aria-live="polite" hidden>
-    <h3 data-finder-heading class="coffee-finder__results-heading" tabindex="-1">{{ section.settings.results_heading | escape }}</h3>
-    <p data-finder-empty class="coffee-finder__empty" hidden>{{ section.settings.empty_text | escape }}</p>
-    <ul data-finder-list class="coffee-finder__list"></ul>
-  </div>
-
-  <template data-finder-card>
-    <li class="coffee-finder__card">
-      <img data-card-image class="coffee-finder__card-image" alt="" width="400" height="400" loading="lazy">
-      <div class="coffee-finder__card-body">
-        <p data-card-title class="coffee-finder__card-title"></p>
-        <p data-card-variant class="coffee-finder__card-variant"></p>
-        <p data-card-notes class="coffee-finder__card-notes"></p>
-        <p data-card-price class="coffee-finder__card-price"></p>
-        <a data-card-link class="coffee-finder__card-link" href=""></a>
-        <button type="button" data-card-add class="coffee-finder__card-add">
-          {{ section.settings.add_label | escape }}
-          <span class="visually-hidden" data-card-add-name></span>
-        </button>
-        <p data-card-status class="coffee-finder__card-status" aria-live="polite"></p>
+      <div class="coffee-finder__actions">
+        <button type="submit" class="button coffee-finder__submit">{{ section.settings.submit_label | escape }}</button>
+        <div
+          id="CoffeeFinderError-{{ section.id }}"
+          data-finder-error
+          class="coffee-finder__error"
+          role="alert"
+          data-message="{{ section.settings.required_text | escape }}"
+        ></div>
       </div>
-    </li>
-  </template>
+    </form>
 
-  <span data-finder-messages hidden data-added="{{ section.settings.added_text | escape }}" data-error="{{ section.settings.error_text | escape }}"></span>
+    <div data-finder-results class="coffee-finder__results" aria-live="polite" hidden>
+      <h3 data-finder-heading class="coffee-finder__results-heading" tabindex="-1">{{ section.settings.results_heading | escape }}</h3>
+      <div data-finder-empty class="coffee-finder__empty" hidden>
+        <p class="coffee-finder__empty-text">{{ section.settings.empty_text | escape }}</p>
+        <a class="button-secondary coffee-finder__empty-link" href="{{ routes.all_products_collection_url }}">{{ section.settings.empty_link_label | escape }}</a>
+      </div>
+      <ul data-finder-list class="coffee-finder__list" role="list"></ul>
+    </div>
 
-  {%- capture finder_products_json -%}
-    [
-      {%- for product in finder_products -%}
-        {%- unless forloop.first -%},{%- endunless -%}
-        {
-          "id": {{ product.id | json }},
-          "title": {{ product.title | json }},
-          "url": {{ product.url | json }},
-          "image": {% if product.featured_image %}{ "src": {{ product.featured_image | image_url: width: 400 | json }}, "alt": {{ product.featured_image.alt | json }} }{% else %}null{% endif %},
-          "roast": {{ product.metafields.coffee.roast.value | json }},
-          "brewMethod": {{ product.metafields.coffee.brew_method.value | json }},
-          "tastingNotes": {{ product.metafields.coffee.tasting_notes.value | json }},
-          "variants": [
-            {%- for variant in product.variants -%}
-              {%- unless forloop.first -%},{%- endunless -%}
-              {
-                "id": {{ variant.id | json }},
-                "title": {{ variant.title | json }},
-                "grams": {{ variant.weight | json }},
-                "available": {{ variant.available | json }},
-                "price": {{ variant.price | money | json }}
-              }
-            {%- endfor -%}
-          ]
-        }
-      {%- endfor -%}
-    ]
-  {%- endcapture -%}
-  {%- comment -%} shopify.dev's json filter docs only promise quote escaping, not </, so a merchant-entered tasting note containing "</script>" is neutralized here before embedding. {%- endcomment -%}
-  <script type="application/json" data-finder-products>{{ finder_products_json | strip | replace: '</', '<\/' }}</script>
-</coffee-finder>
+    <template data-finder-card>
+      <li class="coffee-finder__card">
+        <img data-card-image class="coffee-finder__card-image" alt="" width="400" height="400" loading="lazy">
+        <div class="coffee-finder__card-body">
+          <h4 class="coffee-finder__card-title">
+            <a data-card-link class="coffee-finder__card-link" href=""><span data-card-title></span></a>
+          </h4>
+          <p data-card-notes class="coffee-finder__card-notes"></p>
+          <p class="coffee-finder__card-meta">
+            <span data-card-variant class="coffee-finder__card-variant"></span>
+            <span data-card-price class="coffee-finder__card-price"></span>
+          </p>
+          <button type="button" data-card-add class="button coffee-finder__card-add">
+            <span>{{ section.settings.add_label | escape }}</span>
+            <span class="visually-hidden" data-card-add-name></span>
+          </button>
+          <div data-card-status class="coffee-finder__card-status" role="status"></div>
+        </div>
+      </li>
+    </template>
+
+    <span data-finder-messages hidden data-added="{{ section.settings.added_text | escape }}" data-error="{{ section.settings.error_text | escape }}"></span>
+
+    {%- capture finder_products_json -%}
+      [
+        {%- for product in finder_products -%}
+          {%- unless forloop.first -%},{%- endunless -%}
+          {
+            "id": {{ product.id | json }},
+            "title": {{ product.title | json }},
+            "url": {{ product.url | json }},
+            "image": {% if product.featured_image %}{ "src": {{ product.featured_image | image_url: width: 400 | json }}, "alt": {{ product.featured_image.alt | json }} }{% else %}null{% endif %},
+            "roast": {{ product.metafields.coffee.roast.value | json }},
+            "brewMethod": {{ product.metafields.coffee.brew_method.value | json }},
+            "tastingNotes": {{ product.metafields.coffee.tasting_notes.value | json }},
+            "variants": [
+              {%- for variant in product.variants -%}
+                {%- unless forloop.first -%},{%- endunless -%}
+                {
+                  "id": {{ variant.id | json }},
+                  "title": {{ variant.title | json }},
+                  "grams": {{ variant.weight | json }},
+                  "available": {{ variant.available | json }},
+                  "price": {{ variant.price | money | json }}
+                }
+              {%- endfor -%}
+            ]
+          }
+        {%- endfor -%}
+      ]
+    {%- endcapture -%}
+    {%- comment -%} shopify.dev's json filter docs only promise quote escaping, not </, so a merchant-entered tasting note containing "</script>" is neutralized here before embedding. {%- endcomment -%}
+    <script type="application/json" data-finder-products>{{ finder_products_json | strip | replace: '</', '<\/' }}</script>
+  </coffee-finder>
+</div>
 
 <script src="{{ 'coffee-finder.js' | asset_url }}" type="module"></script>
 
 {% stylesheet %}
+  /* Mobile first. Colors, type, spacing, and radii all come from Horizon's tokens, which the
+     theme's brand settings fill in; nothing here names a color of its own. */
+  .coffee-finder-section {
+    padding-block: var(--padding-4xl) var(--padding-5xl);
+  }
+
   .coffee-finder {
-    display: flex;
-    flex-direction: column;
-    gap: var(--gap-lg);
+    --finder-accent: var(--color-primary-button-background);
+    --finder-on-accent: var(--color-primary-button-text);
+
+    display: grid;
+    gap: var(--gap-2xl);
   }
 
   .coffee-finder__intro {
     display: flex;
     flex-direction: column;
-    gap: var(--gap-2xs);
+    gap: var(--gap-sm);
   }
 
   .coffee-finder__heading {
     margin: 0;
+    text-wrap: balance;
   }
 
   .coffee-finder__text {
     margin: 0;
-    color: var(--color-foreground);
+    max-inline-size: 34ch;
+    font-size: var(--font-size--lg);
+    color: var(--color-foreground-subdued);
+    text-wrap: pretty;
   }
 
   .coffee-finder__form {
     display: flex;
     flex-direction: column;
-    gap: var(--gap-md);
+    gap: var(--gap-2xl);
+    counter-reset: finder-question;
   }
 
   .coffee-finder__fieldset {
-    display: flex;
-    flex-direction: column;
-    gap: var(--gap-2xs);
+    min-inline-size: 0;
     margin: 0;
     padding: 0;
     border: none;
+    counter-increment: finder-question;
   }
 
   .coffee-finder__legend {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    margin-block-end: var(--margin-md);
     padding: 0;
-    font-weight: bold;
+    font-family: var(--font-subheading--family);
+    font-size: var(--font-size--lg);
+    font-weight: var(--font-subheading--weight);
+    line-height: 1.3;
+  }
+
+  /* The question number is decorative: the empty alt text after the slash keeps it out of the
+     accessible name, so a screen reader hears the question alone. */
+  .coffee-finder__legend::before {
+    content: counter(finder-question) / '';
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    border-radius: var(--style-border-radius-50);
+    background-color: var(--finder-accent);
+    color: var(--finder-on-accent);
+    font-family: var(--font-heading--family);
+    font-size: var(--font-size--sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .coffee-finder__options {
+    display: grid;
+    gap: var(--gap-xs);
   }
 
   .coffee-finder__option {
+    --checkbox-size: 1.25rem;
+
     display: flex;
     align-items: center;
-    gap: var(--gap-2xs);
+    gap: var(--gap-sm);
+    min-block-size: 3rem;
+    padding-block: var(--padding-xs);
+    padding-inline: var(--padding-lg);
+    border: var(--style-border-width) solid var(--color-input-border);
+    border-radius: var(--style-border-radius-inputs);
+    background-color: var(--color-input-background);
+    color: var(--color-input-text);
+    line-height: 1.3;
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .coffee-finder__submit {
-    align-self: flex-start;
+  .coffee-finder__option > span {
+    min-inline-size: 0;
+    overflow-wrap: break-word;
   }
 
-  .coffee-finder__results[hidden] {
+  .coffee-finder__option:has(:checked) {
+    border-color: var(--finder-accent);
+    background-color: color-mix(in srgb, var(--finder-accent) 8%, var(--color-input-background));
+    box-shadow: inset 0 0 0 var(--style-border-width) var(--finder-accent);
+  }
+
+  /* Scoped under the option so these beat Horizon's own radio hover rules (0,3,0): the ring
+     keeps a 3:1 border and the checked dot stays in the accent color. */
+  .coffee-finder__option .coffee-finder__radio:not(:disabled) {
+    flex: none;
+    margin: 0;
+    border-color: var(--color-input-border);
+    background-color: var(--color-input-background);
+  }
+
+  .coffee-finder__option .coffee-finder__radio:not(:disabled):checked {
+    border-color: var(--finder-accent);
+  }
+
+  .coffee-finder__option .coffee-finder__radio:not(:disabled):checked::after {
+    background: var(--finder-accent);
+  }
+
+  /* The whole option shows the focus ring; the radio's own ring is dropped only where :has()
+     can draw that replacement. */
+  @supports selector(:has(*)) {
+    .coffee-finder__option:has(:focus-visible) {
+      outline: var(--focus-outline-width) solid var(--color-foreground);
+      outline-offset: var(--focus-outline-offset);
+    }
+
+    .coffee-finder__option .coffee-finder__radio:focus-visible {
+      outline: none;
+    }
+  }
+
+  .coffee-finder__fieldset[data-unanswered] .coffee-finder__option {
+    border-color: var(--color-error);
+  }
+
+  .coffee-finder__actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+  }
+
+  /* Doubled with .button: these override Horizon's own .button sizing, whatever order the two
+     stylesheets load in. */
+  .button.coffee-finder__submit {
+    inline-size: 100%;
+    min-block-size: 3rem;
+  }
+
+  .coffee-finder__error {
+    color: var(--color-error);
+    font-weight: 700;
+  }
+
+  .coffee-finder__results[hidden],
+  .coffee-finder__empty[hidden],
+  .coffee-finder__card-image[hidden] {
     display: none;
   }
 
-  .coffee-finder__results-heading:focus {
-    outline: none;
+  .coffee-finder__results {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xl);
+    padding-block-start: var(--padding-2xl);
+    border-block-start: var(--style-border-width) solid rgb(var(--color-foreground-rgb) / var(--opacity-15));
+  }
+
+  .coffee-finder__results-heading {
+    inline-size: fit-content;
+    margin: 0;
+    font-size: var(--font-size--2xl);
+    text-wrap: balance;
+    scroll-margin-block-start: calc(var(--header-height, 0px) + var(--gap-xl));
+  }
+
+  .coffee-finder__results-heading:focus-visible {
+    outline: var(--focus-outline-width) solid currentcolor;
+    outline-offset: var(--focus-outline-offset);
+    border-radius: var(--style-border-radius-xs);
+  }
+
+  .coffee-finder__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--gap-md);
+  }
+
+  .coffee-finder__empty-text {
+    margin: 0;
+    max-inline-size: 48ch;
+    text-wrap: pretty;
   }
 
   .coffee-finder__list {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--gap-md);
+    gap: var(--gap-lg);
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
   .coffee-finder__card {
-    display: flex;
-    flex-direction: column;
-    gap: var(--gap-2xs);
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    align-items: start;
+    gap: var(--gap-lg);
+    padding: var(--padding-lg);
+    border: var(--style-border-width) solid rgb(var(--color-foreground-rgb) / var(--opacity-15));
+    border-radius: var(--style-border-radius-md);
   }
 
   .coffee-finder__card-image {
     inline-size: 100%;
     block-size: auto;
-    border-radius: var(--style-border-radius-inputs);
+    aspect-ratio: 1;
+    border-radius: var(--style-border-radius-sm);
     object-fit: cover;
+    background-color: rgb(var(--color-foreground-rgb) / var(--opacity-5));
   }
 
-  .coffee-finder__card-add[aria-busy='true'] {
-    opacity: var(--opacity-80);
+  .coffee-finder__card-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xs);
+    min-inline-size: 0;
   }
 
-  @media screen and (min-width: 750px) {
-    .coffee-finder__list {
-      grid-template-columns: repeat(2, 1fr);
+  .coffee-finder__card-title {
+    margin: 0;
+    font-family: var(--font-heading--family);
+    font-size: var(--font-size--xl);
+    font-weight: var(--font-heading--weight);
+    line-height: 1.2;
+    text-wrap: balance;
+  }
+
+  .coffee-finder__card-link {
+    text-decoration-line: underline;
+    text-decoration-color: transparent;
+  }
+
+  @media (hover: hover) {
+    .coffee-finder__card-link:hover {
+      text-decoration-color: currentcolor;
     }
   }
 
+  .coffee-finder__card-notes {
+    margin: 0;
+    color: var(--color-foreground-subdued);
+    text-wrap: pretty;
+  }
+
+  .coffee-finder__card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    column-gap: var(--gap-md);
+    margin: 0;
+  }
+
+  .coffee-finder__card-variant {
+    color: var(--color-foreground-subdued);
+  }
+
+  .coffee-finder__card-price {
+    font-family: var(--font-subheading--family);
+    font-size: var(--font-size--lg);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .button.coffee-finder__card-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gap-xs);
+    inline-size: 100%;
+    min-block-size: 2.75rem;
+    margin-block-start: var(--margin-xs);
+  }
+
+  /* Busy: the label stays readable and a small ring appears beside it. */
+  .coffee-finder__card-add[aria-busy='true'] {
+    cursor: progress;
+  }
+
+  .coffee-finder__card-add[aria-busy='true']::after {
+    content: '';
+    flex: none;
+    inline-size: 1em;
+    block-size: 1em;
+    border: 2px solid currentcolor;
+    border-inline-end-color: transparent;
+    border-radius: var(--style-border-radius-50);
+  }
+
+  .coffee-finder__card-status:empty {
+    display: none;
+  }
+
+  .coffee-finder__card-status[data-state='success'] {
+    color: var(--color-success);
+  }
+
+  .coffee-finder__card-status[data-state='error'] {
+    color: var(--color-error);
+    font-weight: 700;
+  }
+
+  @media (hover: hover) {
+    .coffee-finder__option {
+      transition: border-color var(--animation-speed-medium) ease-out, background-color var(--animation-speed-medium) ease-out;
+    }
+
+    .coffee-finder__option:hover {
+      border-color: var(--color-foreground);
+    }
+
+    .coffee-finder__option:has(:checked):hover {
+      border-color: var(--finder-accent);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .coffee-finder__card {
+      animation: coffee-finder-rise var(--animation-speed-slow) var(--ease-out-cubic) both;
+    }
+
+    .coffee-finder__card:nth-child(2) {
+      animation-delay: 60ms;
+    }
+
+    .coffee-finder__card-add[aria-busy='true']::after {
+      animation: coffee-finder-spin 0.8s linear infinite;
+    }
+  }
+
+  @keyframes coffee-finder-rise {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+  }
+
+  @keyframes coffee-finder-spin {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+
+  @media screen and (min-width: 750px) {
+    .coffee-finder__options {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .button.coffee-finder__submit {
+      inline-size: auto;
+      min-inline-size: 14rem;
+    }
+
+    .coffee-finder__actions {
+      flex-direction: row;
+      align-items: center;
+      gap: var(--gap-xl);
+    }
+
+    .coffee-finder__list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .coffee-finder__card {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--gap-md);
+      align-content: start;
+    }
+
+    .coffee-finder__card-image {
+      aspect-ratio: 3 / 2;
+    }
+  }
+
+  @media screen and (min-width: 990px) {
+    .coffee-finder-section {
+      padding-block: var(--padding-6xl);
+    }
+
+    .coffee-finder {
+      grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+      column-gap: var(--gap-3xl);
+      align-items: start;
+    }
+
+    .coffee-finder__intro {
+      position: sticky;
+      inset-block-start: calc(var(--header-height, 0px) + var(--gap-2xl));
+      grid-row: 1 / span 2;
+    }
+
+    .coffee-finder__form,
+    .coffee-finder__results {
+      grid-column: 2;
+    }
+  }
 {% endstylesheet %}
 
 {% schema %}
@@ -224,7 +573,7 @@
   "name": "Coffee finder",
   "settings": [
     { "type": "text", "id": "heading", "label": "Heading", "default": "Find your coffee" },
-    { "type": "text", "id": "intro", "label": "Intro text", "default": "Answer three quick questions and we'll pick a bag for you." },
+    { "type": "text", "id": "intro", "label": "Intro text", "default": "Answer three quick questions and we’ll pick a bag for you." },
     { "type": "collection", "id": "collection", "label": "Collection", "info": "Leave blank to search every product." },
     { "type": "text", "id": "brew_question", "label": "Brew method question", "default": "How do you brew at home?" },
     { "type": "text", "id": "brew_pour_over", "label": "Brew method: pour-over", "default": "Pour-over" },
@@ -239,11 +588,13 @@
     { "type": "text", "id": "people_two", "label": "People: two", "default": "Two of us" },
     { "type": "text", "id": "people_three_plus", "label": "People: three or more", "default": "Three or more" },
     { "type": "text", "id": "submit_label", "label": "Submit button label", "default": "Find my coffee" },
+    { "type": "text", "id": "required_text", "label": "Unanswered question message", "default": "Choose an answer for each question." },
     { "type": "text", "id": "results_heading", "label": "Results heading", "default": "Our pick for you" },
-    { "type": "text", "id": "empty_text", "label": "No match text", "default": "No coffee matches those answers right now. Try a different option." },
+    { "type": "text", "id": "empty_text", "label": "No match text", "default": "No coffee matches those answers right now. Try a different option, or browse every coffee." },
+    { "type": "text", "id": "empty_link_label", "label": "No match link label", "default": "Browse all coffees" },
     { "type": "text", "id": "add_label", "label": "Add to cart button label", "default": "Add to cart" },
     { "type": "text", "id": "added_text", "label": "Added to cart message", "default": "Added to your cart." },
-    { "type": "text", "id": "error_text", "label": "Cart error message", "default": "We couldn't add this to your cart. Please try again." }
+    { "type": "text", "id": "error_text", "label": "Cart error message", "default": "We couldn’t add this to your cart. Please try again." }
   ],
   "presets": [{ "name": "Coffee finder" }]
 }

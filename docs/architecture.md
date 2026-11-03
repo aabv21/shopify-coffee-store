@@ -50,10 +50,12 @@ The workflows read their settings from `config/config.json`, which Compose mount
 
 ## The storefront and the token script
 
-The theme is Shopify’s Horizon 4.3.0, pinned by commit in `scripts/lib/horizon.ts`. The repo never copies Horizon in. `pnpm run theme:assemble` downloads that commit, copies `theme/**` over it, and applies three anchored insertions from `scripts/lib/theme-insertions.ts`. The result in `.theme-build/theme/` is the theme you push.
+The theme is Shopify’s Horizon 4.3.0, pinned by commit in `scripts/lib/horizon.ts`. The repo never copies Horizon in. `pnpm run theme:assemble` downloads that commit, copies `theme/**` over it, and applies five anchored insertions from `scripts/lib/theme-insertions.ts`. The result in `.theme-build/theme/` is the theme you push.
 
 - **Free-shipping bar** (`theme/snippets/free-shipping-bar.liquid`, `src/theme/free-shipping-bar.ts`): a `<free-shipping-bar>` element above the cart totals, in the cart drawer and on `/cart`. It shows how far the cart is from a threshold theme setting, 120,000 COP by default. Its math lives in `src/theme/free-shipping.ts` and `src/theme/money.ts`. It updates two ways: Horizon’s section morph copies its `data-total-cents` attribute after each cart change, and a `shopify:cart:lines-update` listener re-reads `/cart.js`.
 - **Coffee finder** (`theme/sections/coffee-finder.liquid`, `src/theme/coffee-finder.ts`): a home-page section that asks for a brew method, a taste, and a party size. It recommends one or two coffees from each product’s `coffee.brew_method` and `coffee.roast` metafields, and shows `coffee.tasting_notes` on each card. “Add to cart” calls `Shopify.actions.updateCart`, or the Cart AJAX API when the page lacks it.
+- **Brand** (`BRAND_SETTINGS` in `scripts/lib/theme-insertions.ts`): Nubandina’s palette and its Alegreya and Alegreya Sans fonts, set in Horizon’s own `config/settings_data.json` at assembly time, so both components and every Horizon section take them from the same settings. Assembly fails if Horizon’s settings no longer hold the values the brand replaces.
+- **Offline preview** (`pnpm run theme:preview`): renders the two components’ real Liquid with liquidjs and mock data from `data/products.csv`, for screenshots and review before a store exists. It approximates Shopify’s renderer; `theme/README.md` lists every stub.
 
 Shopify’s theme check runs in continuous integration (CI) against the assembled theme. Any error fails it, and so does any offense in a file this repo adds or changes. Horizon’s own warnings are an informational baseline, 6 at the time of writing.
 
