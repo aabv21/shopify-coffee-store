@@ -206,7 +206,7 @@
       "parameters": {
         "width": 1080,
         "height": 160,
-        "content": "## Dev harness\nToken-protected test RPC: POST /webhook/dev with { target, input }. Routes to a fixed sub-workflow by target and responds once it returns. An unmatched target answers 404. Localhost only, never exposed through the tunnel, and must be unpublished before any production use. Two targets: load-config, and intake-order, whose input is a raw order payload, shaped into one item the same way the Shopify Trigger emits it."
+        "content": "## Dev harness\nToken-protected test RPC: POST /webhook/dev with { target, input } runs a fixed sub-workflow and responds with its result; an unknown target answers 404. Targets: load-config, and intake-order, whose raw order input is shaped like the Shopify Trigger's item. Localhost only, never tunneled; unpublish before production use."
       }
     }
   ],

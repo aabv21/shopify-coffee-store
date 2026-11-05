@@ -1,8 +1,5 @@
-// The offline theme preview's pure parts: mock data shaped from data/products.csv, the theme's
-// resolved settings, the Horizon CSS variables the components rely on, and a liquidjs engine with
-// the few Shopify-only tags and filters the two component files and their text snippet use,
-// including a t filter reading one locale file. Everything here is an
-// approximation of what Shopify renders; `shopify theme dev` against a store is the real check.
+// The offline preview's pure parts. Everything here approximates Shopify's renderer;
+// `shopify theme dev` against a store is the real check.
 import { parse } from 'csv-parse/sync';
 import { Liquid, Tag, TypeGuards, type TagToken, type TopLevelToken } from 'liquidjs';
 import { formatMoney } from '../../src/theme/money.ts';
@@ -40,8 +37,7 @@ const COLUMN = {
   method: 'Brew method (product.metafields.coffee.brew_method)',
 } as const;
 
-// Synthetic ids: Shopify assigns real ones on import. Distinct ranges keep a product id from ever
-// being mistaken for a variant id in the rendered JSON.
+// Synthetic ids, in distinct ranges so a product id can't pass for a variant id.
 const FIRST_PRODUCT_ID = 1001;
 const FIRST_VARIANT_ID = 2001;
 
@@ -61,11 +57,9 @@ function wholeNumber(value: string, what: string): number {
 }
 
 /**
- * Shapes Shopify's product-import CSV into the product objects the coffee finder's Liquid reads:
- * one product per `URL handle` (its first row carries the title, image, and metafields), one
- * variant per row. Prices become cents (Shopify's `variant.price`), and a variant is available
- * when it has stock or keeps selling when out of stock. Only `Active` products are listed, as on
- * a storefront.
+ * One product per `URL handle` (its first row carries the title, image, and metafields), one
+ * variant per row, prices in cents. A variant is available when it has stock or keeps selling
+ * without it, and only `Active` products are listed, as on a storefront.
  */
 export function parseCatalog(csv: string): MockProduct[] {
   const rows = parse<Record<string, string>>(csv, { columns: true, bom: true, skip_empty_lines: true });
@@ -161,7 +155,6 @@ export function resolveSettings(schema: unknown, data: unknown): Settings {
   return Object.fromEntries(resolved);
 }
 
-/** One setting's value by its fixed Horizon id; undefined when it isn't set. */
 export function setting(settings: Settings, id: string): unknown {
   // eslint-disable-next-line security/detect-object-injection -- id is a fixed Horizon setting name, read only when present
   return Object.hasOwn(settings, id) ? settings[id] : undefined;

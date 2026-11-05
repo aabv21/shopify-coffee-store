@@ -1,5 +1,4 @@
-// Validates the config just loaded from /files/config/config.json. Pure: no I/O, no clock, no
-// Node imports, because pnpm run build:workflows bundles it into the Check config Code node.
+// No Node imports: build:workflows bundles this into the Check config Code node.
 import { isLocale, type Locale } from './locale.ts';
 
 export interface Config {
@@ -52,11 +51,7 @@ function readLocale(path: string, value: unknown): Locale {
   return value;
 }
 
-/**
- * Validates every config value a downstream node depends on, and throws a clear `Error` naming
- * the first bad key it finds. Returns the config unchanged, except that a missing `default_locale`
- * or `team_locale` is filled in as `en`.
- */
+/** Throws an `Error` naming the first bad key. A missing locale key is filled in as `en`. */
 export function validateConfig(value: unknown): Config {
   const root = asObject(value, 'config');
 

@@ -10,11 +10,7 @@ export const THEME_ENTRIES: readonly { source: string; asset: string }[] = [
   { source: 'src/theme/coffee-finder.ts', asset: 'coffee-finder.js' },
 ];
 
-/**
- * Bundles `entry.source` for the storefront. Not minified: Shopify serves theme assets minified
- * at request time, so shipping already-minified code would double-minify it for no benefit and
- * make the committed source harder to read in the theme editor's code view.
- */
+/** Not minified: Shopify minifies theme assets at request time, and readable source helps the code editor. */
 export async function buildThemeAsset(entry: { source: string; asset: string }): Promise<string> {
   const banner = `// Generated from ${entry.source} by pnpm run build:theme; edit the source.`;
   const result = await build({

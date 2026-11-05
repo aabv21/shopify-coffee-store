@@ -32,8 +32,7 @@ export function planCredentialImport(o: {
       continue;
     }
 
-    // Re-importing a credential replaces it, which drops an interactive Google sign-in. Skip an
-    // existing credential unless it was explicitly asked to be refreshed.
+    // Re-importing replaces a credential, dropping an interactive Google sign-in.
     if (o.existingIds.has(entry.id) && !o.refresh.has(entry.id)) {
       skipped.push({ id: entry.id, reason: 'exists' });
       continue;
@@ -46,15 +45,9 @@ export function planCredentialImport(o: {
 }
 
 /**
- * This used to write a decrypted `.n8n-import/credentials.json` on the host (mode 0600) and point
- * the CLI at it inside the container. That works on macOS, where Docker Desktop's VM makes a
- * bind-mounted file appear owned by whatever uid the reading process runs as — but on a Linux
- * runner the file is written by the runner's own uid (1001) and stays owned by it inside the
- * container too, where n8n runs as uid 1000 and can't read it. Streaming the JSON over stdin
- * instead means the plaintext credential data never touches the host filesystem or the bind
- * mount at all, so no uid can be wrong: `sh -c` inside the container sets a strict umask, makes
- * its own temp file in the container's own `/tmp` (entirely separate from `.n8n-import/`), copies
- * stdin into it, runs the import, and removes it either way.
+ * The decrypted JSON arrives over stdin into a temp file in the container's own `/tmp`, removed
+ * either way, so plaintext never touches the host or the bind mount. A file on the bind mount
+ * would also fail on Linux: the runner's uid (1001) owns it, and n8n (uid 1000) can't read it.
  */
 export const IMPORT_SCRIPT = 'umask 077; tmp="$(mktemp)"; cat > "$tmp"; n8n import:credentials --input="$tmp"; status=$?; rm -f "$tmp"; exit $status';
 
@@ -64,14 +57,9 @@ export function buildImportCall(toImport: readonly ImportableCredential[]): { ar
 }
 
 /**
- * The detection export used to write `.n8n-import/existing-credentials.json` and have the host
- * read and `chmod`/delete it. That also fails on a Linux runner: n8n (uid 1000 in the container)
- * creates the file, so the runner (uid 1001) doesn't own it and can't `chmod` it (EPERM), even
- * once the directory itself is writable by both. Streaming the (still encrypted) export back over
- * stdout instead means the file never leaves the container: `sh -c` makes its own temp file in
- * the container's own `/tmp`, exports into it, and `cat`s it to stdout only on success, so a
- * truncated or partial export can't be mistaken for a real one — n8n's own progress messages
- * ("Acquiring database migration lock...") go to stderr here, keeping stdout pure JSON.
+ * The still-encrypted export leaves the container only over stdout, and only on success, so a
+ * partial export can't pass for a real one. n8n's progress messages go to stderr, keeping stdout
+ * pure JSON. On the bind mount, the runner (uid 1001) couldn't chmod n8n's (uid 1000) file.
  */
 export const EXPORT_SCRIPT = 'umask 077; tmp="$(mktemp)"; n8n export:credentials --all --output="$tmp" >&2; status=$?; [ "$status" -eq 0 ] && cat "$tmp"; rm -f "$tmp"; exit $status';
 
@@ -79,18 +67,13 @@ function isExecError(err: unknown): err is { stdout: string; stderr: string } {
   return typeof err === 'object' && err !== null && typeof (err as { stdout?: unknown }).stdout === 'string';
 }
 
-/**
- * IDs already in n8n, read from an (encrypted) CLI export over stdout — never the decrypted
- * credential data, and never a file on the bind mount (see `EXPORT_SCRIPT`'s own comment).
- */
+/** Ids only, from the encrypted export; never decrypted data. */
 export async function existingCredentialIds(): Promise<Set<string>> {
   let stdout: string;
   try {
     ({ stdout } = await compose(['exec', '-T', 'n8n', 'sh', '-c', EXPORT_SCRIPT]));
   } catch (err) {
-    // A brand-new instance with no credentials yet errors instead of exporting an empty list.
-    // n8n prints that message to stderr now (EXPORT_SCRIPT redirects its own stdout there), but a
-    // non-zero exit from the script itself can still surface it on either stream.
+    // A brand-new instance errors instead of exporting an empty list, on either stream.
     if (isExecError(err) && (/No credentials found/i.test(err.stderr) || /No credentials found/i.test(err.stdout))) return new Set();
     throw err;
   }
@@ -122,7 +105,6 @@ export async function setupCredentials(o: { refresh: ReadonlySet<string> }): Pro
   for (const { id, name } of credentials) console.log(`imported ${name} (${id})`);
 }
 
-/** Every value following a `--refresh` flag, in order; the flag can repeat. */
 export function parseRefreshIds(args: readonly string[]): Set<string> {
   const refresh = new Set<string>();
   for (const [i, arg] of args.entries()) {

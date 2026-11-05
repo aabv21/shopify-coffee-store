@@ -1,10 +1,6 @@
-// Shopify's locale files are JSON with comments: Horizon's carry a leading `/* ... */` notice and
-// `//` notes for translators. JSON.parse rejects both, so this blanks them out first.
+// Horizon's locale files carry `/* ... */` and `//` comments, which JSON.parse rejects.
 
-/**
- * `source` with every `//` and `/* *\/` comment outside a string replaced by spaces (newlines
- * kept), so offsets and line numbers still point at the original text.
- */
+/** Comments become spaces, newlines kept, so offsets still point at the original text. */
 export function stripJsonComments(source: string): string {
   let out = '';
   let i = 0;

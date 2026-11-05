@@ -8,10 +8,9 @@ const CACHE_ROOT = '.theme-build';
 const OUT_DIR = '.theme-build/theme';
 const OVERLAY_DIR = 'theme';
 
-// The overlay's own documentation, at its root; never shipped as a theme asset.
+// Documents the overlay; never shipped.
 const OVERLAY_README = 'README.md';
 
-/** Every file (not directory) recursively under `dir`, as paths relative to `dir`. */
 function filesUnder(dir: string): string[] {
   const files: string[] = [];
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- dir is a caller-chosen overlay root, not user input
@@ -25,9 +24,7 @@ function filesUnder(dir: string): string[] {
   return files;
 }
 
-// Assembly itself is synchronous (fs and the insertion applier have no async step); this stays
-// Promise-returning to match ensureHorizon and buildThemeAsset, the other theme-toolchain steps a
-// caller awaits in sequence.
+// Synchronous, but Promise-returning to match the other theme steps a caller awaits in sequence.
 export function assembleTheme(o: {
   baseDir: string;
   overlayDir: string;

@@ -16,16 +16,11 @@ export const RUNTIME_GRANTS: Readonly<Record<string, readonly string[]>> = {
   orders: ['SELECT', 'INSERT'],
 };
 
-/**
- * True only when psql failed with `message` — the denial a check expects. A statement that
- * succeeded, or psql failing for another reason (a missing role, a stopped container), is not a
- * denial, so neither can pass.
- */
+/** Only the expected denial passes: a success, or psql failing for another reason, does not. */
 export function isDenied(result: PsqlResult, message: string): boolean {
   return !result.ok && result.stderr.includes(message);
 }
 
-/** `expected` as `table:PRIVILEGE` entries, compared with `actual`: what the role lacks, and what it holds beyond the list. */
 export function diffGrants(expected: Readonly<Record<string, readonly string[]>>, actual: readonly string[]): { missing: string[]; extra: string[] } {
   const want = new Set(Object.entries(expected).flatMap(([table, privileges]) => privileges.map((p) => `${table}:${p}`)));
   const have = new Set(actual);
@@ -35,12 +30,7 @@ export function diffGrants(expected: Readonly<Record<string, readonly string[]>>
   };
 }
 
-/**
- * What `ROLE_FACTS_SQL` reports about the runtime role, as problems: an attribute it holds, a role
- * it's a member of, a column-level privilege its table grants don't account for, or `TEMP` or
- * `CREATE` on `app`. An empty list means the role is as narrow as the grant list says. None of
- * these show up in `has_table_privilege`, which only sees whole-table privileges.
- */
+/** Problems `has_table_privilege` can't see, since it only sees whole-table privileges. */
 export function roleProblems(facts: readonly string[], grants: Readonly<Record<string, readonly string[]>>): string[] {
   if (!facts.includes('role exists')) return ['the runtime role does not exist'];
   const problems: string[] = [];
@@ -62,7 +52,7 @@ export interface WorkflowStatement {
   query: string;
 }
 
-/** Every Postgres node's query in `workflows`. Throws on a Postgres node that isn't a plain query, which `PROBES` couldn't run. */
+/** Throws on a Postgres node that isn't a plain query, which `PROBES` couldn't run. */
 export function workflowStatements(workflows: readonly { file: string; wf: WorkflowJson }[]): WorkflowStatement[] {
   return workflows.flatMap(({ file, wf }) =>
     wf.nodes
@@ -77,7 +67,6 @@ export function workflowStatements(workflows: readonly { file: string; wf: Workf
   );
 }
 
-/** The highest `$n` `query` references: how many values it binds. */
 export function paramCount(query: string): number {
   return Math.max(0, ...[...query.matchAll(/\$(\d+)/g)].map((match) => Number(match[1])));
 }
@@ -103,11 +92,7 @@ export const PROBES: readonly Probe[] = [
 
 const label = (s: { file: string; node: string }): string => `${s.file} › ${s.node}`;
 
-/**
- * A psql script that runs every statement exactly as its workflow wrote it, with `\bind` supplying
- * the `$n` values, inside one transaction it rolls back. `\warn` names each statement on stderr
- * first, so a failure shows which node's grant is missing.
- */
+/** Rolled back as one transaction. `\warn` names each statement first, so a failure shows which node's grant is missing. */
 export function probeScript(statements: readonly WorkflowStatement[], probes: readonly Probe[]): string {
   for (const statement of statements) {
     if (!probes.some((probe) => label(probe) === label(statement))) throw new Error(`${label(statement)} has no probe in PROBES`);
@@ -124,7 +109,6 @@ export function probeScript(statements: readonly WorkflowStatement[], probes: re
   return `${lines.join('\n')}\n`;
 }
 
-/** Every privilege the runtime role holds on a table or sequence in `public`, as `name:PRIVILEGE`. */
 const GRANTS_SQL = `\\getenv runtime_role APP_RUNTIME_DB_USER
 SELECT c.relname || ':' || p.privilege
 FROM pg_class c
@@ -142,7 +126,6 @@ WHERE n.nspname = 'public' AND c.relkind = 'S'
 ORDER BY 1;
 `;
 
-/** Facts about the runtime role that `roleProblems` judges: its attributes, memberships, column privileges, and `TEMP` on `app`. */
 const ROLE_FACTS_SQL = `\\getenv runtime_role APP_RUNTIME_DB_USER
 SELECT 'role exists' FROM pg_roles WHERE rolname = :'runtime_role'
 UNION ALL

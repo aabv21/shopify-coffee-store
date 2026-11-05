@@ -100,11 +100,8 @@ it('every Postgres node across the workflows is pinned at 2.8 or later', () => {
   }
   expect(seen).toBeGreaterThan(0);
 });
-// n8n 2.45.6's Gmail node calls GET users/me/profile whenever options.senderName is set, to read
-// the account's display name — a call gmail.send doesn't authorize. The manifest's Gmail
-// credential (nbcCredGmail0001) is scoped to gmail.send only (customScopes, enabledScopes), so
-// every Gmail node using it must leave senderName unset, or its send would start failing with a
-// 403 the moment the credential is re-consented to that narrower scope.
+// n8n 2.45.6's Gmail node calls GET users/me/profile when options.senderName is set, which the
+// gmail.send-only credential can't authorize, so the send would fail with a 403.
 it('no Gmail node sets senderName while its credential is scoped to gmail.send only', () => {
   const gmailCred = CREDENTIALS.find((c) => c.type === 'gmailOAuth2');
   if (!gmailCred) throw new Error('no gmailOAuth2 credential in the manifest');
@@ -138,12 +135,8 @@ it('no Execute Workflow node retries, across all workflows', () => {
   expect(seen).toBeGreaterThan(0);
 });
 
-// A manual execution (run from the editor) is saved by default, with every node's input and
-// output. No workflow here may save one, with no per-workflow exception: even load-config and
-// error-handler start from a passthrough Execute Workflow Trigger whose callers send no input
-// schema, so each receives its caller's whole item — load-config's caller's order and config,
-// error-handler's caller's failed execution data. docs/database.md explains why there's no
-// per-workflow list.
+// A saved manual execution keeps every node's input and output, and every workflow here can
+// receive order data, so none may save one; docs/database.md "Retention" explains.
 const workflowFiles = listJsonFiles('workflows').map((path) => basename(path));
 
 it('workflows/ is not empty, so the check below covers something', () => {

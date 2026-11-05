@@ -9,9 +9,8 @@ import { WORKFLOWS, type WorkflowEntry } from './lib/manifest.ts';
 const WORKFLOWS_DIR = 'workflows';
 
 /**
- * `err.message` plus the failed command's stdout, when there is one - n8n's CLI prints its own
- * error detail to stdout rather than stderr, so `err.message` alone (just "Command failed: ...")
- * dropped it. Never reads `.env`: this is the stdout of an `n8n` CLI invocation, not env content.
+ * Adds the command's stdout, because n8n's CLI prints its error detail there, not to stderr. It
+ * never reads `.env`; this is the stdout of an `n8n` CLI invocation.
  */
 function errorDetail(err: unknown): string {
   if (!(err instanceof Error)) return String(err);
@@ -58,13 +57,9 @@ export async function importWorkflows(o: { live: boolean }): Promise<void> {
     if (!healthy) {
       failures.push('n8n did not become healthy after restart');
     } else {
-      // NOTE: /healthz reports healthy well before a sub-workflow call is guaranteed to read the
-      // version just published. A reconciler syncs workflow_published_version to the active
-      // version on its own schedule (10 s by default,
-      // N8N_WORKFLOW_PUBLICATION_RECONCILE_INTERVAL_SECONDS), so a call made right after the
-      // restart can still run the previous version. This fixed wait is longer than that default
-      // interval, not a guarantee against a slower one. The poll below is the real proof; this
-      // wait just keeps the common case from spending its whole budget on it.
+      // NOTE: /healthz turns healthy before the publication reconciler syncs the published version
+      // (every 10 s by default, N8N_WORKFLOW_PUBLICATION_RECONCILE_INTERVAL_SECONDS). This fixed
+      // wait covers that default only; the webhook poll below is the real proof.
       await new Promise<void>((resolve) => setTimeout(resolve, 15_000));
 
       if (n8nUrl) {

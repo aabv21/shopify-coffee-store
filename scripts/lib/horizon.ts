@@ -7,10 +7,6 @@ const execFileAsync = promisify(execFile);
 
 export const HORIZON = { version: '4.3.0', commit: 'dfad90d87be2408de52636315069fc998da28c9e' } as const;
 
-/**
- * Downloads and extracts the pinned Horizon commit into `<cacheRoot>/horizon-<commit>/`, reusing
- * it on a later call instead of downloading again. Returns that directory's path.
- */
 export async function ensureHorizon(cacheRoot: string): Promise<string> {
   const dir = join(cacheRoot, `horizon-${HORIZON.commit}`);
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- dir is cacheRoot + the fixed pinned commit, not user input

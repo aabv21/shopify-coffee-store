@@ -1,5 +1,4 @@
-// The languages this store speaks, and the one helper that maps any incoming locale tag onto
-// them. Pure: no I/O, no Node imports, because Code nodes bundle it.
+// No Node imports: Code nodes bundle this.
 
 export const LOCALES = ['en', 'es'] as const;
 

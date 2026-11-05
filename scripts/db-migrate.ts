@@ -5,16 +5,12 @@ import { compose, loadDotEnv } from './lib/compose.ts';
 
 export const MIGRATIONS_DIR = 'db/migrations';
 
-/** `NNN_short_name.sql`: a three-digit sequence number, then a lowercase name. */
 const MIGRATION_NAME = /^(\d{3})_[a-z0-9_]+\.sql$/;
 
 /** psql's `\getenv psql_variable ENV_NAME`, the only way a migration reads `.env`. */
 const GETENV = /^\\getenv[ \t]+\w+[ \t]+([A-Za-z_][A-Za-z0-9_]*)[ \t]*$/gm;
 
-/**
- * Runs before anything else, every time: creates the ledger of applied files (as the owner role,
- * so `app` owns it, not the superuser) and lists what it holds.
- */
+/** Creates the ledger as the owner role, so `app` owns it, not the superuser. */
 export const BOOTSTRAP_SQL = `\\getenv owner APP_DB_USER
 SET LOCAL ROLE :"owner";
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -25,14 +21,9 @@ SELECT filename FROM schema_migrations ORDER BY filename;
 `;
 
 /**
- * Runs after the migrations, every time: `setup-credentials` rebuilds n8n's app credential from
- * `.env` on every run, so the role's password must follow `.env` on every run too, or a changed
- * value would lock n8n out. psql quotes the value itself; it never reaches an argument list.
- *
- * Postgres logs a failed statement's full text by default (`log_min_error_statement = error`),
- * and this one carries the password, so the transaction raises that threshold first, and turns
- * statement logging off in case a server enables it. The same statement re-asserts the role's
- * attributes, so a hand-granted `CREATEDB` or `SUPERUSER` doesn't survive the next run.
+ * Runs every time, because `setup-credentials` rebuilds the app credential from `.env` every run.
+ * Postgres logs a failed statement's text by default, and this one carries the password, so
+ * logging is raised first. Re-asserting attributes drops any hand-granted `CREATEDB` or `SUPERUSER`.
  */
 export const RUNTIME_PASSWORD_SQL = `SET LOCAL log_min_error_statement = panic;
 SET LOCAL log_statement = 'none';
@@ -47,7 +38,7 @@ export const MIGRATION_LOCK_KEY = 4_310_001;
 /** The variables naming the other roles, which the runtime role must never share a name with. */
 const OTHER_ROLE_NAMES = ['POSTGRES_USER', 'N8N_DB_USER', 'APP_DB_USER'] as const;
 
-/** The `.sql` files in `fileNames`, in sequence order. Throws on a misnamed file or a reused sequence number. */
+/** Throws on a misnamed file or a reused sequence number. */
 export function orderMigrations(fileNames: readonly string[]): string[] {
   const files = fileNames.filter((name) => name.endsWith('.sql')).sort();
   const seen = new Map<string, string>();
@@ -61,32 +52,27 @@ export function orderMigrations(fileNames: readonly string[]): string[] {
   return files;
 }
 
-/** The files in `files` not yet in `applied`, in order. */
 export function pendingMigrations(files: readonly string[], applied: ReadonlySet<string>): string[] {
   return files.filter((file) => !applied.has(file));
 }
 
-/** Every environment variable `sql` reads with `\getenv`, once each, in order. */
 export function requiredEnv(sql: string): string[] {
   return [...new Set([...sql.matchAll(GETENV)].map((match) => match[1] ?? ''))];
 }
 
-/** The names in `names` that `env` leaves unset or empty. Compose turns an unset name into an empty one, so both count. */
+/** Compose turns an unset name into an empty one, so both count as missing. */
 export function missingEnv(names: readonly string[], env: Readonly<Record<string, string | undefined>>): string[] {
   // eslint-disable-next-line security/detect-object-injection -- name comes from a migration's own \getenv line, not user input
   return names.filter((name) => !env[name]);
 }
 
-/** The error for `source` needing `missing`. It names variables only, never a value. */
+/** Names variables only, never a value. */
 export function missingEnvError(source: string, missing: readonly string[]): Error {
   const verb = missing.length === 1 ? 'is' : 'are';
   return new Error(`${source} needs ${missing.join(', ')}, which ${verb} not set in .env; see .env.example and docs/database.md`);
 }
 
-/**
- * The variables in `OTHER_ROLE_NAMES` whose value equals `APP_RUNTIME_DB_USER`'s. Sharing a name
- * would point the runtime role's grants and password at the owner or the superuser instead.
- */
+/** A shared name would point the runtime role's grants and password at the owner or the superuser. */
 export function runtimeRoleClashes(env: Readonly<Record<string, string | undefined>>): string[] {
   const runtime = env.APP_RUNTIME_DB_USER;
   // eslint-disable-next-line security/detect-object-injection -- name is one of the fixed OTHER_ROLE_NAMES
@@ -144,11 +130,7 @@ function codeOnly(sql: string): string {
   return out;
 }
 
-/**
- * The first transaction-control statement in `sql` (`BEGIN`, `COMMIT`, `ROLLBACK`, `ABORT`,
- * `START TRANSACTION`, or `END`), or `undefined`. A migration runs inside db-migrate's own
- * transaction, together with its ledger row, so one of these would split the two.
- */
+/** A migration shares one transaction with its ledger row, so a transaction-control statement would split them. */
 export function transactionControl(sql: string): string | undefined {
   for (const statement of codeOnly(sql).split(';')) {
     const keyword = /^\s*(BEGIN|COMMIT|ROLLBACK|ABORT|START\s+TRANSACTION|END)\b/i.exec(statement)?.[1];
@@ -168,14 +150,12 @@ export function migrationScript(file: string, sql: string): string {
   return `SELECT pg_advisory_xact_lock(${String(MIGRATION_LOCK_KEY)});\n${sql}\n${recordMigration(file)}`;
 }
 
-/** The non-empty values of every variable in `env` whose name ends in `PASSWORD`, `SECRET`, `TOKEN`, or `KEY`. */
 export function secretValues(env: Readonly<Record<string, string | undefined>>): string[] {
   return Object.entries(env)
     .filter(([name, value]) => /(PASSWORD|SECRET|TOKEN|KEY)$/.test(name) && value !== undefined && value !== '')
     .map(([, value]) => value ?? '');
 }
 
-/** `text` with every occurrence of each secret replaced, for output that may echo a statement. */
 export function redact(text: string, secrets: readonly string[]): string {
   return secrets.filter((secret) => secret !== '').reduce((out, secret) => out.replaceAll(secret, '[redacted]'), text);
 }
@@ -183,11 +163,8 @@ export function redact(text: string, secrets: readonly string[]): string {
 export type Role = 'POSTGRES_USER' | 'APP_RUNTIME_DB_USER';
 
 /**
- * The `compose()` arguments that run psql inside the `postgres` container over its local socket,
- * reading the script from stdin. Each variable in `forwardEnv` is passed as a bare `-e NAME`, so
- * Docker copies its value from this process's environment (`.env`, once `loadDotEnv` has run):
- * the value never appears in an argument list, and a changed `.env` takes effect without
- * recreating the container. psql stops at the first error and prints tuples only, unaligned.
+ * A bare `-e NAME` makes Docker copy the value from this process's environment, so it never
+ * appears in an argument list and a changed `.env` applies without recreating the container.
  */
 export function psqlArgs(o: { role: Role; database: 'app' | 'n8n'; forwardEnv: readonly string[]; singleTransaction: boolean }): string[] {
   const transaction = o.singleTransaction ? ' --single-transaction' : '';
@@ -205,7 +182,7 @@ function hasOutput(err: unknown): err is { stdout: string; stderr: string } {
   return typeof err === 'object' && err !== null && typeof (err as { stdout?: unknown }).stdout === 'string';
 }
 
-/** Runs `sql` through psql with `options`. A psql failure resolves with `ok: false` and its output, instead of throwing. */
+/** A psql failure resolves with `ok: false` and its output instead of throwing. */
 export async function runPsql(
   options: { role: Role; database: 'app' | 'n8n'; forwardEnv: readonly string[]; singleTransaction: boolean },
   sql: string,

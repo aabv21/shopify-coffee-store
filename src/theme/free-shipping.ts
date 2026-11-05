@@ -1,5 +1,4 @@
-// Computes how close a cart is to free shipping and renders the bar's message. Pure: no DOM, no
-// I/O, so it can be unit-tested directly.
+// No DOM, so it can be unit-tested directly.
 import { formatMoney } from './money.ts';
 
 export interface FreeShippingState { reached: boolean; remainingCents: number; percent: number }

@@ -1,5 +1,4 @@
-// Fixed data contracts shared across Code nodes. Pure types only: no I/O, no clock, no Node
-// imports, so every Code node source can compile against them.
+// Types only, with no Node imports, so every Code-node source can compile against them.
 import type { Locale } from '../lib/locale.ts';
 
 /** The subset of Shopify's `orders/create` webhook payload normalize-order.ts reads. */
@@ -98,17 +97,13 @@ export interface StockReport {
   text: string;
 }
 
-/** One guide's text in one language. */
 export interface GuideText {
   name: string;
   ratio: string;
   steps: [string, string, string];
 }
 
-/**
- * A guide in English, the source language, at the top level (the shape a workflow version from
- * before translations still reads), plus its other languages under `translations`.
- */
+/** English stays at the top level, the shape a waiting execution's older workflow version reads. */
 export interface BrewingGuide extends GuideText {
   translations?: Partial<Record<Exclude<Locale, 'en'>, GuideText>>;
 }

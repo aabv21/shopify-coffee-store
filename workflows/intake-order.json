@@ -201,7 +201,7 @@
       "parameters": {
         "width": 900,
         "height": 160,
-        "content": "## Normalize and deduplicate\nAccepts the whole order payload from Shopify orders, normalizes it, and records it once. A replayed delivery for an order already recorded stops right here; only a genuinely new order reaches the rest of the chain."
+        "content": "## Normalize and deduplicate\nNormalizes the order payload from Shopify orders and records it once. A replayed delivery stops here; only a new order goes on."
       }
     },
     {
@@ -231,7 +231,7 @@
       "parameters": {
         "width": 560,
         "height": 220,
-        "content": "NOTE: an INSERT ... ON CONFLICT DO NOTHING RETURNING order_id that inserts nothing still reports one {success: true} item, because this is not a SELECT — that's why this gate tests order_id, not the item count. If the INSERT actually committed but its response was lost before n8n saw it, a retry returns the same {success: true}, and the order stops here with no alert. Recovery: delete that orders row and re-send it if it was a test order, or add the sheet row by hand if it was a real one."
+        "content": "NOTE: an INSERT ... ON CONFLICT DO NOTHING RETURNING order_id that inserts nothing still emits one {success: true} item, since it isn't a SELECT, so this gate tests order_id, not the item count. If the INSERT committed but its response was lost, a retry gets the same {success: true} and the order stops here with no alert. Recovery: for a test order, delete its orders row and re-send it; for a real one, rebuild its sheet row by hand."
       }
     },
     {
@@ -246,7 +246,7 @@
       "parameters": {
         "width": 420,
         "height": 200,
-        "content": "NOTE: one webhook call carries exactly one order, so .first() on Normalize order's output is always the order this run is processing. Ceiling: a future caller that hands this workflow more than one item at once would still only process the first of them. Upgrade path: read the order from the current item (.item) instead of always taking the first one."
+        "content": "NOTE: one webhook call carries exactly one order, so .first() on Normalize order's output is always this run's order. Ceiling: a caller handing over several items at once would get only the first processed. Upgrade path: read the order from the current item (.item)."
       }
     }
   ],

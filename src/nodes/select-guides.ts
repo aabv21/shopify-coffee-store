@@ -1,5 +1,3 @@
-// Builds the brewing-guide email in the customer's language: one guide per brew method found
-// among the order's known variants, plus a list of the coffees bought. Pure: no I/O, no clock.
 import { normalizeLocale, type Locale } from '../lib/locale.ts';
 import type { BrewingGuide, BrewingGuides, GuideEmail, GuideText, NormalizedOrder, VariantInfo } from './types.ts';
 
@@ -53,7 +51,6 @@ function productListItem(variant: VariantInfo, m: Messages): string {
   return `<li>${escapeHtml(variant.product_title)} (${escapeHtml(variant.variant_title)})${roastSuffix}</li>`;
 }
 
-/** The guide's text in `locale`, or its English text when that translation is missing. */
 function guideText(guide: BrewingGuide, locale: Locale): GuideText {
   // eslint-disable-next-line security/detect-object-injection -- locale is always one of LOCALES
   return locale === 'en' ? guide : (guide.translations?.[locale] ?? guide);

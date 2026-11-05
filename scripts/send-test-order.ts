@@ -1,6 +1,5 @@
-// Signs a fixture order the way Shopify signs a real orders/create webhook, then posts it to the
-// local Shopify Trigger. Drives the real, HMAC-checked entry point instead of a dev-harness
-// shortcut, so this is the only way to exercise shopify-orders itself before a live store exists.
+// The only way to exercise shopify-orders' real HMAC check before a live store exists; the dev
+// harness bypasses it.
 import { createHmac } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -12,12 +11,10 @@ const ORDER_ID_RE = /^\d+$/;
 
 const API_VERSION = '2026-10';
 
-/** Base64 HMAC-SHA256 of the raw body, exactly as the Shopify Trigger verifies it. */
 export function signShopifyBody(body: string, secret: string): string {
   return createHmac('sha256', secret).update(body, 'utf8').digest('base64');
 }
 
-/** Stamps a fixture with a fresh order id, keeping every other field the same. */
 export function buildTestOrder(fixture: ShopifyOrderPayload, orderId: string): ShopifyOrderPayload {
   return {
     ...fixture,
@@ -32,9 +29,7 @@ export interface WebhookRequest {
   body: string;
 }
 
-/** Builds the headers and body the trigger expects. `tamper` signs first, then mutates the body
- * afterward, so the signature header stays valid for the original text but no longer matches what
- * actually gets sent. */
+/** `tamper` changes the body after signing, so the signature no longer matches what's sent. */
 export function buildWebhookRequest(o: { body: string; secret: string; store: string; tamper: boolean }): WebhookRequest {
   const signature = signShopifyBody(o.body, o.secret);
   return {
@@ -54,7 +49,6 @@ export function webhookUrl(n8nUrl: string): string {
   return `${n8nUrl}/webhook/${TRIGGER_WEBHOOK_ID}/webhook`;
 }
 
-/** Reads a flag's value, throwing if the flag is the last argument with nothing after it. */
 function readFlagValue(argv: readonly string[], index: number, flag: string): string {
   const value = argv[index + 1];
   if (value === undefined) throw new Error(`${flag} needs a value`);

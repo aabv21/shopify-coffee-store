@@ -136,7 +136,7 @@
       "parameters": {
         "width": 1640,
         "height": 160,
-        "content": "## Error handler\nRuns whenever a workflow with errorWorkflow set to this one fails, including a trigger failing at startup (no execution data, only trigger.error). Loads config for owner_email and team_locale, then emails the owner a plain-text alert in that language naming the failed node, the error, the execution URL, and the time in Bogota. The config is unvalidated here, so a missing or malformed team_locale falls back to English instead of failing. This workflow has no errorWorkflow of its own, so a failure here does not loop back into itself."
+        "content": "## Error handler\nRuns when a workflow naming this one as its errorWorkflow fails, including a trigger failing at startup (only trigger.error, no execution data). Loads config, then emails the owner a plain-text alert in team_locale: the failed node, the error, the execution URL, and the time in Bogota. The config is unvalidated here, so a bad team_locale falls back to English. It has no errorWorkflow of its own, so a failure here can't loop."
       }
     }
   ],

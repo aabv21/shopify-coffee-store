@@ -1,5 +1,4 @@
-// Picks one or two coffees from a product list and a shopper's three answers. Pure: no DOM, no
-// I/O, so it can be unit-tested directly.
+// No DOM, so it can be unit-tested directly.
 
 export type BrewMethod = 'pour-over' | 'espresso' | 'french-press';
 export type Taste = 'mild' | 'balanced' | 'intense';
@@ -24,7 +23,7 @@ export const TASTE_TO_ROAST: Readonly<Record<Taste, 'light' | 'medium' | 'dark'>
   intense: 'dark',
 };
 
-/** The finder's three questions, by their radio-group names, in form order. */
+/** Radio-group names, in form order. */
 export const QUESTIONS = ['brew_method', 'taste', 'people'] as const;
 export type Question = (typeof QUESTIONS)[number];
 

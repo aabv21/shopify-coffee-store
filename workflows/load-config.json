@@ -83,7 +83,7 @@
       "parameters": {
         "width": 900,
         "height": 160,
-        "content": "## Load config\nReads /files/config/config.json and returns { config }. Always Output Data is on for the read step, so a missing file still reaches the parse step as an item with no binary data, which throws instead of the branch silently stopping with zero items. Returns the parsed config unvalidated; the caller decides when to check it. A failure here fails the caller, whose error workflow fires. This workflow has none of its own: Error handler calls it, so one would loop while the file is missing."
+        "content": "## Load config\nReads /files/config/config.json and returns { config }. Always Output Data is on for the read step, so a missing file makes the parse step throw instead of silently returning zero items. A failure here fails the caller, whose error workflow fires. This workflow has none of its own: Error handler calls it, so one would loop while the file is missing."
       }
     },
     {
@@ -98,7 +98,7 @@
       "parameters": {
         "width": 560,
         "height": 160,
-        "content": "NOTE: this returns the config as read, not validated. The error handler loads this same file, so checking it here would make a bad hand-edit silence its own alert email. Validation runs in the caller chain instead, after Load config."
+        "content": "NOTE: returns the config unvalidated. The error handler loads this same file, so a check here would make a bad hand-edit silence its own alert. Intake order validates it instead."
       }
     }
   ],

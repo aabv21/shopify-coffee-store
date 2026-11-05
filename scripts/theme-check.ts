@@ -12,11 +12,9 @@ const OVERLAY_DIR = 'theme';
 export interface OffenseLike { severity: 0 | 1 | 2; check: string; message: string; uri: string }
 
 /**
- * Severity 0 (error) is always a release blocker, wherever it is: even an error in Horizon's own
- * unmodified code would mean something changed about how theme-check or its Liquid docs read it.
- * Any offense (any severity) in a file this repo added or modified is also a blocker, since those
- * are files we're responsible for. Everything else is Horizon's own baseline, which theme-check's
- * live-loaded Liquid docs can shift from run to run with no change in this repo.
+ * An error anywhere fails, since even one in unmodified Horizon means something changed. So does
+ * any offense in a file this repo added or modified. The rest is Horizon's baseline, which
+ * theme-check's live-loaded Liquid docs can shift with no change here.
  */
 export function classifyOffenses(
   offenses: readonly OffenseLike[],
@@ -36,12 +34,7 @@ export function classifyOffenses(
   return { failing, baseline };
 }
 
-/**
- * Runs theme check against `themeDir`, returning its offenses as `OffenseLike[]` and the absolute
- * directory they were checked against (the same absolute path `classifyOffenses` needs). check()
- * silently finds zero theme files against a relative root instead of erroring, so this always
- * resolves to an absolute path before calling it.
- */
+/** check() silently finds no files under a relative root, so this resolves it first. */
 export async function runThemeCheck(themeDir: string): Promise<{ absThemeDir: string; offenses: OffenseLike[] }> {
   const absThemeDir = resolve(themeDir);
   const offenses = await check(absThemeDir);

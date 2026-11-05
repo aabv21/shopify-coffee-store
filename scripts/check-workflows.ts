@@ -14,18 +14,15 @@ const SQL_BLOCK_COMMENT_RE = /\/\*[\s\S]*?\*\//g;
 const SQL_PLACEHOLDER_RE = /\$\d/;
 
 /**
- * n8n formats a Postgres query client-side before sending it, replacing every `$N` in the raw text
- * — including inside a `--` or `/* *\/` comment — with its bound value. Its escaping only doubles
- * `'`, so a bound value containing a newline can end a `--` comment and turn whatever follows into
- * live SQL. A query must never reference a placeholder from within a comment.
+ * n8n replaces every `$N` in a query's raw text, comments included, and only doubles `'`, so a
+ * bound value with a newline can end a `--` comment and turn what follows into live SQL.
  */
 export function hasPlaceholderInSqlComment(query: string): boolean {
   const comments = [...query.matchAll(SQL_LINE_COMMENT_RE), ...query.matchAll(SQL_BLOCK_COMMENT_RE)].map((m) => m[0]);
   return comments.some((comment) => SQL_PLACEHOLDER_RE.test(comment));
 }
 
-// External services that must retry instead of failing a workflow run on a transient error.
-// graphql is included because process-order reads stock through the GraphQL node.
+// External services, which must retry a transient error instead of failing the run.
 const RETRY_REQUIRED_TYPES = new Set([
   'n8n-nodes-base.postgres',
   'n8n-nodes-base.googleSheets',
@@ -39,8 +36,7 @@ export function checkWorkflow(
   opts: { file: string; credentialIds: ReadonlySet<string>; codeNodes: readonly CodeNodeEntry[] },
 ): string[] {
   const errors: string[] = [];
-  // Widen past WorkflowJson's own (optimistic) field types so a malformed or hand-edited file can
-  // be reported instead of crashing the check.
+  // Widened so a malformed file is reported instead of crashing the check.
   const raw: Record<string, unknown> = wf;
 
   for (const field of ['id', 'name', 'nodes', 'connections', 'settings']) {

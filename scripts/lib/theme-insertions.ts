@@ -4,10 +4,8 @@ import { isDeepStrictEqual } from 'node:util';
 import { parseJsonc, stripJsonComments } from './jsonc.ts';
 
 /**
- * One theme setting to change in `settings_data.json`'s `current` values. With `from`, the
- * setting must currently hold exactly that value (the anchor); without it, the setting must not be
- * set yet, so the schema default is what's being replaced. Either way, `id` must be a setting
- * `settings_schema.json` declares.
+ * With `from`, the setting must hold exactly that value (the anchor); without it, it must be
+ * unset, so the schema default is replaced. Either way, `settings_schema.json` must declare `id`.
  */
 export interface SettingChange { id: string; from?: unknown; to: unknown }
 
@@ -21,9 +19,8 @@ export type Insertion =
 
 export class InsertionError extends Error {}
 
-// Nubandina's palette, in Horizon's own palette keys. color1-color3 keep the roles Horizon's
-// settings_data.json gives them (a dark accent, a light tint for the sold-out badge, and the
-// input and variant borders); color4 is new.
+// color1-color3 keep the roles Horizon's settings_data.json gives them (a dark accent, the
+// sold-out badge's tint, and the input and variant borders); color4 is new.
 export const BRAND_PALETTE = {
   background: '#FBF7F2', // cream
   foreground: '#2B1B12', // espresso
@@ -33,13 +30,11 @@ export const BRAND_PALETTE = {
   color4: '#3F6212', // leaf: small badges only
 } as const;
 
-// Horizon v4.3.0's own `current` values that the brand replaces: the anchors that make a changed
-// Horizon fail assembly instead of silently mixing two designs.
+// Horizon v4.3.0's values: anchors, so a changed Horizon fails assembly instead of mixing designs.
 const HORIZON_PALETTE = { background: '#ffffff', foreground: '#000000', color1: '#333333', color2: '#EEF1EA', color3: '#DFDFDF' };
 
-// Fonts from Shopify's font library, each handle checked against its published list: Alegreya
-// (a calligraphic serif) for headings and accents, Alegreya Sans (its humanist sans companion)
-// for body text and subheadings.
+// Each font handle is checked against Shopify's font library list: Alegreya for headings and
+// accents, Alegreya Sans for body text and subheadings.
 export const BRAND_SETTINGS: readonly SettingChange[] = [
   { id: 'color_palette', from: HORIZON_PALETTE, to: BRAND_PALETTE },
   { id: 'type_body_font', from: 'inter_n4', to: 'alegreya_sans_n4' },
@@ -54,13 +49,11 @@ export const BRAND_SETTINGS: readonly SettingChange[] = [
   { id: 'palette_selected_variant_border', to: '{{ settings.color_palette.color1 }}' },
 ];
 
-// Every storefront and editor string this repo adds lives under one top-level namespace in each
-// locale file, so it never collides with Horizon's own keys.
+// One top-level namespace per locale file, so this repo's strings never collide with Horizon's.
 export const LOCALE_NAMESPACE = 'nubandina';
 
 export const THEME_LOCALES_DIR = new URL('../../theme-locales/', import.meta.url);
 
-/** One of `theme-locales/`'s files: the strings under `LOCALE_NAMESPACE`, as Shopify's locale format nests them. */
 export function readThemeLocale(file: string): Readonly<Record<string, unknown>> {
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is one of theme-locales/'s own fixed names
   const parsed = JSON.parse(readFileSync(new URL(file, THEME_LOCALES_DIR), 'utf8')) as Record<string, unknown>;
@@ -71,9 +64,9 @@ export function readThemeLocale(file: string): Readonly<Record<string, unknown>>
   return strings as Record<string, unknown>;
 }
 
-// Horizon v4.3.0's other languages. Theme check's MatchingTranslations reports a missing key in any
-// of them as an error, so each gets the English strings, which is also what Shopify would show
-// there. A locale Horizon adds fails theme check; one it drops fails assembly (file not found).
+// Theme check's MatchingTranslations errors on a key missing from any Horizon v4.3.0 locale, so
+// each other locale gets the English strings, as Shopify would show. A locale Horizon adds fails
+// theme check; one it drops fails assembly.
 export const HORIZON_OTHER_STOREFRONT_LOCALES = [
   'ar', 'bg', 'cs', 'da', 'de', 'el', 'fi', 'fr', 'he', 'hr', 'hu', 'id', 'it', 'ja', 'ko', 'lt',
   'nb', 'nl', 'pl', 'pt-BR', 'pt-PT', 'ro', 'ru', 'sk', 'sl', 'sv', 'th', 'tr', 'ur', 'vi', 'zh-CN', 'zh-TW',
@@ -117,8 +110,7 @@ export const INSERTIONS: readonly Insertion[] = [
           default: 120000,
           info: 't:nubandina.free_shipping_bar.threshold_info',
         },
-        // No defaults: a blank message falls back to the storefront translation (see
-        // snippets/free-shipping-bar.liquid), so each language gets its own text.
+        // No defaults: a blank message falls back to the storefront translation in each language.
         {
           type: 'text',
           id: 'free_shipping_message_remaining',
@@ -196,8 +188,7 @@ function applyAppendSettingsGroup(themeDir: string, insertion: { file: 'config/s
   writeThemeFile(themeDir, insertion.file, `${JSON.stringify(groups, null, 2)}\n`);
 }
 
-// A JSON template may start with a Shopify-generated `/* ... */` comment; this keeps it as the
-// literal prefix instead of round-tripping through JSON.stringify, which would drop it.
+// Keeps a JSON template's Shopify-generated `/* ... */` comment, which JSON.stringify would drop.
 export function splitLeadingComment(text: string): { comment: string; json: string } {
   const trimmed = text.trimStart();
   if (!trimmed.startsWith('/*')) return { comment: '', json: text };
@@ -258,11 +249,7 @@ function applySetThemeSettings(themeDir: string, insertion: { file: 'config/sett
   writeThemeFile(themeDir, insertion.file, comment ? `${comment}\n${body}` : body);
 }
 
-/**
- * Adds `namespace` as the first top-level key of a locale file. Horizon's locale files are JSON
- * with comments (a leading notice, notes for translators), so this inserts text right after the
- * top-level object's opening brace instead of rewriting the file, and keeps every comment.
- */
+/** Inserts text after the opening brace instead of rewriting the file, so Horizon's comments survive. */
 function applyAddLocaleNamespace(themeDir: string, insertion: { file: string; namespace: string; translations: Readonly<Record<string, unknown>> }): void {
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is an insertion's own fixed path, not user input
   if (!existsSync(join(themeDir, insertion.file))) throw new InsertionError(`${insertion.file}: file not found`);
@@ -271,8 +258,7 @@ function applyAddLocaleNamespace(themeDir: string, insertion: { file: string; na
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw new InsertionError(`${insertion.file}: not a JSON object`);
   if (Object.hasOwn(parsed, insertion.namespace)) throw new InsertionError(`${insertion.file}: namespace exists: ${insertion.namespace}`);
 
-  // Comments are blanked, not removed, so the first brace found in the stripped text sits at the
-  // same offset in the original.
+  // Comments are blanked, not removed, so this offset holds in the original text.
   const brace = stripJsonComments(text).indexOf('{');
   const body = JSON.stringify({ [insertion.namespace]: insertion.translations }, null, 2);
   const entry = body.slice(1, -1).trimEnd() + (Object.keys(parsed).length > 0 ? ',' : '\n');

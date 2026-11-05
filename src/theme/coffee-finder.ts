@@ -1,5 +1,5 @@
-// The coffee finder: a three-question form that recommends one or two coffees from product
-// metafields and adds the chosen bag to the cart. Uses textContent only, never innerHTML.
+// Writes text only through textContent, never innerHTML: product data and settings are
+// merchant-entered, and Shopify's messages are text too.
 import { missingAnswers, parseProducts, readAnswers, recommend, type FinderProduct, type FinderVariant, type Question } from './recommend.ts';
 import './shopify-actions.d.ts';
 
@@ -52,11 +52,7 @@ class CoffeeFinder extends HTMLElement {
     this.renderResults(picks);
   }
 
-  /**
-   * Marks each unanswered question's fieldset with `data-unanswered` and its radios as invalid,
-   * described by the form's error text (a `role="alert"` region, so it's announced) while any
-   * remain, and optionally moves focus to the first unanswered question.
-   */
+  /** The error text is a `role="alert"` region, so setting it announces the problem. */
   private flagMissing(form: HTMLFormElement, missing: readonly Question[], o: { focus: boolean }): void {
     const error = textOf(this, '[data-finder-error]');
     if (error) error.textContent = missing.length > 0 ? (error.dataset.message ?? '') : '';
@@ -172,9 +168,7 @@ class CoffeeFinder extends HTMLElement {
         if (result.userErrors && result.userErrors.length > 0) {
           this.setStatus(status, 'error', errorText);
         } else {
-          // The item is already in the cart once userErrors comes back empty, so the status
-          // reflects that right away; opening the drawer is a separate, best-effort step that
-          // must never turn a real success into a reported failure.
+          // The add already succeeded; opening the drawer is best-effort and can't undo that.
           this.setStatus(status, 'success', this.successText(addedText, result.warnings));
           try {
             await actions.openCart();

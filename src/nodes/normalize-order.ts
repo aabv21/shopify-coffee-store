@@ -1,6 +1,3 @@
-// Turns a raw Shopify orders/create payload into the shape the rest of the chain works with:
-// stable ids, consistent fallbacks for a guest or redacted customer, and amounts as numbers.
-// Pure: no I/O, no clock.
 import { normalizeLocale } from '../lib/locale.ts';
 import type { NormalizedOrder, OrderLine, ShopifyOrderPayload } from './types.ts';
 
@@ -11,8 +8,7 @@ function firstNonEmpty(...values: (string | null | undefined)[]): string | null 
   return null;
 }
 
-/** A value Shopify never actually sends as "zero": null, missing, or an empty string all mean the
- * field carries no amount, not that the amount is 0. */
+/** Null, missing, or `''` means Shopify sent no amount, not an amount of 0. */
 function isMissingAmount(value: string | number | undefined | null): boolean {
   return value === null || value === undefined || value === '';
 }
@@ -64,9 +60,8 @@ export function run(order: ShopifyOrderPayload): NormalizedOrder {
   if (!order.line_items || order.line_items.length === 0) throw new Error('Order payload has no line items');
 
   const emailRaw = (order.email || order.contact_email || '').trim();
-  // A comma, whitespace, `;`, `<` or `>` inside an otherwise-plausible email string could add a
-  // second recipient or header-inject when later used as a Gmail "To" address, so treat it the
-  // same as no address at all rather than passing it through.
+  // A comma, whitespace, `;`, `<` or `>` could add a recipient or inject a header in Gmail's "To",
+  // so such an address counts as none.
   const email = emailRaw === '' || /[,;<>\s]/.test(emailRaw) ? null : emailRaw;
 
   const firstName = firstNonEmpty(order.customer?.first_name, order.shipping_address?.first_name, order.billing_address?.first_name);

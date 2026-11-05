@@ -4,7 +4,7 @@ export interface WorkflowEntry {
   file: string;
   publish: boolean;
   liveTrigger: boolean;
-  /** This workflow's live webhook path, when its trigger is a plain webhook — used to confirm a publish actually took effect. Never set for `shopify-orders`: its trigger is the Shopify Trigger's own fixed path, which must never be probed (see AGENTS.md's tunnel guardrail). */
+  /** A plain webhook path to poll after publishing. Never set for `shopify-orders`, whose trigger path must never be probed. */
   webhookPath?: string;
 }
 
@@ -44,9 +44,7 @@ export const WORKFLOWS: readonly WorkflowEntry[] = [
 
 export const CREDENTIALS: readonly CredentialEntry[] = [
   {
-    // Every Postgres node connects as app_runtime, the least-privilege role db-migrate maintains
-    // (docs/database.md). Neither this credential nor any workflow ever uses APP_DB_USER, the
-    // schema owner, which db/init and db-migrate alone use.
+    // The least-privilege runtime role, never APP_DB_USER, the schema owner (docs/database.md).
     id: 'nbcCredAppDb0001',
     name: 'App DB',
     type: 'postgres',
@@ -79,11 +77,9 @@ export const CREDENTIALS: readonly CredentialEntry[] = [
     data: (env) => ({ clientId: readEnv(env, 'GOOGLE_OAUTH_CLIENT_ID'), clientSecret: readEnv(env, 'GOOGLE_OAUTH_CLIENT_SECRET') }),
   },
   {
-    // Every Gmail node in this repo only sends (see workflows/*.json); n8n's default gmailOAuth2
-    // scope set also grants full mailbox read and delete (https://mail.google.com/ and others).
-    // customScopes + enabledScopes narrow the OAuth consent to gmail.send only (verified against
-    // n8n 2.45.6's own GmailOAuth2Api.credentials.js, whose default enabledScopes is the full set
-    // this overrides).
+    // Every Gmail node only sends, but n8n 2.45.6's default gmailOAuth2 scopes
+    // (GmailOAuth2Api.credentials.js) also grant mailbox read and delete (https://mail.google.com/
+    // and others), so this narrows consent to gmail.send.
     id: 'nbcCredGmail0001',
     name: 'Gmail',
     type: 'gmailOAuth2',
@@ -96,8 +92,6 @@ export const CREDENTIALS: readonly CredentialEntry[] = [
     }),
   },
   {
-    // The dev harness is localhost-only, never exposed through the tunnel, and its workflow must
-    // be unpublished before production. See AGENTS.md.
     id: 'nbcCredDevToken1',
     name: 'Dev harness token',
     type: 'httpHeaderAuth',

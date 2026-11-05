@@ -1,7 +1,5 @@
-// Builds the owner's plain-text alert for a failed workflow, in the team's language, from the
-// Error Trigger's own data. The error handler loads config unvalidated, so nothing here may throw:
-// a missing or malformed value falls back to English or an empty string, never a second failure
-// that would silence the alert. Pure: no I/O, no clock (the caller passes the time).
+// The error handler loads config unvalidated, so nothing here may throw: a missing or malformed
+// value falls back to English or an empty string, never a second failure that silences the alert.
 import { normalizeLocale, type Locale } from '../lib/locale.ts';
 
 export interface ErrorAlertInput {

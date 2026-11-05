@@ -1,5 +1,3 @@
-// Builds the owner's plain-text order summary in the team's language, from the same row the
-// Orders sheet gets. Amounts use the locale's own digit grouping. Pure: no I/O, no clock.
 import { normalizeLocale, type Locale } from '../lib/locale.ts';
 import type { OrderRow } from './types.ts';
 

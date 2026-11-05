@@ -1,6 +1,5 @@
-// Validates the config Load config just returned, before any order reaches Postgres, Sheets, or
-// Gmail. The error handler loads this same config unvalidated, so checking it here — not there —
-// keeps a bad hand-edit from silencing its own alert email. Pure: no I/O, no clock.
+// Validated here, not in Load config: the error handler loads the same file unvalidated, so a bad
+// hand-edit still gets its alert email.
 import { validateConfig, type Config } from '../lib/config.ts';
 
 export interface CheckConfigInput {

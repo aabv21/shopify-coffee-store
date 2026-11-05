@@ -28,26 +28,23 @@ const CATALOG = 'data/products.csv';
 // docs/shopify-setup.md's "HTML without currency" format for the store's COP prices.
 export const MONEY_FORMAT = '${{amount_no_decimals_with_comma_separator}}';
 
-// Copied next to the page: Horizon's own stylesheet and this repo's two built components.
 const PREVIEW_ASSETS = ['base.css', 'coffee-finder.js', 'free-shipping-bar.js'];
 
-// The cart-bar states the preview shows, as fractions of the free-shipping threshold.
+// Fractions of the free-shipping threshold.
 export const CART_PROGRESS = [0, 0.6, 1] as const;
 
-// Preview-only stand-in for the platform's Shopify.actions: it resolves after a short delay, so
-// the add button's busy and added states can be seen. A real storefront provides its own.
+// Preview-only: resolves after a delay, so the add button's busy and added states are visible.
 const SHOPIFY_ACTIONS_STUB = `window.Shopify = window.Shopify || {};
 window.Shopify.actions = {
   updateCart: () => new Promise((resolve) => setTimeout(() => resolve({ userErrors: [], warnings: [] }), 800)),
   openCart: () => Promise.resolve(),
 };`;
 
-// Shows one state at a time with ?demo=<name>, for screenshots; without it, every state shows.
+// ?demo=<name> shows one state, for screenshots.
 const DEMO_FILTER = `const demo = new URLSearchParams(location.search).get('demo');
 if (demo) for (const el of document.querySelectorAll('[data-preview-demo]')) el.hidden = el.dataset.previewDemo !== demo;`;
 
-// The preview's own scaffolding, outside any component: the approximation notice and the mock
-// cart panel the free-shipping bar sits in. Horizon tokens only.
+// The approximation notice and the mock cart panel, in Horizon tokens only.
 const SCAFFOLD_CSS = `
 [data-preview-demo][hidden] { display: none; }
 .preview-banner {
@@ -90,13 +87,11 @@ const SCAFFOLD_CSS = `
 
 export interface PreviewBar { percent: number; totalCents: number; html: string }
 
-/** The mock cart's own labels, from Horizon's locale keys for its real cart drawer. */
+/** From Horizon's locale keys for its real cart drawer. */
 export interface CartLabels { title: string; total: string; checkout: string }
 
-// Shopify's locale file for each language this store speaks.
 const LOCALE_FILES: ReadonlyMap<Locale, string> = new Map([['en', 'locales/en.default.json'], ['es', 'locales/es.json']]);
 
-/** `--locale <en|es>` (or `--locale=<en|es>`) from the CLI's arguments; English by default. */
 export function parsePreviewArgs(argv: readonly string[]): { locale: Locale } {
   const index = argv.findIndex((arg) => arg === '--locale' || arg.startsWith('--locale='));
   if (index === -1) return { locale: 'en' };
@@ -109,7 +104,6 @@ export function parsePreviewArgs(argv: readonly string[]): { locale: Locale } {
 const escapeHtml = (text: string): string =>
   text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
-/** The preview page: Horizon's CSS and variables, the rendered components, and the scaffolding around them. */
 export function previewPage(o: {
   fontsUrl: string;
   pageWidth: string;

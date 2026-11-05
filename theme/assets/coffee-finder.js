@@ -156,11 +156,7 @@ var CoffeeFinder = class extends HTMLElement {
     const picks = answers ? recommend(this.readProducts(), answers) : [];
     this.renderResults(picks);
   }
-  /**
-   * Marks each unanswered question's fieldset with `data-unanswered` and its radios as invalid,
-   * described by the form's error text (a `role="alert"` region, so it's announced) while any
-   * remain, and optionally moves focus to the first unanswered question.
-   */
+  /** The error text is a `role="alert"` region, so setting it announces the problem. */
   flagMissing(form, missing, o) {
     const error = textOf(this, "[data-finder-error]");
     if (error) error.textContent = missing.length > 0 ? error.dataset.message ?? "" : "";

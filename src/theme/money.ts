@@ -1,5 +1,4 @@
-// Formats cents against a Shopify-style money format string (shop.money_format), matching
-// Shopify's own placeholders well enough for this storefront's free-shipping bar.
+// Covers Shopify's money_format placeholders well enough for the free-shipping bar.
 
 interface Separators { thousands: string; decimal: string }
 
@@ -23,8 +22,7 @@ function roundHalfUp(value: number, decimals: number): number {
   return Math.round(value * factor) / factor;
 }
 
-// Thousands grouping on a bounded digit string (at most ~20 digits from toFixed), so there is no
-// catastrophic-backtracking input to worry about.
+// A loop, not a regex: no backtracking risk, on at most ~20 digits from toFixed.
 function groupThousands(digits: string, separator: string): string {
   let result = '';
   for (let i = 0; i < digits.length; i++) {

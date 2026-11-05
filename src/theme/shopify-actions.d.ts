@@ -1,5 +1,4 @@
-// Ambient types for the platform-provided Shopify.actions API (content_for_header), declaring
-// only the members this theme calls.
+// Shopify.actions comes from content_for_header; only the members this theme calls.
 
 export interface UpdateCartResult {
   userErrors?: { message: string }[];

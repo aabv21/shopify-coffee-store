@@ -1,4 +1,4 @@
-{%- comment -%} The doc tag is snippet/block-only in Shopify's Liquid; sections carry no top-of-file doc block. Every visible string, including the status and error messages the script reads from data attributes, is the merchant's text setting when set and the storefront translation otherwise (snippets/nubandina-text.liquid). {%- endcomment -%}
+{%- comment -%} No doc block: Shopify's doc tag is snippet- and block-only. Every visible string, including the script's data-attribute messages, comes from snippets/nubandina-text.liquid. {%- endcomment -%}
 {%- liquid
   assign finder_collection = section.settings.collection
   if finder_collection == blank
@@ -146,7 +146,7 @@
         {%- endfor -%}
       ]
     {%- endcapture -%}
-    {%- comment -%} shopify.dev's json filter docs only promise quote escaping, not </, so a merchant-entered tasting note containing "</script>" is neutralized here before embedding. {%- endcomment -%}
+    {%- comment -%} shopify.dev's json filter docs promise only quote escaping, so a tasting note containing "</script>" is neutralized here. {%- endcomment -%}
     <script type="application/json" data-finder-products>{{ finder_products_json | strip | replace: '</', '<\/' }}</script>
   </coffee-finder>
 </div>

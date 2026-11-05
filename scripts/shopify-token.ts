@@ -14,7 +14,6 @@ export interface TokenResult {
 
 const SHOP_RE = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/;
 
-/** The store's full shop domain. Throws if `store` isn't a bare myshopify subdomain. */
 export function shopDomain(store: string): string {
   const domain = `${store}.myshopify.com`;
   if (!SHOP_RE.test(domain)) throw new Error('store must be the myshopify subdomain, e.g. "nubandina-demo"');
@@ -30,8 +29,7 @@ export function buildAuthorizeUrl(o: { store: string; clientId: string; state: s
   return url.toString();
 }
 
-/** Hex HMAC-SHA256 built like @shopify/shopify-api: sorted params minus `hmac`, form-encoded with
- * `+` as `%20`, so a base64 `host` (with `=`, `+` or `/`) hashes the way Shopify signed it. */
+/** Built like @shopify/shopify-api: `+` as `%20`, so a base64 `host` hashes the way Shopify signed it. */
 function computeCallbackHmac(params: URLSearchParams, clientSecret: string): string {
   const keys = [...new Set(params.keys())].filter((key) => key !== 'hmac').sort();
   const signed = new URLSearchParams();
@@ -42,7 +40,6 @@ function computeCallbackHmac(params: URLSearchParams, clientSecret: string): str
   return createHmac('sha256', clientSecret).update(message).digest('hex');
 }
 
-/** Validates a signed callback URL and returns the authorization code. */
 export function parseCallbackUrl(url: string, o: { store: string; state: string; clientSecret: string }): string {
   const parsed = new URL(url);
   const params = parsed.searchParams;
@@ -94,7 +91,6 @@ async function requestToken(store: string, body: URLSearchParams, fetchImpl: typ
   return { accessToken: payload.access_token, scopes: payload.scope.split(','), expiresIn };
 }
 
-/** Exchanges an authorization code for an offline access token. */
 export function exchangeCode(o: { store: string; clientId: string; clientSecret: string; code: string }, fetchImpl: typeof fetch = fetch): Promise<TokenResult> {
   const body = new URLSearchParams({ client_id: o.clientId, client_secret: o.clientSecret, code: o.code });
   return requestToken(o.store, body, fetchImpl);
@@ -106,7 +102,7 @@ export function requestClientCredentialsToken(o: { store: string; clientId: stri
   return requestToken(o.store, body, fetchImpl);
 }
 
-/** Throws if `granted` isn't exactly the required read scopes, naming the first mismatch found. */
+/** Exactly the required scopes: a missing one or an extra one both throw. */
 export function checkScopes(granted: readonly string[]): void {
   const grantedSet = new Set(granted);
   for (const scope of REQUIRED_SCOPES) {
@@ -118,7 +114,6 @@ export function checkScopes(granted: readonly string[]): void {
   }
 }
 
-/** Sets `key=value` in `.env`-style text, replacing an existing line or appending a new one. */
 export function upsertEnv(text: string, key: string, value: string): string {
   const lines = text.split('\n');
   const trailingNewline = text.endsWith('\n');
@@ -132,12 +127,7 @@ export function upsertEnv(text: string, key: string, value: string): string {
   return `${updated.join('\n')}\n`;
 }
 
-/**
- * Writes `.env` text atomically at mode 0600. `.env` holds `N8N_ENCRYPTION_KEY`; a write that's
- * interrupted partway through must never leave a truncated file, which would lose every stored
- * n8n credential. Writes to a tmp file first (chmod'd 0600 even if a stale tmp file already
- * existed at a looser mode), then renames it over the target in one step.
- */
+/** Atomic, at mode 0600, for the same reasons as init-env.ts's `writeEnvFile`. */
 export function writeEnvFile(path: string, text: string): void {
   const tmpPath = `${path}.tmp`;
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- path is the caller-provided .env path, not user input

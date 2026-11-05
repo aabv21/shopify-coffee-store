@@ -269,7 +269,7 @@
       "parameters": {
         "width": 1740,
         "height": 160,
-        "content": "## Log and notify\nBuilds one flat row from the normalized order, upserts it into the Orders sheet keyed by order number so a retried call updates the same row instead of duplicating it, then emails the owner a plain-text summary in config.team_locale."
+        "content": "## Log and notify\nUpserts one flat row into the Orders sheet, keyed by order number so a retry updates the row instead of duplicating it, then emails the owner a plain-text summary in config.team_locale."
       }
     },
     {
@@ -434,7 +434,7 @@
       "parameters": {
         "width": 1180,
         "height": 160,
-        "content": "## Stock check\nReads the ordered variants' current stock and brew method from Shopify, flags any that fell below the configured threshold, and emails the owner one alert per order, in config.team_locale. No per-request timeout on this node (NOTE below); the GraphQL node retries throttling instead of failing outright, since Shopify returns throttling as a 200 response with an errors array rather than an HTTP error."
+        "content": "## Stock check\nReads the ordered variants' stock and brew method from Shopify and emails the owner one alert per order, in config.team_locale, for any below the threshold. Shopify returns throttling as a 200 with an errors array; the GraphQL node throws on it, so its retries apply."
       }
     },
     {
@@ -449,7 +449,7 @@
       "parameters": {
         "width": 420,
         "height": 160,
-        "content": "NOTE: the GraphQL node has no per-request timeout option, so a hung Shopify response blocks this execution until n8n's own default times it out. Ceiling: a slow but responding Shopify API is not bounded here. Upgrade path: switch to the HTTP Request node with options.timeout plus an explicit errors check, trading the GraphQL node's built-in NodeApiError-on-errors behavior for a manual one."
+        "content": "NOTE: the GraphQL node has no timeout option, so a hung Shopify response holds this execution until n8n's own default ends it. Ceiling: a slow Shopify API is unbounded here. Upgrade path: HTTP Request with options.timeout plus an explicit errors check in place of the GraphQL node's built-in one."
       }
     },
     {
@@ -630,7 +630,7 @@
       "parameters": {
         "width": 1760,
         "height": 160,
-        "content": "## Brewing guide (after the wait)\nWaits the configured number of minutes, then reads the mounted brewing guides, picks one guide per distinct brew method among the order's known variants, and emails the customer an HTML guide listing what they bought and how to brew it, in the order's customer locale (config.default_locale when it has none). Sends nothing when the order has no email address or no line matches a known brew method."
+        "content": "## Brewing guide (after the wait)\nAfter guide_delay_minutes, emails the customer one HTML email with a guide per brew method among the order's known variants, in the order's locale (else config.default_locale). Sends nothing without an email address or a known brew method."
       }
     },
     {
@@ -645,7 +645,7 @@
       "parameters": {
         "width": 420,
         "height": 160,
-        "content": "NOTE: a wait shorter than 65 s (MAX_IN_PROCESS_WAIT_MS) stays in n8n's process memory and is lost on a restart, instead of persisting for the leader's WaitTracker to resume. That's why guide_delay_minutes must be at least 2."
+        "content": "NOTE: a wait shorter than 65 s (MAX_IN_PROCESS_WAIT_MS) stays in process memory and is lost on a restart, so guide_delay_minutes must be at least 2."
       }
     }
   ],

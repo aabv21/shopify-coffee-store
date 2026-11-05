@@ -1,6 +1,3 @@
-// Turns a normalized order into the flat row the Orders sheet expects: the timestamp converted to
-// Bogota time, the line items joined into one readable string, and free shipping as yes/no text.
-// Pure: no I/O, no clock.
 import type { NormalizedOrder, OrderLine, OrderRow } from './types.ts';
 
 function formatLine(line: OrderLine): string {

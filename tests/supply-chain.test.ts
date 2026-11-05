@@ -68,10 +68,7 @@ test('every docker run image in a GitHub Actions workflow is pinned by digest', 
   const images: string[] = [];
   for (const file of files) {
     for (const line of readFileSync(file, 'utf8').split('\n').filter((l) => /\bdocker run\b/.test(l))) {
-      // An image reference is `name:tag`, where `name` may carry `/`s (e.g. `owner/repo`) but never
-      // a `/` right at the start (that would be an absolute path, such as a bind-mount argument).
-      // This also catches an image with no `/` at all (e.g. `composer:2.11.0`), which an
-      // `indexOf('/')`-based parser would silently skip.
+      // `name:tag`, never starting with `/` (a bind-mount path), with or without a `/` in the name.
       images.push(/\s([a-z0-9][\w./-]*:\S+)/.exec(line)?.[1] ?? `unparsed: ${line.trim()}`);
     }
   }

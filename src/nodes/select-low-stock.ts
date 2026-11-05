@@ -1,6 +1,3 @@
-// Turns the GraphQL stock read into the report "Any low stock?" and "Email low-stock alert" use:
-// one VariantInfo per ordered variant Shopify still has, and the subset that fell below the
-// configured threshold, with the owner's alert in the team's language. Pure: no I/O, no clock.
 import { normalizeLocale, type Locale } from '../lib/locale.ts';
 import type { LowStockItem, NormalizedOrder, StockReport, VariantInfo } from './types.ts';
 

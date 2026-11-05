@@ -17,30 +17,19 @@ const EXPECTED_CONFIG = {
   team_locale: 'en',
 };
 
-/**
- * True for a credential type this harness call must never run near: Shopify, Google (Sheets,
- * Drive, ...), or Gmail. `process-order` — which `intake-order` hands off to, fire-and-forget —
- * reaches all three. Matched by type name, not a hand-picked list, so a future credential of one
- * of these kinds is covered automatically.
- */
+/** Shopify, Google, or Gmail: what `process-order` reaches. Matched by type, so a new credential of these kinds is covered. */
 function isGuardedType(type: string): boolean {
   return /shopify|google|gmail/i.test(type);
 }
 
-/** Every manifest credential id whose type is Google, Gmail, or Shopify — derived, never hand-picked. */
 export function guardedCredentialIds(): string[] {
   return CREDENTIALS.filter((c) => isGuardedType(c.type)).map((c) => c.id);
 }
 
 /**
- * `intake-order` hands off to `process-order` fire-and-forget (`waitForSubWorkflow: false`):
- * calling `intake-order` always starts that second execution, win or lose. In CI there is no
- * Shopify, Google, or Gmail credential, so `process-order`'s own run fails harmlessly and the
- * harness response (asserted below) is unaffected — but on a developer's stack wired to the
- * owner's real accounts, that second execution would append a real sheet row and send real
- * emails. Refuses to call `intake-order` at all when any such credential already exists, naming
- * which one. Never decrypts anything: reuses `setup-credentials.ts`'s own `existingCredentialIds`,
- * the same CLI-export, ids-only detection `setupCredentials` runs before every import.
+ * Calling `intake-order` always starts `process-order` fire-and-forget. With no live credential (as
+ * in CI) that run fails harmlessly; on a stack wired to real accounts it would append a real sheet
+ * row and send real emails, so this refuses. The ids come from an encrypted, ids-only export.
  */
 export function assertNoLiveCredential(existingIds: ReadonlySet<string>): void {
   const names = new Map(CREDENTIALS.map((c) => [c.id, c.name]));
@@ -54,12 +43,9 @@ export function assertNoLiveCredential(existingIds: ReadonlySet<string>): void {
 }
 
 /**
- * True for the shape a fresh call produces: `intake-order` records the order, loads and checks
- * config, and hands off to `process-order` fire-and-forget — the dev harness relays that last
- * Execute Workflow node's own *input* mapping (`{ order, config }`) since it isn't waiting on the
- * sub-execution. Reaches `Normalize order` and `Check config`, the two CODE_NODES entries on this
- * path. `order_id`/`order_number` come straight from the fixture, pinned regardless of run date,
- * and `locale` is the fixture's `es-CO` customer locale as `Normalize order` normalizes it.
+ * A fresh call: the harness relays the fire-and-forget `Process order` node's input mapping
+ * (`{ order, config }`), after `Normalize order` and `Check config` ran. `locale` is the fixture's
+ * `es-CO`, normalized.
  */
 export function isFreshIntakeResponse(result: unknown): result is { order: Record<string, unknown>; config: unknown } {
   if (typeof result !== 'object' || result === null) return false;
@@ -76,19 +62,14 @@ export function isFreshIntakeResponse(result: unknown): result is { order: Recor
   );
 }
 
-/**
- * True for the shape a duplicate call produces: `Record order`'s own `ON CONFLICT DO NOTHING`
- * response, with no `order_id`, once `Is new order?` stops the chain (see intake-order.json's own
- * sticky note on this). A re-run against a stack that already recorded this fixture's order id
- * hits this branch instead of the fresh one above.
- */
+/** A duplicate call: `Record order`'s bare `ON CONFLICT DO NOTHING` result, stopped at `Is new order?`. */
 export function isDuplicateIntakeResponse(result: unknown): boolean {
   if (typeof result !== 'object' || result === null) return false;
   const keys = Object.keys(result);
   return keys.length === 1 && keys[0] === 'success' && (result as Record<string, unknown>).success === true;
 }
 
-/** True for `load-config`'s own response: the mounted config, unvalidated, read straight from the file — no generated Code node on this path (see AGENTS.md), kept only as a second, cheap liveness check. */
+/** `load-config`'s unvalidated config; a cheap second liveness check, with no Code node on its path. */
 export function isLoadConfigResponse(result: unknown): boolean {
   if (typeof result !== 'object' || result === null) return false;
   const keys = Object.keys(result);
@@ -96,12 +77,8 @@ export function isLoadConfigResponse(result: unknown): boolean {
 }
 
 /**
- * The checks this script runs. `intake-order`'s predicate depends on `fresh`: with it (CI, which
- * always starts from an empty database), only `isFreshIntakeResponse` counts, so a bug that made
- * `Record order` never return its row — and so every order read as a duplicate — fails loudly
- * instead of passing on CI's own fresh database. Without it (a local re-run against a stack that
- * already recorded this fixture's order), either shape is accepted, since a duplicate response is
- * the correct, expected outcome there.
+ * With `fresh` (CI's empty database), only the fresh shape passes, so a bug that made every order
+ * read as a duplicate fails. Without it, a local re-run may also get the duplicate shape.
  */
 export function checksFor({ fresh }: { fresh: boolean }): readonly { target: string; input: unknown; isExpected: (result: unknown) => boolean }[] {
   return [
