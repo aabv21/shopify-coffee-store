@@ -129,7 +129,7 @@ The storefront is Shopify's free Horizon theme at a pinned commit (`HORIZON` in 
 - **Test data** uses `example.com` emails, the `5700000000` phone prefix, and invented names. No contact details anywhere.
 - **English everywhere** — store content, code, docs, keys, default strings, and sheet headers. Spanish appears only in `theme-locales/es*.json`, `data/brewing-guides.json`'s `translations.es`, and the `{ en, es }` message tables of the email Code nodes.
 - **Database roles.** n8n's Postgres node connects only as `app_runtime` (`SELECT, INSERT` on `orders`). The superuser and `$APP_DB_USER` are never configured in the n8n container, and neither database owner can reach the other's database. See `docs/database.md`.
-- **n8n is pinned to `2.45.6`.** Never move to an unstable `3.x` tag. Dependabot skips minor and major `n8nio/n8n` bumps, because beta and stable releases share plain semver tags.
+- **n8n is pinned to the `2.45` line, by digest: patch releases arrive through Dependabot once CI's `n8n` job passes on them, and `tests/runtime.test.ts` rejects any other line.** Never move to an unstable `3.x` tag. Dependabot skips minor and major `n8nio/n8n` bumps, because beta and stable releases share plain semver tags.
 - **The tunnel forwards only the Shopify Trigger's fixed path;** every other path returns 404. Deferred live check through the public URL: `/`, `/rest/login`, `/webhook-test/x`, `/webhook/dev/x`, and `//webhook/x` each return 404.
 - **The dev harness is localhost-only** (`X-Dev-Token`, credential `nbcCredDevToken1`, env `DEV_HARNESS_TOKEN`) and has no public route, by the tunnel policy. It calls its target with no retry. `pnpm run setup` publishes it, so unpublish it by hand before any production use.
 - **Calling `intake-order` through the harness also starts `process-order`**, which reaches Google Sheets, Gmail, and Shopify. `check-dev-response.ts` refuses when such a credential exists; before running `node scripts/dev-call.ts intake-order` by hand, check the same way, or a stack wired to real accounts sends real emails and writes a real sheet row.
@@ -193,6 +193,13 @@ The supply-chain test goes red at step 1 on purpose, as the reminder for step 3;
 **CI** installs with `pnpm/setup` (pinned by SHA), `actions/setup-node` with `cache: pnpm`, `pnpm install --frozen-lockfile`, then `pnpm audit --audit-level=high`. Its own `docker run` images (`koalaman/shellcheck`, `zricethezav/gitleaks`, `rhysd/actionlint`) are digest-pinned too, and zizmor installs from `.github/zizmor-requirements.txt` with `--require-hashes`. Dependabot doesn't track `run:` lines, so bump these by hand, re-resolving the digest or hashes in the same PR. `docs/testing.md` "What CI runs" covers each job, including the `n8n` job that boots the stack.
 
 **Dependabot** adds a 7-day cooldown to every ecosystem: `npm` (which covers the pnpm lockfile) gets 14 days for major and 7 for minor and patch; `docker-compose` and `github-actions`, with no semver convention, get a flat 7. Every version PR is therefore already past pnpm's 3-day gate. Security updates skip the cooldown.
+
+## Branches and pull requests
+
+- `main` holds released code and is the default branch; `develop` is the integration branch. Both take changes only through a pull request with CI green, and repository rulesets block direct pushes, force pushes, and deletion.
+- Work on a short-lived branch from `develop` (`feat/…`, `fix/…`, `docs/…`, `chore/…`) and open the pull request into `develop`, titled in Conventional Commits form. It's squash-merged, so the title becomes the commit.
+- A release is a pull request from `develop` into `main`, merged with a merge commit, then tagged `vX.Y.Z` with a GitHub release.
+- Dependabot opens its pull requests against `develop`.
 
 ## Definition of done
 

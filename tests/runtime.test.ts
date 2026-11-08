@@ -9,7 +9,8 @@ const service = (name: string): string =>
   compose.split(/^ {2}(?=[a-z][\w-]*:$)/m).find((block) => block.startsWith(`${name}:`)) ?? '';
 
 test('images are pinned', () => {
-  expect(service('n8n')).toContain('image: n8nio/n8n:2.45.6');
+  // Patches on the 2.45 line arrive through Dependabot; a minor or major move is a deliberate change.
+  expect(service('n8n')).toMatch(/image: n8nio\/n8n:2\.45\.\d+@sha256:[0-9a-f]{64}/);
   expect(service('postgres')).toContain('image: postgres:17-alpine');
 });
 test('n8n never sees the Postgres superuser', () => {
