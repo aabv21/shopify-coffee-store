@@ -194,6 +194,13 @@ The supply-chain test goes red at step 1 on purpose, as the reminder for step 3;
 
 **Dependabot** adds a 7-day cooldown to every ecosystem: `npm` (which covers the pnpm lockfile) gets 14 days for major and 7 for minor and patch; `docker-compose` and `github-actions`, with no semver convention, get a flat 7. Every version PR is therefore already past pnpm's 3-day gate. Security updates skip the cooldown.
 
+## Branches and pull requests
+
+- `main` holds released code and is the default branch; `develop` is the integration branch. Both take changes only through a pull request with CI green, and repository rulesets block direct pushes, force pushes, and deletion.
+- Work on a short-lived branch from `develop` (`feat/…`, `fix/…`, `docs/…`, `chore/…`) and open the pull request into `develop`, titled in Conventional Commits form. It's squash-merged, so the title becomes the commit.
+- A release is a pull request from `develop` into `main`, merged with a merge commit, then tagged `vX.Y.Z` with a GitHub release.
+- Dependabot opens its pull requests against `develop`.
+
 ## Definition of done
 
 - `pnpm run typecheck && pnpm run lint && pnpm test && pnpm run build:workflows -- --check && pnpm run check && pnpm run build:theme -- --check && pnpm run theme:check` all pass locally — run this full gate before every commit that touches TypeScript.
