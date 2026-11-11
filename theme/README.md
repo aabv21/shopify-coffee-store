@@ -288,7 +288,9 @@ translation, so COP keeps Colombia's separators in both languages.
 
 **Product content** (titles, tasting notes, variant names, image alt text) is store data, not theme
 text. It's translated in Shopify's Translate & Adapt app, a deferred live check below; until then a
-Spanish storefront shows those in English.
+Spanish storefront shows those in English. Don't translate the Roast or Brew method metafields:
+the coffee finder compares their values with fixed English keys (`light`, `pour-over`, …), so a
+translated value never matches and the Spanish storefront stops recommending anything.
 
 **Adding a language.** Add `theme-locales/<code>.json` and `<code>.schema.json` (IETF tag, such as
 `pt-BR`), give them every key the English files have, switch that locale's insertion in
@@ -511,3 +513,7 @@ These need a dev store with Spanish published as a second language (Settings > L
   Spanish labels from `es.schema.json`.
 - **Product content.** Translate & Adapt translates each product's title, tasting notes, and image
   alt text, and `/es` shows them in the finder's cards.
+- **Language selector:** the header selector switches `/` to `/es` and back.
+- **Finder after Translate & Adapt:** on `/es`, "Pour-over / Suave y brillante / Solo yo" still
+  shows one card, with Nariño's translated title. Translate & Adapt lists no Spanish value for Roast
+  or Brew method.

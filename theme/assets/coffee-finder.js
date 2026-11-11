@@ -93,17 +93,22 @@ function parseProduct(value) {
   if (!Array.isArray(v.variants)) return null;
   const variants = v.variants.map(parseVariant).filter((variant) => variant !== null);
   if (variants.length === 0) return null;
-  const image = typeof v.image === "object" && v.image !== null && "src" in v.image && "alt" in v.image ? { src: String(v.image.src), alt: String(v.image.alt) } : null;
   return {
     id: v.id,
     title: v.title,
     url: typeof v.url === "string" ? v.url : "",
-    image,
+    image: parseImage(v.image),
     roast: typeof v.roast === "string" ? v.roast : null,
     brewMethod: typeof v.brewMethod === "string" ? v.brewMethod : null,
     tastingNotes: typeof v.tastingNotes === "string" ? v.tastingNotes : null,
     variants
   };
+}
+function parseImage(value) {
+  if (typeof value !== "object" || value === null) return null;
+  const { src, alt } = value;
+  if (typeof src !== "string" || src === "") return null;
+  return { src, alt: typeof alt === "string" ? alt : "" };
 }
 function parseProducts(data) {
   if (!Array.isArray(data)) return [];
