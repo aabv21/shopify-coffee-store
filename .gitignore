@@ -5,6 +5,7 @@ config/*
 node_modules/
 .n8n-import/
 .theme-build/
+.lighthouse/
 coverage/
 .DS_Store
 docs/diagrams/*.delivery.json

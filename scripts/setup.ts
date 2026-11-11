@@ -1,4 +1,4 @@
-import { checkConfigFile } from './check-config.ts';
+import { assertSameStore, checkConfigFile } from './check-config.ts';
 import { migrate } from './db-migrate.ts';
 import { loadDotEnv } from './lib/compose.ts';
 import { parseRefreshIds, setupCredentials } from './setup-credentials.ts';
@@ -13,10 +13,11 @@ async function main(): Promise<void> {
   const refresh = parseRefreshIds(args);
 
   // A bad config.json would reach every workflow, so stop before touching anything.
-  checkConfigFile(CONFIG_PATH);
+  const config = checkConfigFile(CONFIG_PATH);
   console.log('config OK');
 
   loadDotEnv();
+  assertSameStore(config.shopify.store, process.env.SHOPIFY_STORE);
   await migrate();
   await setupCredentials({ refresh });
   await importWorkflows({ live });

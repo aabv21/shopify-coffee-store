@@ -32,6 +32,8 @@ Go to **Settings > Custom data > Products > Add definition**, and create one tex
 
 For `roast` and `brew_method`, add each choice under **Validation > Choices** so the admin UI offers a dropdown instead of free text.
 
+Keep these two values in English in every language: see the warning in §10.
+
 ## 4. Import the product catalog
 
 1. Go to **Products > Import**.
@@ -111,6 +113,10 @@ The theme and the emails already speak Spanish; the store needs it published as 
 
 1. In the admin, go to **Settings > Languages**, add **Spanish**, and publish it. The storefront then serves it under `/es`, and the theme's own strings come from `locales/es.json`.
 2. Install Shopify's **Translate & Adapt** app and translate each product's title, tasting notes, and image alt text. These are store data, not theme text, so the theme can't translate them.
-3. Leave the coffee finder's and the free-shipping bar's text settings blank unless the store wants one wording in every language: a blank setting shows each visitor the translated default, and a filled one overrides it everywhere.
+
+   > **Warning:** Don't translate the Roast or Brew method metafields. The coffee finder compares their values with fixed English keys (`light`, `pour-over`, …), so a translated value never matches, and the Spanish storefront stops recommending anything.
+
+3. Horizon's header shows a language selector once a second language is published. It's on by default (**Customize > Header > Language selector**). Visitors reach Spanish through it or under `/es`; Shopify doesn't switch languages on its own.
+4. Leave the coffee finder's and the free-shipping bar's text settings blank unless the store wants one wording in every language: a blank setting shows each visitor the translated default, and a filled one overrides it everywhere.
 
 An order placed in Spanish carries `customer_locale` `es`, so its brewing guide goes out in Spanish. The owner's emails follow `team_locale` in `config/config.json`.

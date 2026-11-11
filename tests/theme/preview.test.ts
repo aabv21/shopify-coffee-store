@@ -1,6 +1,4 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { INSERTIONS, readThemeLocale } from '../../scripts/lib/theme-insertions.ts';
 import {
   createPreviewEngine,
   hoverShift,
@@ -20,23 +18,7 @@ import {
 } from '../../scripts/lib/theme-preview.ts';
 import { parsePreviewArgs, previewPage } from '../../scripts/theme-preview.ts';
 import { parseProducts, readAnswers, recommend } from '../../src/theme/recommend.ts';
-
-const MONEY = '${{amount_no_decimals_with_comma_separator}}';
-const catalog = () => parseCatalog(readFileSync('data/products.csv', 'utf8'));
-const section = readFileSync('theme/sections/coffee-finder.liquid', 'utf8');
-const snippet = readFileSync('theme/snippets/free-shipping-bar.liquid', 'utf8');
-const SNIPPETS = 'theme/snippets';
-// The storefront strings exactly as the insertions add them to en.default.json and es.json.
-const STRINGS = {
-  en: { nubandina: readThemeLocale('en.default.json') },
-  es: { nubandina: readThemeLocale('es.json') },
-} as const;
-const engineFor = (locale: 'en' | 'es' = 'en') =>
-  createPreviewEngine({ moneyFormat: MONEY, assetUrl: (name) => `assets/${name}`, snippetsDir: SNIPPETS, locale, translations: STRINGS[locale] });
-
-// The free-shipping settings exactly as the insertion adds them to settings_schema.json.
-const freeShippingGroup = INSERTIONS.flatMap((i) => (i.kind === 'append-settings-group' ? [i.group] : []));
-const barSettings = resolveSettings(freeShippingGroup, { current: {} });
+import { barSettings, barSnippet as snippet, catalog, engineFor, finderSection as section, MONEY, SNIPPETS, STRINGS } from '../lib/theme-render.ts';
 
 describe('mock catalog', () => {
   it('shapes one product per handle from data/products.csv, with every variant, in cents', () => {

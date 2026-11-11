@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { parseJsonc, stripJsonComments } from './jsonc.ts';
 
@@ -52,11 +53,12 @@ export const BRAND_SETTINGS: readonly SettingChange[] = [
 // One top-level namespace per locale file, so this repo's strings never collide with Horizon's.
 export const LOCALE_NAMESPACE = 'nubandina';
 
-export const THEME_LOCALES_DIR = new URL('../../theme-locales/', import.meta.url);
+// A path, not a URL: DOM test environments replace the global URL with one node:fs rejects.
+export const THEME_LOCALES_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'theme-locales');
 
 export function readThemeLocale(file: string): Readonly<Record<string, unknown>> {
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- file is one of theme-locales/'s own fixed names
-  const parsed = JSON.parse(readFileSync(new URL(file, THEME_LOCALES_DIR), 'utf8')) as Record<string, unknown>;
+  const parsed = JSON.parse(readFileSync(join(THEME_LOCALES_DIR, file), 'utf8')) as Record<string, unknown>;
   const strings = new Map(Object.entries(parsed)).get(LOCALE_NAMESPACE);
   if (typeof strings !== 'object' || strings === null || Object.keys(parsed).length !== 1) {
     throw new Error(`theme-locales/${file}: expected exactly one top-level key, ${LOCALE_NAMESPACE}`);
