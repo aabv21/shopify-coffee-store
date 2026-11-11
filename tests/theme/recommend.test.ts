@@ -41,3 +41,7 @@ it('drops malformed product data', () => {
   expect(parseProducts('nope')).toEqual([]);
   expect(parseProducts([{ id: 1, title: 'A', variants: [] }, { title: 'no id', variants: [{ id: 2 }] }])).toEqual([]);
 });
+it("a null alt text becomes an empty string, never 'null'", () =>
+  expect(parseProducts([{ id: 1, title: 'A', image: { src: '/a.jpg', alt: null }, variants: [{ id: 2 }] }])[0]?.image).toEqual({ src: '/a.jpg', alt: '' }));
+it('an image without a string src is dropped', () =>
+  expect(parseProducts([{ id: 1, title: 'A', image: { src: null, alt: 'x' }, variants: [{ id: 2 }] }])[0]?.image).toBeNull());
