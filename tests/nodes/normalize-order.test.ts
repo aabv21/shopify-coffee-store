@@ -5,7 +5,7 @@ import { fx } from '../lib/orders.ts';
 it('normalizes an order with two coffees', () => expect(run(fx('two-methods'))).toEqual({
   order_id: '7000000004', order_number: '#T1004', created_at: '2026-11-04T15:20:00-05:00',
   email: 'pedro.diaz@example.com', first_name: 'Pedro', customer_name: 'Pedro Diaz', city: 'Barranquilla',
-  locale: 'en', currency: 'COP', subtotal: 84000, shipping: 12000, total: 96000, free_shipping: false,
+  locale: 'en', customer_id: '8000000002', accepts_marketing: true, currency: 'COP', subtotal: 84000, shipping: 12000, total: 96000, free_shipping: false,
   lines: [
     { variant_id: '1001', variant_gid: 'gid://shopify/ProductVariant/1001', product_title: 'Nariño', variant_title: '250 g', sku: 'NBC-NAR-250', quantity: 1 },
     { variant_id: '3001', variant_gid: 'gid://shopify/ProductVariant/3001', product_title: 'Sierra Nevada', variant_title: '250 g', sku: 'NBC-SNV-250', quantity: 1 },
@@ -95,4 +95,15 @@ it('throws when a shipping line price is null or empty', () => {
     .toThrow('Order payload has an invalid amount');
   expect(() => run({ ...fx('below-threshold'), total_shipping_price_set: {}, shipping_lines: [{ title: 'Standard shipping', price: '' }] }))
     .toThrow('Order payload has an invalid amount');
+});
+it('carries the Shopify customer id and marketing consent', () => {
+  expect(run(fx('below-threshold'))).toMatchObject({ customer_id: '8000000001', accepts_marketing: false });
+  expect(run(fx('two-methods'))).toMatchObject({ customer_id: '8000000002', accepts_marketing: true });
+});
+it('a guest order has no customer id and no consent', () =>
+  expect(run(fx('guest-no-email'))).toMatchObject({ customer_id: null, accepts_marketing: false }));
+it('counts only an explicit true as marketing consent', () => {
+  for (const value of [false, null, undefined, 'true', 1]) {
+    expect(run({ ...fx('two-methods'), buyer_accepts_marketing: value as boolean | null }).accepts_marketing).toBe(false);
+  }
 });

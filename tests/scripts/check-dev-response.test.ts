@@ -17,6 +17,7 @@ const EXPECTED_CONFIG = {
   guide_delay_minutes: 60,
   default_locale: 'en',
   team_locale: 'en',
+  reorder_reminder_days: 21,
 };
 
 const FRESH_ORDER = {
@@ -173,5 +174,14 @@ describe('isDuplicateIntakeResponse', () => {
     expect(isDuplicateIntakeResponse(null)).toBe(false);
     expect(isDuplicateIntakeResponse([])).toBe(false);
     expect(isDuplicateIntakeResponse('x')).toBe(false);
+  });
+});
+
+describe('the cancellation check', () => {
+  it('an unknown cancellation stops at the gate', () => {
+    const check = checksFor({ fresh: true }).find((c) => c.target === 'cancel-order');
+    expect(check?.input).toMatchObject({ admin_graphql_api_id: 'gid://shopify/Order/9999999999999', name: '#CHECK' });
+    expect(check?.isExpected({ success: true })).toBe(true);
+    expect(check?.isExpected({ order_id: '9999999999999' })).toBe(false);
   });
 });

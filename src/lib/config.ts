@@ -17,10 +17,13 @@ export interface Config {
   default_locale: Locale;
   /** The language of every email to the owner: the order summary, low-stock, and error alerts. */
   team_locale: Locale;
+  /** Days after an order, with marketing consent, before the reorder reminder; 21 when absent. */
+  reorder_reminder_days: number;
 }
 
 // A config written before these keys existed keeps working, in English.
 const LOCALE_DEFAULT: Locale = 'en';
+const REORDER_REMINDER_DAYS_DEFAULT = 21;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SHOPIFY_STORE_RE = /^[a-z0-9][a-z0-9-]*$/;
@@ -51,7 +54,7 @@ function readLocale(path: string, value: unknown): Locale {
   return value;
 }
 
-/** Throws an `Error` naming the first bad key. A missing locale key is filled in as `en`. */
+/** Throws an `Error` naming the first bad key. A missing locale key is filled in as `en`, and a missing `reorder_reminder_days` as 21. */
 export function validateConfig(value: unknown): Config {
   const root = asObject(value, 'config');
 
@@ -76,6 +79,7 @@ export function validateConfig(value: unknown): Config {
 
   const defaultLocale = readLocale('default_locale', root.default_locale);
   const teamLocale = readLocale('team_locale', root.team_locale);
-  if (root.default_locale !== undefined && root.team_locale !== undefined) return value as Config;
-  return { ...(root as unknown as Config), default_locale: defaultLocale, team_locale: teamLocale };
+  if (root.reorder_reminder_days !== undefined) requireIntegerAtLeast('reorder_reminder_days', root.reorder_reminder_days, 1);
+  const reminderDays = root.reorder_reminder_days === undefined ? REORDER_REMINDER_DAYS_DEFAULT : (root.reorder_reminder_days as number);
+  return { ...(root as unknown as Config), default_locale: defaultLocale, team_locale: teamLocale, reorder_reminder_days: reminderDays };
 }

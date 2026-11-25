@@ -10,11 +10,11 @@ This repo builds the order-processing backend for Nubandina Coffee, a fictional 
 
 - `compose.yaml`, `compose.queue.yaml`, `.env.example`: the local runtime (Postgres, n8n, optional ngrok tunnel, optional queue mode).
 - `db/`: the baseline schema, the one-time role bootstrap, and numbered idempotent `migrations/`.
-- `ngrok/traffic-policy.yml`: the tunnel's policy; it forwards only the Shopify Trigger's fixed path.
+- `ngrok/traffic-policy.yml`: the tunnel's policy; it forwards only the two Shopify Triggers' fixed paths.
 - `config/config.example.json`: the config template. `config/config.json` is gitignored; `src/lib/config.ts` validates it.
 - `data/`: `products.csv` (the Shopify import) and `brewing-guides.json` (English, with Spanish under `translations.es`).
-- `workflows/`: the n8n workflow JSON, mounted read-only: `shopify-orders`, `intake-order`, `process-order`, `load-config`, `error-handler`, `dev-harness`.
-- `scripts/lib/manifest.ts`: the single source of truth for fixed IDs (`WORKFLOWS`, `CREDENTIALS`, `CODE_NODES`, `TRIGGER_WEBHOOK_ID`).
+- `workflows/`: the n8n workflow JSON, mounted read-only: `shopify-orders`, `intake-order`, `process-order`, `shopify-cancellations`, `cancel-order`, `reorder-reminder`, `load-config`, `error-handler`, `dev-harness`.
+- `scripts/lib/manifest.ts`: the single source of truth for fixed IDs (`WORKFLOWS`, `CREDENTIALS`, `CODE_NODES`, `TRIGGER_WEBHOOK_ID`, `CANCEL_TRIGGER_WEBHOOK_ID`).
 - `scripts/`: the CLIs behind Commands. `scripts/lib/` holds their shared helpers and the theme toolchain. In it, `theme-preview.ts`, `catalog.ts`, `color.ts` and `preview-css.ts` are the offline preview, and `theme-insertions.data.ts` is the data `theme-insertions.ts` applies.
 - `src/nodes/`: Code-node sources; `email-shell.ts` is the branded HTML wrapper the emails share. `src/theme/`: the theme's TypeScript. `src/lib/`: shared pure helpers.
 - `theme/`: the overlay onto Shopify's Horizon theme. `theme-locales/`: the theme's translation sources.
@@ -88,7 +88,8 @@ Details for each: [`docs/operations.md`](docs/operations.md).
 23. Every theme string is a `nubandina.*` key in both storefront locales.
 24. Never commit `.env`, `config/config.json`, or a `docs/diagrams/*.delivery.json` receipt.
 25. A change to a component's look retakes its `docs/screenshots/` from the offline preview (`pnpm run theme:preview`; see [`docs/operations.md`](docs/operations.md)).
-26. A deliberate simplification gets one `NOTE:` comment naming its ceiling and its upgrade path.
+26. The reorder reminder goes out only when `buyer_accepts_marketing` is true; the brewing guide is part of the order.
+27. A deliberate simplification gets one `NOTE:` comment naming its ceiling and its upgrade path.
 
 Conventions behind these: Node 24 and ESM, strict TypeScript with native type stripping (no `.js` source, no build step), CLIs that call programs with an argument array and guard their entry point, and comments only where intent isn't obvious.
 

@@ -133,6 +133,34 @@ function parseProducts(data) {
   return products;
 }
 
+// src/theme/cart-add.ts
+async function addToCart(variantId, o) {
+  const actions = window.Shopify?.actions;
+  if (actions) {
+    const result = await actions.updateCart(
+      { lines: [{ merchandiseId: variantId, quantity: 1 }] },
+      { event: { context: "standard-action" } }
+    );
+    if (result.userErrors && result.userErrors.length > 0) return { ok: false, warnings: [] };
+    if (o.openCart) {
+      try {
+        await actions.openCart();
+      } catch (err) {
+        console.warn("cart-add: openCart failed after a successful add", err);
+      }
+    }
+    return { ok: true, warnings: (result.warnings ?? []).map((warning) => warning.message) };
+  }
+  const response = await fetch(`${o.cartAddUrl}.js`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1 }] })
+  });
+  if (!response.ok) return { ok: false, warnings: [] };
+  if (o.openCart) window.location.assign(o.cartUrl);
+  return { ok: true, warnings: [] };
+}
+
 // src/theme/coffee-finder.ts
 var TAG_NAME = "coffee-finder";
 function textOf(root, selector) {
@@ -282,25 +310,13 @@ var CoffeeFinder = class extends HTMLElement {
     status.textContent = "";
     delete status.dataset.state;
     try {
-      const actions = window.Shopify?.actions;
-      if (actions) {
-        const result = await actions.updateCart(
-          { lines: [{ merchandiseId: variantId, quantity: 1 }] },
-          { event: { context: "standard-action" } }
-        );
-        if (result.userErrors && result.userErrors.length > 0) {
-          this.setStatus(status, "error", errorText);
-        } else {
-          this.setStatus(status, "success", this.successText(addedText, result.warnings));
-          try {
-            await actions.openCart();
-          } catch (err) {
-            console.warn("coffee-finder: openCart failed after a successful add", err);
-          }
-        }
-      } else {
-        await this.addViaCartAjax(variantId, status, addedText, errorText);
-      }
+      const result = await addToCart(variantId, {
+        cartAddUrl: this.dataset.cartAddUrl ?? "/cart/add",
+        cartUrl: this.dataset.cartUrl ?? "/cart",
+        openCart: true
+      });
+      if (result.ok) this.setStatus(status, "success", this.successText(addedText, result.warnings));
+      else this.setStatus(status, "error", errorText);
     } catch {
       this.setStatus(status, "error", errorText);
     } finally {
@@ -308,23 +324,7 @@ var CoffeeFinder = class extends HTMLElement {
     }
   }
   successText(addedText, warnings) {
-    if (!warnings || warnings.length === 0) return addedText;
-    return [addedText, ...warnings.map((warning) => warning.message)].join(" ");
-  }
-  async addViaCartAjax(variantId, status, addedText, errorText) {
-    const cartAddUrl = this.dataset.cartAddUrl ?? "/cart/add";
-    const cartUrl = this.dataset.cartUrl ?? "/cart";
-    const response = await fetch(`${cartAddUrl}.js`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1 }] })
-    });
-    if (response.ok) {
-      this.setStatus(status, "success", addedText);
-      window.location.assign(cartUrl);
-    } else {
-      this.setStatus(status, "error", errorText);
-    }
+    return warnings.length === 0 ? addedText : [addedText, ...warnings].join(" ");
   }
 };
 if (!customElements.get(TAG_NAME)) customElements.define(TAG_NAME, CoffeeFinder);

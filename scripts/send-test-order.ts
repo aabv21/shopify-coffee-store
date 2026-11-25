@@ -4,7 +4,7 @@ import { createHmac } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { loadDotEnv } from './lib/compose.ts';
-import { TRIGGER_WEBHOOK_ID } from './lib/manifest.ts';
+import { CANCEL_TRIGGER_WEBHOOK_ID, TRIGGER_WEBHOOK_ID } from './lib/manifest.ts';
 import type { ShopifyOrderPayload } from '../src/nodes/types.ts';
 
 const ORDER_ID_RE = /^\d+$/;
@@ -30,12 +30,12 @@ export interface WebhookRequest {
 }
 
 /** `tamper` changes the body after signing, so the signature no longer matches what's sent. */
-export function buildWebhookRequest(o: { body: string; secret: string; store: string; tamper: boolean }): WebhookRequest {
+export function buildWebhookRequest(o: { body: string; secret: string; store: string; tamper: boolean; topic: 'orders/create' | 'orders/cancelled' }): WebhookRequest {
   const signature = signShopifyBody(o.body, o.secret);
   return {
     headers: {
       'Content-Type': 'application/json',
-      'X-Shopify-Topic': 'orders/create',
+      'X-Shopify-Topic': o.topic,
       'X-Shopify-Hmac-Sha256': signature,
       'X-Shopify-Shop-Domain': `${o.store}.myshopify.com`,
       'X-Shopify-API-Version': API_VERSION,
@@ -44,9 +44,9 @@ export function buildWebhookRequest(o: { body: string; secret: string; store: st
   };
 }
 
-/** The Shopify Trigger's fixed webhook path. */
-export function webhookUrl(n8nUrl: string): string {
-  return `${n8nUrl}/webhook/${TRIGGER_WEBHOOK_ID}/webhook`;
+/** A Shopify Trigger's fixed webhook path: the order trigger's by default, or the cancellation trigger's. */
+export function webhookUrl(n8nUrl: string, webhookId: string = TRIGGER_WEBHOOK_ID): string {
+  return `${n8nUrl}/webhook/${webhookId}/webhook`;
 }
 
 function readFlagValue(argv: readonly string[], index: number, flag: string): string {
@@ -55,10 +55,11 @@ function readFlagValue(argv: readonly string[], index: number, flag: string): st
   return value;
 }
 
-export function parseArgs(argv: readonly string[]): { fixture: string; orderId: string; tamper: boolean } {
-  let fixture = 'below-threshold';
+export function parseArgs(argv: readonly string[]): { fixture: string; orderId: string; tamper: boolean; cancel: boolean } {
+  let fixture: string | undefined;
   let orderId = String(Date.now());
   let tamper = false;
+  let cancel = false;
   for (let i = 0; i < argv.length; i += 1) {
     // eslint-disable-next-line security/detect-object-injection -- i walks argv's own indices, not user-controlled keys
     const arg = argv[i];
@@ -71,12 +72,14 @@ export function parseArgs(argv: readonly string[]): { fixture: string; orderId: 
       i += 1;
     } else if (arg === '--tamper') {
       tamper = true;
+    } else if (arg === '--cancel') {
+      cancel = true;
     } else {
       throw new Error(`unknown argument: ${arg}`);
     }
   }
   if (!ORDER_ID_RE.test(orderId)) throw new Error('--order-id must be all digits');
-  return { fixture, orderId, tamper };
+  return { fixture: fixture ?? (cancel ? 'cancelled' : 'below-threshold'), orderId, tamper, cancel };
 }
 
 /** The path to a fixture order, throwing a clear message instead of letting a typo surface as an ENOENT. */
@@ -94,16 +97,16 @@ async function main(): Promise<void> {
   const secret = process.env.SHOPIFY_CLIENT_SECRET;
   if (!n8nUrl || !store || !secret) throw new Error('N8N_URL, SHOPIFY_STORE, and SHOPIFY_CLIENT_SECRET must all be set in .env');
 
-  const { fixture, orderId, tamper } = parseArgs(process.argv.slice(2));
+  const { fixture, orderId, tamper, cancel } = parseArgs(process.argv.slice(2));
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- path comes from fixturePath, which only ever reads under tests/fixtures/orders/
   const raw = JSON.parse(readFileSync(fixturePath(fixture), 'utf8')) as ShopifyOrderPayload;
   const order = buildTestOrder(raw, orderId);
   const body = JSON.stringify(order);
 
-  const request = buildWebhookRequest({ body, secret, store, tamper });
+  const request = buildWebhookRequest({ body, secret, store, tamper, topic: cancel ? 'orders/cancelled' : 'orders/create' });
   console.log(`order id: ${orderId}`);
 
-  const res = await fetch(webhookUrl(n8nUrl), { method: 'POST', headers: request.headers, body: request.body });
+  const res = await fetch(webhookUrl(n8nUrl, cancel ? CANCEL_TRIGGER_WEBHOOK_ID : TRIGGER_WEBHOOK_ID), { method: 'POST', headers: request.headers, body: request.body });
   console.log(`HTTP ${String(res.status)}: ${await res.text()}`);
 }
 

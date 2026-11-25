@@ -21,7 +21,7 @@ Run `docker compose ls` first. Every demo in this series binds `127.0.0.1:5678`,
 1. It validates the config and stops on a bad one, or on a `SHOPIFY_STORE` that names a different store.
 2. It runs `db:migrate`.
 3. It imports credentials. It skips one with blank `.env` values, and one that already exists unless `--refresh <id>` names it (repeatable), because re-importing drops an interactive Google sign-in.
-4. It publishes the workflows. It skips a workflow not yet in `workflows/`. A workflow marked `liveTrigger` (`shopify-orders`) is published only with `--live`, so running `setup` again without it, after a live publish, takes live order intake offline.
+4. It publishes the workflows. It skips a workflow not yet in `workflows/`. A workflow marked `liveTrigger` (`shopify-orders` and `shopify-cancellations`) is published only with `--live`, so running `setup` again without it, after a live publish, takes live order intake offline.
 5. It restarts n8n when it published something, then waits out the reconciler.
 
 `pnpm run export` writes n8n's canonical form of every known workflow back to `workflows/` and regenerates the Code nodes. Run it after editing in the n8n UI, and commit the result.
@@ -46,7 +46,7 @@ n8n's `import:workflow`, `export:workflow`, `import:credentials`, `export:creden
 
 ## Calling the stack by hand
 
-**`node scripts/dev-call.ts <target> '<json>'`** calls the dev harness (`POST {N8N_URL}/webhook/dev`, which needs `DEV_HARNESS_TOKEN`). The targets are `load-config` (`'{}'`) and `intake-order`, which takes a raw order fixture and runs the chain behind the trigger, bypassing the HMAC check:
+**`node scripts/dev-call.ts <target> '<json>'`** calls the dev harness (`POST {N8N_URL}/webhook/dev`, which needs `DEV_HARNESS_TOKEN`). The targets are `load-config` (`'{}'`), `intake-order`, which takes a raw order fixture and runs the chain behind the trigger, bypassing the HMAC check, and `cancel-order`, which takes a raw `orders/cancelled` payload:
 
 ```sh
 node scripts/dev-call.ts intake-order "$(cat tests/fixtures/orders/below-threshold.json)"
@@ -54,14 +54,14 @@ node scripts/dev-call.ts intake-order "$(cat tests/fixtures/orders/below-thresho
 
 An unknown target answers 404. The routes and statuses are in [`architecture.md`](architecture.md#http-surface). Calling `intake-order` also starts `process-order`, which reaches Google Sheets, Gmail, and Shopify. Check first that no such credential exists, or a stack wired to real accounts sends real emails and writes a real sheet row.
 
-**`pnpm run send-test-order [-- --fixture <name>] [--order-id <digits>] [--tamper]`** signs a fixture exactly as Shopify signs `orders/create` and posts it to the trigger's real path, which exercises the HMAC check the dev harness bypasses. It reads `N8N_URL`, `SHOPIFY_STORE`, and `SHOPIFY_CLIENT_SECRET` from `.env` and never prints them. The defaults are `below-threshold` and the current timestamp. `--tamper` changes the body after signing. It needs `shopify-orders` published with `--live`.
+**`pnpm run send-test-order [-- --fixture <name>] [--order-id <digits>] [--tamper] [--cancel]`** signs a fixture exactly as Shopify signs `orders/create` and posts it to the trigger's real path, which exercises the HMAC check the dev harness bypasses. It reads `N8N_URL`, `SHOPIFY_STORE`, and `SHOPIFY_CLIENT_SECRET` from `.env` and never prints them. The defaults are `below-threshold` and the current timestamp. `--tamper` changes the body after signing. `--cancel` signs the `cancelled` fixture as `orders/cancelled` and posts it to the cancellation trigger's path, with the same `#T<digits>` order number the order got, so `--order-id` picks which test order it cancels; send the order first with the same `--order-id`. It needs `shopify-orders`, or with `--cancel` `shopify-cancellations`, published with `--live`.
 
 **`pnpm run shopify:token [-- --client-credentials]`** gets the Admin API token for n8n's Shopify credential and writes `SHOPIFY_ACCESS_TOKEN` into `.env` at mode 0600. The default authorization code grant gives an offline token that doesn't expire. `--client-credentials`, for a same-organization dev store, gives a 24 h token, so re-run it daily, then `pnpm run setup -- --refresh nbcCredShopify01 --live`. See [`shopify-setup.md`](shopify-setup.md) under "Admin API access".
 
 ## Checks that need the stack
 
-- **`node scripts/check-db.ts`** proves `app_runtime`'s denials, its exact grant, the role facts, the one workflow statement (rolled back), and the migration ledger. It prints `ok` or `FAIL` per check and exits 1 on any failure. See [`database.md`](database.md) under "Proving it".
-- **`node scripts/check-dev-response.ts [--fresh]`** refuses to run if a Google, Gmail, or Shopify credential exists in n8n. Otherwise it calls the harness's `load-config` and `intake-order` targets and asserts each response's shape, exiting 1 on a mismatch. `--fresh` (CI) accepts only the fresh-call shape, so a bug that makes every order a duplicate fails.
+- **`node scripts/check-db.ts`** proves `app_runtime`'s denials, its exact grant, the role facts, the four workflow statements (rolled back), and the migration ledger. It prints `ok` or `FAIL` per check and exits 1 on any failure. See [`database.md`](database.md) under "Proving it".
+- **`node scripts/check-dev-response.ts [--fresh]`** refuses to run if a Google, Gmail, or Shopify credential exists in n8n. Otherwise it calls the harness's `load-config`, `intake-order`, and `cancel-order` targets and asserts each response's shape (the cancellation is for an order the store never recorded, so it must stop at the gate), exiting 1 on a mismatch. `--fresh` (CI) accepts only the fresh-call shape, so a bug that makes every order a duplicate fails.
 - **`pnpm run check:config`** runs `validateConfig` against `config/config.json` and prints `config OK` or the first error.
 - **`pnpm run check`** runs the hygiene checks on every workflow (`scripts/check-workflows.ts`). They cover pinned data, `meta.instanceId`, required settings (including `errorWorkflow: nbcErrorHandler1` everywhere except `error-handler` and `load-config`), literal emails, phones, long IDs, and secrets, unknown credential IDs, hand-written or undocumented Code nodes, missing retries, Postgres queries built from expressions or with `$n` inside a SQL comment, and a missing sticky note. `node scripts/check-workflows.ts <dir>` checks any directory.
 

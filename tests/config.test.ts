@@ -12,6 +12,7 @@ it('config example has every runtime key', () => {
     guide_delay_minutes: 60,
     default_locale: 'en',
     team_locale: 'en',
+    reorder_reminder_days: 21,
   });
 });
 

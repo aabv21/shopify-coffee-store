@@ -42,3 +42,22 @@ export function workflowQuery(file: string, node: string): string {
   if (query === undefined) throw new Error(`${file}: no "${node}" node with a query`);
   return query;
 }
+
+/** `cancel-order` › `Record cancellation`: records a cancellation once, and only for an order the store recorded. */
+export const CANCELLATION_SQL = `INSERT INTO order_cancellations (order_id)
+SELECT $1::text
+WHERE EXISTS (SELECT 1 FROM orders WHERE order_id = $1::text)
+ON CONFLICT (order_id) DO NOTHING RETURNING order_id;
+`;
+
+/** `process-order` and `reorder-reminder` › `Check order status`: cancelled, reordered by the same customer, and still recorded (an erased order is not). */
+export const ORDER_STATUS_SQL = `SELECT
+  EXISTS (SELECT 1 FROM order_cancellations WHERE order_id = $1) AS cancelled,
+  EXISTS (
+    SELECT 1 FROM orders this_order
+    JOIN orders later ON later.customer_id = this_order.customer_id AND later.received_at > this_order.received_at
+    WHERE this_order.order_id = $1
+      AND NOT EXISTS (SELECT 1 FROM order_cancellations c WHERE c.order_id = later.order_id)
+  ) AS reordered,
+  EXISTS (SELECT 1 FROM orders WHERE order_id = $1) AS recorded;
+`;

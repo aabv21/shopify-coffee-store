@@ -115,6 +115,31 @@ export const INSERTIONS: readonly Insertion[] = [
           label: 't:nubandina.free_shipping_bar.progress_label',
           info: 't:nubandina.free_shipping_bar.blank_info',
         },
+        { type: 'checkbox', id: 'free_shipping_suggestion_enabled', label: 't:nubandina.free_shipping_bar.suggestion_enabled', default: true },
+        {
+          type: 'collection',
+          id: 'free_shipping_suggestion_collection',
+          label: 't:nubandina.free_shipping_bar.suggestion_collection',
+          info: 't:nubandina.free_shipping_bar.suggestion_collection_info',
+        },
+        {
+          type: 'text',
+          id: 'free_shipping_suggestion_message',
+          label: 't:nubandina.free_shipping_bar.suggestion_message',
+          info: 't:nubandina.free_shipping_bar.suggestion_message_info',
+        },
+        {
+          type: 'text',
+          id: 'free_shipping_suggestion_add_label',
+          label: 't:nubandina.free_shipping_bar.suggestion_add_label',
+          info: 't:nubandina.free_shipping_bar.blank_info',
+        },
+        {
+          type: 'text',
+          id: 'free_shipping_suggestion_error',
+          label: 't:nubandina.free_shipping_bar.suggestion_error',
+          info: 't:nubandina.free_shipping_bar.blank_info',
+        },
         { type: 'checkbox', id: 'reassurance_enabled', label: 't:nubandina.free_shipping_bar.reassurance_enabled', default: true },
         {
           type: 'text',

@@ -33,7 +33,10 @@
     "free_shipping_bar": {
       "message_remaining": "Le faltan [amount] para el envío gratis",
       "message_reached": "¡Su pedido tiene envío gratis!",
-      "progress_label": "Progreso hacia el envío gratis"
+      "progress_label": "Progreso hacia el envío gratis",
+      "suggestion_message": "Agregue [product] ([price]) y el envío le sale gratis.",
+      "suggestion_add_label": "Agregar",
+      "suggestion_error": "No pudimos agregarlo. Inténtelo de nuevo."
     },
     "reassurance": "Tostado bajo pedido. Sale en 2 días hábiles."
   }

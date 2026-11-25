@@ -11,9 +11,10 @@ function readWorkflow(path: string): WorkflowJson {
   return JSON.parse(readFileSync(path, 'utf8')) as WorkflowJson;
 }
 
-/** What the runtime role may do, table by table: exactly what `001_runtime_role.sql` grants. */
+/** What the runtime role may do, table by table: exactly what the migrations grant. */
 export const RUNTIME_GRANTS: Readonly<Record<string, readonly string[]>> = {
   orders: ['SELECT', 'INSERT'],
+  order_cancellations: ['SELECT', 'INSERT'],
 };
 
 /** Only the expected denial passes: a success, or psql failing for another reason, does not. */
@@ -87,7 +88,10 @@ const PROBE_ORDER_ID = 'check-db-probe';
 
 /** One set of values per workflow statement. The whole run is rolled back, so the values never persist. */
 export const PROBES: readonly Probe[] = [
-  { file: 'intake-order.json', node: 'Record order', params: [PROBE_ORDER_ID, '#check-db-probe'] },
+  { file: 'intake-order.json', node: 'Record order', params: [PROBE_ORDER_ID, '#check-db-probe', '8000000001'] },
+  { file: 'cancel-order.json', node: 'Record cancellation', params: [PROBE_ORDER_ID] },
+  { file: 'process-order.json', node: 'Check order status', params: [PROBE_ORDER_ID] },
+  { file: 'reorder-reminder.json', node: 'Check order status', params: [PROBE_ORDER_ID] },
 ];
 
 const label = (s: { file: string; node: string }): string => `${s.file} › ${s.node}`;

@@ -58,7 +58,7 @@
       "id": "orders",
       "type": "database",
       "label": "orders table",
-      "sublabel": "id, number, time",
+      "sublabel": "id, number, customer id",
       "stage": 2,
       "row": 0,
       "tag": "kept"
@@ -85,7 +85,7 @@
       "id": "customer",
       "type": "external",
       "label": "Customer Gmail",
-      "sublabel": "brewing guide",
+      "sublabel": "guide, reminder",
       "stage": 3,
       "row": 1,
       "tag": "escaped"
@@ -121,7 +121,7 @@
       "id": "f-orders",
       "from": "workflows",
       "to": "orders",
-      "label": "id, number, time",
+      "label": "id, number, customer id",
       "classification": "kept",
       "variant": "emphasis",
       "fromSide": "top",
@@ -184,14 +184,15 @@
       "title": "Personal data",
       "items": [
         "The full payload, with name, email, and address, lives only in n8n's executions for 168 hours",
-        "The sheet keeps the name and city, never the email"
+        "The sheet keeps the name and city, never the email",
+        "The reminder email goes only to a customer who agreed to marketing, and carries no data beyond the bags ordered"
       ]
     },
     {
       "dot": "emerald",
       "title": "What is kept",
       "items": [
-        "The orders table keeps the id, number, and time until someone deletes it",
+        "The orders table keeps the id, number, and Shopify customer id until someone deletes it",
         "The error email carries the failed node, the error text as-is, and the execution link"
       ]
     }

@@ -1,0 +1,341 @@
+{
+  "id": "nbcReorderRemind",
+  "name": "Reorder reminder",
+  "description": null,
+  "nodes": [
+    {
+      "id": "90000000-0000-4000-8000-000000000001",
+      "name": "When called",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -700,
+        260
+      ],
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "order",
+              "type": "object"
+            },
+            {
+              "name": "config",
+              "type": "object"
+            },
+            {
+              "name": "variants",
+              "type": "array"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "90000000-0000-4000-8000-000000000002",
+      "name": "Wait before reminder",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -420,
+        260
+      ],
+      "parameters": {
+        "unit": "days",
+        "amount": "={{ $('When called').first().json.config.reorder_reminder_days }}"
+      }
+    },
+    {
+      "id": "90000000-0000-4000-8000-000000000003",
+      "name": "Check order status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        -140,
+        260
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "nbcCredAppDb0001",
+          "name": "App DB"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT\n  EXISTS (SELECT 1 FROM order_cancellations WHERE order_id = $1) AS cancelled,\n  EXISTS (\n    SELECT 1 FROM orders this_order\n    JOIN orders later ON later.customer_id = this_order.customer_id AND later.received_at > this_order.received_at\n    WHERE this_order.order_id = $1\n      AND NOT EXISTS (SELECT 1 FROM order_cancellations c WHERE c.order_id = later.order_id)\n  ) AS reordered,\n  EXISTS (SELECT 1 FROM orders WHERE order_id = $1) AS recorded;\n",
+        "options": {
+          "queryReplacement": "={{ $('When called').first().json.order.order_id }}",
+          "queryBatching": "independently"
+        }
+      }
+    },
+    {
+      "id": "90000000-0000-4000-8000-000000000004",
+      "name": "Collect reminder input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        140,
+        260
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "90000000-0004-4000-8000-0000000a0001",
+              "name": "order",
+              "type": "object",
+              "value": "={{ $('When called').first().json.order }}"
+            },
+            {
+              "id": "90000000-0004-4000-8000-0000000a0002",
+              "name": "variants",
+              "type": "array",
+              "value": "={{ $('When called').first().json.variants }}"
+            },
+            {
+              "id": "90000000-0004-4000-8000-0000000a0003",
+              "name": "status",
+              "type": "object",
+              "value": "={{ { cancelled: $json.cancelled, reordered: $json.reordered, recorded: $json.recorded } }}"
+            },
+            {
+              "id": "90000000-0004-4000-8000-0000000a0004",
+              "name": "store",
+              "type": "string",
+              "value": "={{ $('When called').first().json.config.shopify.store ?? '' }}"
+            },
+            {
+              "id": "90000000-0004-4000-8000-0000000a0005",
+              "name": "days",
+              "type": "number",
+              "value": "={{ $('When called').first().json.config.reorder_reminder_days }}"
+            },
+            {
+              "id": "90000000-0004-4000-8000-0000000a0006",
+              "name": "default_locale",
+              "type": "string",
+              "value": "={{ $('When called').first().json.config.default_locale ?? '' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "90000000-0000-4000-8000-000000000005",
+      "name": "Build reorder reminder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        260
+      ],
+      "notes": "Why Code: decides consent, cancellation, and reorder in one tested place and renders the branded reminder with a cart link in the customer's language",
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Why Code: decides consent, cancellation, and reorder in one tested place and renders the branded reminder with a cart link in the customer's language. Generated from src/nodes/reorder-reminder.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/reorder-reminder.ts\n  var reorder_reminder_exports = {};\n  __export(reorder_reminder_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var LOCALES = [\"en\", \"es\"];\n  function isLocale(value) {\n    return typeof value === \"string\" && LOCALES.includes(value);\n  }\n  function normalizeLocale(value, fallback) {\n    if (typeof value !== \"string\") return fallback;\n    const language = value.trim().toLowerCase().split(/[-_]/)[0];\n    return isLocale(language) ? language : fallback;\n  }\n  function messagesFor(table, raw, fallback = \"en\") {\n    return table[normalizeLocale(raw, fallback)];\n  }\n\n  // src/nodes/email-shell.ts\n  var EMAIL_COLORS = { background: \"#FBF7F2\", text: \"#2B1B12\", accent: \"#7C2D12\", muted: \"#6B5B4E\" };\n  var STORE_RE = /^[a-z0-9][a-z0-9-]*$/;\n  function storeUrl(store, locale) {\n    if (!STORE_RE.test(store)) return null;\n    return `https://${store}.myshopify.com/${locale === \"en\" ? \"\" : locale}`;\n  }\n  var ESCAPE_RE = /[&<>\"']/g;\n  var ESCAPES = { \"&\": \"&amp;\", \"<\": \"&lt;\", \">\": \"&gt;\", '\"': \"&quot;\", \"'\": \"&#39;\" };\n  function escapeHtml(value) {\n    return value.replace(ESCAPE_RE, (char) => ESCAPES[char] ?? char);\n  }\n  var FONT = \"font-family:Georgia,'Times New Roman',serif\";\n  function brandedEmail(o) {\n    const c = EMAIL_COLORS;\n    const button = o.cta === null ? \"\" : `<tr><td style=\"padding:8px 24px 24px\"><a href=\"${escapeHtml(o.cta.url)}\" style=\"background:${c.accent};color:${c.background};padding:12px 20px;border-radius:4px;text-decoration:none;display:inline-block;${FONT};font-size:16px\">${escapeHtml(o.cta.label)}</a></td></tr>`;\n    const preheader = o.preheader === void 0 ? \"\" : `<div style=\"display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;opacity:0\">${escapeHtml(o.preheader)}</div>`;\n    return [\n      `<!doctype html><html lang=\"${o.lang}\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>${escapeHtml(o.title)}</title></head>`,\n      `<body style=\"margin:0;padding:0;background:${c.background}\">${preheader}`,\n      `<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:${c.background}\"><tr><td align=\"center\" style=\"padding:24px 12px\">`,\n      `<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:560px;color:${c.text};${FONT};font-size:16px;line-height:1.5;text-align:left\">`,\n      `<tr><td style=\"padding:0 24px 16px;color:${c.accent};font-size:24px;font-weight:bold\">Nubandina Coffee</td></tr>`,\n      `<tr><td style=\"padding:0 24px\">${o.bodyHtml}</td></tr>`,\n      button,\n      `<tr><td style=\"padding:16px 24px 0;color:${c.muted};font-size:13px\">${escapeHtml(o.footer)}</td></tr>`,\n      `</table></td></tr></table></body></html>`\n    ].join(\"\");\n  }\n\n  // src/nodes/reorder-reminder.ts\n  var MESSAGES = {\n    en: {\n      subject: \"Time to restock your coffee?\",\n      greeting: (firstName) => `Hi ${firstName ?? \"there\"},`,\n      intro: (days, orderNumber) => `It's been ${days === 1 ? \"a day\" : `about ${String(days)} days`} since your order ${orderNumber}. If your coffee is running low, you can reorder the same bags in one click:`,\n      cta: \"Reorder the same bags\",\n      footer: \"You're getting this email because you agreed to marketing emails at checkout. Don't want these? Reply to this email and we'll stop.\",\n      preheader: \"Reorder the same bags in one click\"\n    },\n    es: {\n      subject: \"¿Es hora de reponer su café?\",\n      greeting: (firstName) => firstName === null ? \"Hola:\" : `Hola, ${firstName}:`,\n      intro: (days, orderNumber) => `${days === 1 ? \"Ha pasado un día\" : `Han pasado unos ${String(days)} días`} desde su pedido ${orderNumber}. Si su café se está acabando, puede volver a pedir las mismas bolsas con un clic:`,\n      cta: \"Volver a pedir lo mismo\",\n      footer: \"Le enviamos este correo porque al pagar aceptó recibir nuestras novedades. ¿No desea recibirlos? Responda a este correo y no le enviaremos más.\",\n      preheader: \"Vuelva a pedir las mismas bolsas con un clic\"\n    }\n  };\n  var P_OPEN = '<p style=\"margin:0 0 16px\">';\n  var LIST_STYLE = \"margin:0 0 16px;padding-left:24px\";\n  function skipped(reason) {\n    return { send: false, reason, to: null, subject: \"\", html: \"\" };\n  }\n  function run(input) {\n    const { order, variants, status } = input;\n    if (order.accepts_marketing !== true) return skipped(\"no_consent\");\n    if (order.customer_id == null) return skipped(\"no_customer\");\n    if (order.email === null) return skipped(\"no_email\");\n    if (!status.recorded) return skipped(\"not_recorded\");\n    if (status.cancelled) return skipped(\"cancelled\");\n    if (status.reordered) return skipped(\"reordered\");\n    const locale = normalizeLocale(order.locale, normalizeLocale(input.default_locale, \"en\"));\n    const m = messagesFor(MESSAGES, locale);\n    const byGid = /* @__PURE__ */ new Map();\n    for (const variant of variants) byGid.set(variant.variant_gid, variant);\n    const known = order.lines.flatMap((line) => {\n      const variant = line.variant_gid === null ? void 0 : byGid.get(line.variant_gid);\n      return variant === void 0 || line.variant_id === null ? [] : [{ line, variant }];\n    });\n    const base = storeUrl(input.store, \"en\");\n    if (known.length === 0 || base === null) return skipped(\"no_known_variant\");\n    const cartUrl = `${base}cart/${known.map(({ line }) => `${line.variant_id ?? \"\"}:${String(line.quantity)}`).join(\",\")}`;\n    const items = known.map(({ line, variant }) => `<li>${escapeHtml(variant.product_title)} (${escapeHtml(variant.variant_title)}) × ${String(line.quantity)}</li>`).join(\"\");\n    const bodyHtml = [\n      `${P_OPEN}${m.greeting(order.first_name === null ? null : escapeHtml(order.first_name))}</p>`,\n      `${P_OPEN}${m.intro(input.days, escapeHtml(order.order_number))}</p>`,\n      `<ul style=\"${LIST_STYLE}\">${items}</ul>`\n    ].join(\"\");\n    return {\n      send: true,\n      reason: \"sent\",\n      to: order.email,\n      subject: m.subject,\n      html: brandedEmail({ lang: locale, title: m.subject, bodyHtml, cta: { label: m.cta, url: cartUrl }, footer: m.footer, preheader: m.preheader })\n    };\n  }\n  return __toCommonJS(reorder_reminder_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
+      }
+    },
+    {
+      "id": "90000000-0000-4000-8000-000000000006",
+      "name": "Has reminder?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        700,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "90000000-0006-4000-8000-0000000a0001",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.send }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "90000000-0000-4000-8000-000000000007",
+      "name": "Email reorder reminder",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        980,
+        160
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "nbcCredGmail0001",
+          "name": "Gmail"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      }
+    },
+    {
+      "id": "90000000-0000-4000-8000-000000000008",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -740,
+        20
+      ],
+      "parameters": {
+        "width": 880,
+        "height": 160,
+        "content": "## Wait, then re-check\nStarted by Process order only when the customer accepted marketing at checkout. Waits reorder_reminder_days, then reads the order's status again: a cancelled order, or one the same customer has since followed with another uncancelled order, gets nothing."
+      }
+    },
+    {
+      "id": "90000000-0000-4000-8000-000000000009",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        380,
+        -40
+      ],
+      "parameters": {
+        "width": 900,
+        "height": 160,
+        "content": "## Build and send\nBuild reorder reminder decides again from the order's consent and email, and renders the branded email with a cart link for the same bags. Only a reminder marked send reaches Gmail."
+      }
+    },
+    {
+      "id": "90000000-0000-4000-8000-000000000010",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        460
+      ],
+      "parameters": {
+        "width": 620,
+        "height": 200,
+        "content": "NOTE: one waiting execution per consenting order lives in Postgres for reorder_reminder_days. Ceiling: a small store's volume. Upgrade path: a daily scheduled query for orders due a reminder."
+      }
+    }
+  ],
+  "connections": {
+    "When called": {
+      "main": [
+        [
+          {
+            "node": "Wait before reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait before reminder": {
+      "main": [
+        [
+          {
+            "node": "Check order status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check order status": {
+      "main": [
+        [
+          {
+            "node": "Collect reminder input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect reminder input": {
+      "main": [
+        [
+          {
+            "node": "Build reorder reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build reorder reminder": {
+      "main": [
+        [
+          {
+            "node": "Has reminder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has reminder?": {
+      "main": [
+        [
+          {
+            "node": "Email reorder reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Bogota",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "nbcErrorHandler1",
+    "saveManualExecutions": false
+  },
+  "meta": null,
+  "nodeGroups": [],
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

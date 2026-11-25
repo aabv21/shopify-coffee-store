@@ -24,5 +24,6 @@ export function run(input: { order: NormalizedOrder }): OrderRow {
     shipping: order.shipping,
     total: order.total,
     free_shipping: order.free_shipping ? 'yes' : 'no',
+    status: 'placed',
   };
 }

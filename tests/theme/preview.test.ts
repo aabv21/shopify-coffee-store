@@ -223,7 +223,7 @@ describe('preview engine', () => {
     expect(html).toContain('data-error="No pudimos agregar este producto a su carrito. Inténtelo de nuevo."');
     const bar = render(snippet, 7_200_000, { ...barSettings, free_shipping_message_remaining: 'Only [amount] to <go>' }).html;
     expect(bar).toContain('data-message-remaining="Only [amount] to &lt;go&gt;"');
-    expect(bar).toContain('<span data-bar-message aria-live="polite">Only $48.000 to &lt;go&gt;</span>');
+    expect(bar).toContain('<span data-bar-message tabindex="-1" aria-live="polite">Only $48.000 to &lt;go&gt;</span>');
   });
 });
 
@@ -256,7 +256,7 @@ describe('Spanish render', () => {
   });
   it('renders the free-shipping bar in Spanish, with the template the script fills in', () => {
     const html = render(snippet, 7_200_000);
-    expect(html).toContain('<span data-bar-message aria-live="polite">Le faltan $48.000 para el envío gratis</span>');
+    expect(html).toContain('<span data-bar-message tabindex="-1" aria-live="polite">Le faltan $48.000 para el envío gratis</span>');
     expect(html).toContain('data-message-remaining="Le faltan [amount] para el envío gratis"');
     expect(html).toContain('data-message-reached="¡Su pedido tiene envío gratis!"');
     expect(html).toContain('aria-label="Progreso hacia el envío gratis"');

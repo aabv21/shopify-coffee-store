@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from 'vitest';
 import { STORE_TIMEZONE } from '../src/lib/locale.ts';
-import { TRIGGER_WEBHOOK_ID } from '../scripts/lib/manifest.ts';
+import { CANCEL_TRIGGER_WEBHOOK_ID, TRIGGER_WEBHOOK_ID } from '../scripts/lib/manifest.ts';
 
 const compose = readFileSync('compose.yaml', 'utf8');
 const policy = readFileSync('ngrok/traffic-policy.yml', 'utf8');
@@ -33,7 +33,7 @@ test('n8n caps its payload size well above a real Shopify order but well below t
   expect(service('n8n')).toContain('N8N_PAYLOAD_SIZE_MAX: "2"');
 });
 test('the tunnel policy pins the Shopify trigger path and denies unsafe encodings', () => {
-  expect(policy).toContain(`req.url.raw_path.matches("^/webhook/${triggerWebhookId}/webhook$")`);
+  expect(policy).toContain(`req.url.raw_path.matches("^/webhook/(${triggerWebhookId}|${CANCEL_TRIGGER_WEBHOOK_ID})/webhook$")`);
   expect(policy).toContain(`req.url.raw_path.contains("%")`);
   expect(policy).toContain(`req.url.raw_path.contains("\\\\")`);
   expect(policy).toContain(`req.url.raw_path.contains("//")`);
@@ -51,9 +51,19 @@ test('the tunnel policy rate-limits by client IP, well above a small store\'s de
   expect(policy).toContain('rate: 60s');
   expect(policy).toContain('- conn.client_ip');
 });
-test('the webhook allowlist regex only accepts the Shopify trigger path', () => {
+test('the tunnel policy forwards both Shopify trigger paths and nothing else', () => {
   const source = /\.matches\("([^"]+)"\)/.exec(policy)?.[1] ?? '';
-  expect(source).toBe(`^/webhook/${triggerWebhookId}/webhook$`);
+  expect(source).toBe(`^/webhook/(${triggerWebhookId}|${CANCEL_TRIGGER_WEBHOOK_ID})/webhook$`);
+  // eslint-disable-next-line security/detect-non-literal-regexp -- source is extracted from our own committed traffic policy, not user input
+  const allowlist = new RegExp(source);
+  for (const id of [triggerWebhookId, CANCEL_TRIGGER_WEBHOOK_ID]) {
+    expect(allowlist.test(`/webhook/${id}/webhook`)).toBe(true);
+    expect(allowlist.test(`/webhook/${id}/webhook/extra`)).toBe(false);
+  }
+  expect(allowlist.test('/webhook/dev')).toBe(false);
+});
+test('the webhook allowlist regex only accepts the Shopify trigger paths', () => {
+  const source = /\.matches\("([^"]+)"\)/.exec(policy)?.[1] ?? '';
   // eslint-disable-next-line security/detect-non-literal-regexp -- source is extracted from our own committed traffic policy, not user input
   const allowlist = new RegExp(source);
   expect(allowlist.test(`/webhook/${triggerWebhookId}/webhook`)).toBe(true);

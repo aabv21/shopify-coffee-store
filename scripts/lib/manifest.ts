@@ -29,6 +29,9 @@ export const CONFIG_LOADER_ID = 'nbcLoadConfig001';
 
 export const TRIGGER_WEBHOOK_ID = '4b1d2c3e-5f60-4a7b-8c9d-0e1f2a3b4c5d';
 
+/** The cancellation trigger's own fixed webhook path segment, beside `TRIGGER_WEBHOOK_ID`. */
+export const CANCEL_TRIGGER_WEBHOOK_ID = '7c2e9a14-3b5d-4f6e-8a1b-2c3d4e5f6a7b';
+
 /** `env[key]` widened past `noUncheckedIndexedAccess`; callers only reach here once the key is known to be set. */
 // eslint-disable-next-line security/detect-object-injection -- key is always one of this entry's own fixed `env` names
 const readEnv = (env: Readonly<Record<string, string>>, key: string): string => env[key] ?? '';
@@ -36,8 +39,11 @@ const readEnv = (env: Readonly<Record<string, string>>, key: string): string => 
 export const WORKFLOWS: readonly WorkflowEntry[] = [
   { id: CONFIG_LOADER_ID, name: 'Load config', file: 'load-config.json', publish: true, liveTrigger: false },
   { id: ERROR_WORKFLOW_ID, name: 'Error handler', file: 'error-handler.json', publish: true, liveTrigger: false },
+  { id: 'nbcReorderRemind', name: 'Reorder reminder', file: 'reorder-reminder.json', publish: true, liveTrigger: false },
   { id: 'nbcProcessOrder1', name: 'Process order', file: 'process-order.json', publish: true, liveTrigger: false },
   { id: 'nbcIntakeOrder01', name: 'Intake order', file: 'intake-order.json', publish: true, liveTrigger: false },
+  { id: 'nbcCancelOrder01', name: 'Cancel order', file: 'cancel-order.json', publish: true, liveTrigger: false },
+  { id: 'nbcShopifyCancel', name: 'Shopify cancellations', file: 'shopify-cancellations.json', publish: true, liveTrigger: true },
   { id: 'nbcShopifyOrders', name: 'Shopify orders', file: 'shopify-orders.json', publish: true, liveTrigger: true },
   { id: 'nbcDevHarness001', name: 'Dev harness', file: 'dev-harness.json', publish: true, liveTrigger: false, webhookPath: 'dev' },
 ];
@@ -136,6 +142,24 @@ export const CODE_NODES: readonly CodeNodeEntry[] = [
     node: 'Build guide email',
     source: 'src/nodes/select-guides.ts',
     why: "picks one guide per brew method and renders escaped HTML in the customer's language",
+  },
+  {
+    file: 'cancel-order.json',
+    node: 'Check config',
+    source: 'src/nodes/check-config.ts',
+    why: 'validates the hand-edited config before a cancellation touches the sheet',
+  },
+  {
+    file: 'cancel-order.json',
+    node: 'Build cancellation notice',
+    source: 'src/nodes/cancel-notice.ts',
+    why: "writes the owner's cancellation notice from an en/es message table with the Bogota time and a readable reason",
+  },
+  {
+    file: 'reorder-reminder.json',
+    node: 'Build reorder reminder',
+    source: 'src/nodes/reorder-reminder.ts',
+    why: "decides consent, cancellation, and reorder in one tested place and renders the branded reminder with a cart link in the customer's language",
   },
   {
     file: 'error-handler.json',

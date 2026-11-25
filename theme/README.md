@@ -50,6 +50,13 @@ shipping threshold, updating live as the cart changes.
 - `src/theme/free-shipping.ts` — `freeShippingProgress(totalCents, thresholdCents)` and
   `barMessage(state, messages, moneyFormat)`: the bar's own math and copy, with no DOM. Pure,
   unit-tested (`tests/theme/free-shipping.test.ts`).
+- `src/theme/free-shipping.ts` also holds `parseSuggestionCandidates(data)` and
+  `pickSuggestion(candidates, remainingCents)`: the cheapest bag that is in stock and covers the
+  remaining amount (the first on a tie), or none once free shipping is reached or when no bag
+  covers the gap.
+- `src/theme/cart-add.ts` — `addToCart(variantId, { cartAddUrl, cartUrl, openCart })`, shared by
+  the finder and the bar: `Shopify.actions.updateCart`, or the Cart AJAX API when the page lacks it.
+  `openCart` opens the drawer after a successful add (and, in the fallback, goes to the cart page).
 - `src/theme/free-shipping-bar.ts` — the `<free-shipping-bar>` custom element. Bundled by
   `THEME_ENTRIES` into `theme/assets/free-shipping-bar.js` (generated; never hand-edited).
 - `theme/snippets/free-shipping-bar.liquid` — renders the `<free-shipping-bar>` markup from the
@@ -64,13 +71,17 @@ shipping threshold, updating live as the cart changes.
    on its own line, anchored immediately before `<div class="cart-totals">` (that line appears
    exactly once in Horizon's file).
 2. `config/settings_schema.json`: an `append-settings-group` insertion adding the group "Free
-   shipping bar" (`t:nubandina.free_shipping_bar.name`) with seven settings:
+   shipping bar" (`t:nubandina.free_shipping_bar.name`) with twelve settings:
    `free_shipping_bar_enabled` (checkbox, default on), `free_shipping_threshold` (number, default
    120000), `free_shipping_message_remaining` (text, `[amount]` placeholder),
    `free_shipping_message_reached` (text), `free_shipping_progress_label` (text, the progress bar's
-   accessible label), `reassurance_enabled` (checkbox, default on), and `reassurance_text` (text,
-   the line under the bar and under the coffee finder's results). Every label and info text is a
-   `t:` key, and the four texts have no default: left blank, each shows its storefront translation.
+   accessible label), `free_shipping_suggestion_enabled` (checkbox, default on),
+   `free_shipping_suggestion_collection` (collection; blank searches every product),
+   `free_shipping_suggestion_message` (text, `[product]` and `[price]` placeholders),
+   `free_shipping_suggestion_add_label` and `free_shipping_suggestion_error` (text),
+   `reassurance_enabled` (checkbox, default on), and `reassurance_text` (text, the line under the bar
+   and under the coffee finder's results). Every label and info text is a `t:` key, and the
+   texts have no default: left blank, each shows its storefront translation.
 
 **States and accessibility.** The track is a `role="progressbar"` with `aria-valuenow` (the percent)
 and the progress label setting as its name. It has no `aria-valuetext`, so the message is spoken
@@ -83,6 +94,17 @@ since the message already says it) and sets the message in bold. The fill is a f
 into place with `transform`, transitioned only under `prefers-reduced-motion: no-preference`. The
 script writes the message and attributes only when they change, so the polite live region doesn't
 re-announce what the server already rendered.
+
+**The suggestion.** When `free_shipping_suggestion_enabled` is on, the snippet renders a hidden
+suggestion row and a `<script type="application/json" data-bar-suggestions>` holding up to 50
+products' variants from the chosen collection (else `collections.all`): `variantId`, `label` (the
+product title plus the variant title, unless it is `Default Title`), `priceCents`, the formatted
+`price`, and `available`, with `</` escaped as in the finder. On every render the script asks
+`pickSuggestion` for a bag and fills the message (`[product]`, `[price]`); no bag, or free shipping
+reached, hides the row. "Add" calls `addToCart` with `openCart: false`, so the drawer stays as it
+is, then re-reads `/cart.js`; a failure writes the error text into the row's status. A sold-out
+variant is never offered, and the offer is the cheapest in-stock bag at or above the gap, so a
+small gap can still suggest a larger bag.
 
 **Staying live.** The bar updates two ways: it listens on `document` for
 `shopify:cart:lines-update` and re-reads `/cart.js` once the event's own promise settles, and it
@@ -470,6 +492,9 @@ run yet:
 
 - **Drawer.** With Sierra Nevada 250 g in the cart, it shows "You’re $82.000 away from free
   shipping" at 31%.
+- **Suggestion.** With Sierra Nevada 250 g × 3 (114,000 COP), it adds "Add Sierra Nevada 250 g
+  ($38.000) and shipping is free." and an "Add" button. Pressing it puts that bag in the cart
+  without opening the drawer, and the bar switches to "You’ve got free shipping!".
 - **Live updates.** Raising the quantity to 4 (152,000 COP) switches it to "You’ve got free
   shipping!" without a reload, in the drawer and on `/cart`. Lowering it again restores the
   remaining message.

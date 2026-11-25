@@ -24,12 +24,12 @@ it('the committed Build order row node behaves like its source', () => {
 });
 
 it('the committed Check config node passes a valid config through unchanged', () => {
-  const config = { owner_email: 'owner@example.com', google: { orders_sheet_id: 'sheet1', orders_tab: 'Orders' }, shopify: { store: 'nubandina-demo', api_version: '2026-10' }, low_stock_threshold: 5, guide_delay_minutes: 60, default_locale: 'es', team_locale: 'en' };
+  const config = { owner_email: 'owner@example.com', google: { orders_sheet_id: 'sheet1', orders_tab: 'Orders' }, shopify: { store: 'nubandina-demo', api_version: '2026-10' }, low_stock_threshold: 5, guide_delay_minutes: 60, default_locale: 'es', team_locale: 'en', reorder_reminder_days: 21 };
   expect(runCodeNode('intake-order.json', 'Check config', { config })).toEqual([{ json: { config } }]);
 });
 it('the committed Check config node defaults a config from before the locale keys to English', () => {
   const config = { owner_email: 'owner@example.com', google: { orders_sheet_id: 'sheet1', orders_tab: 'Orders' }, shopify: { store: 'nubandina-demo', api_version: '2026-10' }, low_stock_threshold: 5, guide_delay_minutes: 60 };
-  expect(runCodeNode('intake-order.json', 'Check config', { config })).toEqual([{ json: { config: { ...config, default_locale: 'en', team_locale: 'en' } } }]);
+  expect(runCodeNode('intake-order.json', 'Check config', { config })).toEqual([{ json: { config: { ...config, default_locale: 'en', team_locale: 'en', reorder_reminder_days: 21 } } }]);
 });
 it('the committed Check config node throws the validator message for an invalid config', () => {
   expect(() => runCodeNode('intake-order.json', 'Check config', { config: {} })).toThrow('owner_email must be an email address');
