@@ -17,6 +17,7 @@
     <form data-finder-form class="coffee-finder__form" novalidate>
       <fieldset class="coffee-finder__fieldset">
         <legend class="coffee-finder__legend">{% render 'nubandina-text', value: section.settings.brew_question, key: 'nubandina.coffee_finder.brew_question' %}</legend>
+        <p class="coffee-finder__question-error" id="CoffeeFinderError-{{ section.id }}-brew_method" data-question-error hidden>{% render 'nubandina-text', value: section.settings.question_required, key: 'nubandina.coffee_finder.question_required' %}</p>
         <div class="coffee-finder__options">
           <label class="coffee-finder__option">
             <input class="coffee-finder__radio" type="radio" name="brew_method" value="pour-over" required>
@@ -35,6 +36,7 @@
 
       <fieldset class="coffee-finder__fieldset">
         <legend class="coffee-finder__legend">{% render 'nubandina-text', value: section.settings.taste_question, key: 'nubandina.coffee_finder.taste_question' %}</legend>
+        <p class="coffee-finder__question-error" id="CoffeeFinderError-{{ section.id }}-taste" data-question-error hidden>{% render 'nubandina-text', value: section.settings.question_required, key: 'nubandina.coffee_finder.question_required' %}</p>
         <div class="coffee-finder__options">
           <label class="coffee-finder__option">
             <input class="coffee-finder__radio" type="radio" name="taste" value="mild" required>
@@ -53,6 +55,7 @@
 
       <fieldset class="coffee-finder__fieldset">
         <legend class="coffee-finder__legend">{% render 'nubandina-text', value: section.settings.people_question, key: 'nubandina.coffee_finder.people_question' %}</legend>
+        <p class="coffee-finder__question-error" id="CoffeeFinderError-{{ section.id }}-people" data-question-error hidden>{% render 'nubandina-text', value: section.settings.question_required, key: 'nubandina.coffee_finder.question_required' %}</p>
         <div class="coffee-finder__options">
           <label class="coffee-finder__option">
             <input class="coffee-finder__radio" type="radio" name="people" value="1" required>
@@ -81,10 +84,24 @@
       </div>
     </form>
 
-    <div data-finder-results class="coffee-finder__results" aria-live="polite" hidden>
-      <h3 data-finder-heading class="coffee-finder__results-heading" tabindex="-1">{% render 'nubandina-text', value: section.settings.results_heading, key: 'nubandina.coffee_finder.results_heading' %}</h3>
+    <div data-finder-results class="coffee-finder__results" hidden>
+      {%- capture match_heading %}{% render 'nubandina-text', value: section.settings.results_heading, key: 'nubandina.coffee_finder.results_heading' %}{% endcapture -%}
+      <h3
+        data-finder-heading
+        class="coffee-finder__results-heading"
+        tabindex="-1"
+        data-match-heading="{{ match_heading | strip }}"
+        data-empty-heading="{% render 'nubandina-text', value: section.settings.empty_heading, key: 'nubandina.coffee_finder.empty_heading' %}"
+      >{{ match_heading | strip }}</h3>
+      <p data-finder-size-reason class="coffee-finder__size-reason" hidden></p>
       <div data-finder-empty class="coffee-finder__empty" hidden>
-        <p class="coffee-finder__empty-text">{% render 'nubandina-text', value: section.settings.empty_text, key: 'nubandina.coffee_finder.empty_text' %}</p>
+        <p
+          class="coffee-finder__empty-text"
+          data-finder-empty-text
+          data-text-two="{% render 'nubandina-text', value: section.settings.empty_text, key: 'nubandina.coffee_finder.empty_text' %}"
+          data-text-one="{% render 'nubandina-text', value: section.settings.empty_text_one, key: 'nubandina.coffee_finder.empty_text_one' %}"
+          data-text-none="{% render 'nubandina-text', value: section.settings.empty_text_none, key: 'nubandina.coffee_finder.empty_text_none' %}"
+        >{% render 'nubandina-text', value: section.settings.empty_text, key: 'nubandina.coffee_finder.empty_text' %}</p>
         <a class="button-secondary coffee-finder__empty-link" href="{{ routes.all_products_collection_url }}">{% render 'nubandina-text', value: section.settings.empty_link_label, key: 'nubandina.coffee_finder.empty_link_label' %}</a>
       </div>
       <ul data-finder-list class="coffee-finder__list" role="list"></ul>
@@ -116,6 +133,8 @@
       hidden
       data-added="{% render 'nubandina-text', value: section.settings.added_text, key: 'nubandina.coffee_finder.added_text' %}"
       data-error="{% render 'nubandina-text', value: section.settings.error_text, key: 'nubandina.coffee_finder.error_text' %}"
+      data-size-small="{% render 'nubandina-text', value: section.settings.size_reason_small, key: 'nubandina.coffee_finder.size_reason_small' %}"
+      data-size-large="{% render 'nubandina-text', value: section.settings.size_reason_large, key: 'nubandina.coffee_finder.size_reason_large' %}"
     ></span>
 
     {%- capture finder_products_json -%}
@@ -126,7 +145,7 @@
             "id": {{ product.id | json }},
             "title": {{ product.title | json }},
             "url": {{ product.url | json }},
-            "image": {% if product.featured_image %}{ "src": {{ product.featured_image | image_url: width: 400 | json }}, "alt": {{ product.featured_image.alt | json }} }{% else %}null{% endif %},
+            "image": {% if product.featured_image %}{ "src": {{ product.featured_image | image_url: width: 400 | json }}, "src2x": {{ product.featured_image | image_url: width: 800 | json }}, "alt": {{ product.featured_image.alt | json }} }{% else %}null{% endif %},
             "roast": {{ product.metafields.coffee.roast.value | json }},
             "brewMethod": {{ product.metafields.coffee.brew_method.value | json }},
             "tastingNotes": {{ product.metafields.coffee.tasting_notes.value | json }},
@@ -313,6 +332,16 @@
     min-block-size: 3rem;
   }
 
+  .coffee-finder__question-error {
+    margin: 0 0 var(--margin-sm);
+    color: var(--color-error);
+    font-weight: 700;
+  }
+
+  .coffee-finder__question-error[hidden] {
+    display: none;
+  }
+
   .coffee-finder__error {
     color: var(--color-error);
     font-weight: 700;
@@ -340,10 +369,10 @@
     scroll-margin-block-start: calc(var(--header-height, 0px) + var(--gap-xl));
   }
 
-  .coffee-finder__results-heading:focus-visible {
-    outline: var(--focus-outline-width) solid currentcolor;
-    outline-offset: var(--focus-outline-offset);
-    border-radius: var(--style-border-radius-xs);
+  /* The heading takes focus programmatically so a screen reader starts at the results; it isn't
+     a control, so a ring around it would only mislead. */
+  .coffee-finder__results-heading:focus {
+    outline: none;
   }
 
   .coffee-finder__empty {
@@ -430,6 +459,16 @@
 
   .coffee-finder__card-variant {
     color: var(--color-foreground-subdued);
+  }
+
+  .coffee-finder__size-reason {
+    margin: 0;
+    font-size: var(--font-size--sm);
+    color: var(--color-foreground-subdued);
+  }
+
+  .coffee-finder__size-reason[hidden] {
+    display: none;
   }
 
   .coffee-finder__card-price {
@@ -595,9 +634,15 @@
     { "type": "text", "id": "people_three_plus", "label": "t:nubandina.coffee_finder.people_three_plus" },
     { "type": "text", "id": "submit_label", "label": "t:nubandina.coffee_finder.submit_label" },
     { "type": "text", "id": "required_text", "label": "t:nubandina.coffee_finder.required_text" },
+    { "type": "text", "id": "question_required", "label": "t:nubandina.coffee_finder.question_required" },
     { "type": "text", "id": "results_heading", "label": "t:nubandina.coffee_finder.results_heading" },
+    { "type": "text", "id": "empty_heading", "label": "t:nubandina.coffee_finder.empty_heading" },
     { "type": "text", "id": "empty_text", "label": "t:nubandina.coffee_finder.empty_text" },
+    { "type": "text", "id": "empty_text_one", "label": "t:nubandina.coffee_finder.empty_text_one" },
+    { "type": "text", "id": "empty_text_none", "label": "t:nubandina.coffee_finder.empty_text_none" },
     { "type": "text", "id": "empty_link_label", "label": "t:nubandina.coffee_finder.empty_link_label" },
+    { "type": "text", "id": "size_reason_small", "label": "t:nubandina.coffee_finder.size_reason_small" },
+    { "type": "text", "id": "size_reason_large", "label": "t:nubandina.coffee_finder.size_reason_large" },
     { "type": "text", "id": "add_label", "label": "t:nubandina.coffee_finder.add_label" },
     { "type": "text", "id": "added_text", "label": "t:nubandina.coffee_finder.added_text" },
     { "type": "text", "id": "error_text", "label": "t:nubandina.coffee_finder.error_text" }

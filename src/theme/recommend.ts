@@ -8,7 +8,7 @@ export interface FinderProduct {
   id: number;
   title: string;
   url: string;
-  image: { src: string; alt: string } | null;
+  image: { src: string; src2x: string | null; alt: string } | null;
   roast: string | null;
   brewMethod: string | null;
   tastingNotes: string | null;
@@ -85,6 +85,23 @@ export function recommend(products: readonly FinderProduct[], answers: FinderAns
   return picks;
 }
 
+/** Whether a variant is the size the answer asks for: the product's lightest bag for 1–2 people, its heaviest for 3, sold out or not. */
+export function isPreferredSize(product: FinderProduct, variant: FinderVariant, people: 1 | 2 | 3): boolean {
+  const grams = product.variants.map((v) => v.grams);
+  return variant.grams === (people === 3 ? Math.max(...grams) : Math.min(...grams));
+}
+
+/** The no-match fallback: the first two products in data order that have an available variant, in the right size. */
+export function favoritePicks(products: readonly FinderProduct[], people: 1 | 2 | 3): Recommendation[] {
+  const picks: Recommendation[] = [];
+  for (const product of products) {
+    const variant = pickVariant(product.variants, people);
+    if (variant) picks.push({ product, variant });
+    if (picks.length === 2) break;
+  }
+  return picks;
+}
+
 export function readAnswers(entries: Iterable<[string, unknown]>): FinderAnswers | null {
   let brewMethod: BrewMethod | null = null;
   let taste: Taste | null = null;
@@ -148,9 +165,9 @@ function parseProduct(value: unknown): FinderProduct | null {
 /** Shopify serves an unset alt text as null, which must render as alt="", never the word "null". */
 function parseImage(value: unknown): FinderProduct['image'] {
   if (typeof value !== 'object' || value === null) return null;
-  const { src, alt } = value as Record<string, unknown>;
+  const { src, src2x, alt } = value as Record<string, unknown>;
   if (typeof src !== 'string' || src === '') return null;
-  return { src, alt: typeof alt === 'string' ? alt : '' };
+  return { src, src2x: typeof src2x === 'string' && src2x !== '' ? src2x : null, alt: typeof alt === 'string' ? alt : '' };
 }
 
 export function parseProducts(data: unknown): FinderProduct[] {
