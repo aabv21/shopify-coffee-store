@@ -150,6 +150,26 @@ describe('a single run', () => {
     expect(readFileSync(outputPath, 'utf8')).not.toContain('secret-digest');
   });
 
+  it('an unreadable report is deleted, so its cookie never stays on disk', async () => {
+    const outputPath = outputPathIn();
+    const run = () => {
+      writeFileSync(outputPath, '{"configSettings":{"extraHeaders":"Cookie: storefront_digest=abc"');
+      return Promise.resolve();
+    };
+    await expect(measureOnce({ run, outputPath, expected })).rejects.toThrow(/not valid JSON/);
+    expect(existsSync(outputPath)).toBe(false);
+  });
+
+  it('a truncated report and a non-zero exit leaves no cookie on disk and throws the run error', async () => {
+    const outputPath = outputPathIn();
+    const run = () => {
+      writeFileSync(outputPath, '{"configSettings":{"extraHeaders":"Cookie: storefront_digest=abc"');
+      return Promise.reject(new Error('LH exit 1'));
+    };
+    await expect(measureOnce({ run, outputPath, expected })).rejects.toThrow('LH exit 1');
+    expect(existsSync(outputPath)).toBe(false);
+  });
+
   it('a successful run is saved without the cookie and scored', async () => {
     const outputPath = outputPathIn();
     const run = () => { writeFileSync(outputPath, JSON.stringify(report())); return Promise.resolve(); };

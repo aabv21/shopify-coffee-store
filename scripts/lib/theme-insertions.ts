@@ -31,7 +31,7 @@ export const BRAND_PALETTE = {
   color4: '#3F6212', // leaf: small badges only
 } as const;
 
-// Horizon v4.3.0's values: anchors, so a changed Horizon fails assembly instead of mixing designs.
+// The pinned Horizon version's values: anchors, so a changed Horizon fails assembly instead of mixing designs.
 const HORIZON_PALETTE = { background: '#ffffff', foreground: '#000000', color1: '#333333', color2: '#EEF1EA', color3: '#DFDFDF' };
 
 // Each font handle is checked against Shopify's font library list: Alegreya for headings and
@@ -66,7 +66,7 @@ export function readThemeLocale(file: string): Readonly<Record<string, unknown>>
   return strings as Record<string, unknown>;
 }
 
-// Theme check's MatchingTranslations errors on a key missing from any Horizon v4.3.0 locale, so
+// Theme check's MatchingTranslations errors on a key missing from any of the pinned Horizon version's locales, so
 // each other locale gets the English strings, as Shopify would show. A locale Horizon adds fails
 // theme check; one it drops fails assembly.
 export const HORIZON_OTHER_STOREFRONT_LOCALES = [

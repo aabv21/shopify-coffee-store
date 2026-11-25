@@ -38,6 +38,14 @@ it('does not send when no item has a known brew method', () => {
   const v = variants('two-methods').map((x) => ({ ...x, brew_method: 'cold-brew' }));
   expect(run({ order: order('two-methods'), variants: v, guides })).toMatchObject({ send: false, methods: [] });
 });
+it("a brew method named after an Object.prototype member gets no guide and doesn't throw", () => {
+  for (const method of ['constructor', 'toString', '__proto__']) {
+    const v = variants('two-methods').map((x) => ({ ...x, brew_method: method }));
+    const result = run({ order: order('two-methods'), variants: v, guides: { espresso: guides.espresso } as BrewingGuides });
+    expect(result.methods).toEqual([]);
+    expect(result.send).toBe(false);
+  }
+});
 it('falls back to a generic greeting', () =>
   expect(run({ order: { ...order('two-methods'), first_name: null }, variants: variants('two-methods'), guides }).html).toContain('<p>Hi there,</p>'));
 

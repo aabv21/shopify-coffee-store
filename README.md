@@ -4,11 +4,11 @@
 
 A Shopify coffee store with a self-hosted n8n order backend, in English and Spanish. The backend handles each order once. It logs a Google Sheets row, emails the owner, alerts on low stock, and later emails the customer a brewing guide in the customer's language. It's built with a strict TypeScript toolchain and runs locally in Docker.
 
-**Video:** coming soon — a 90-second walkthrough of the store, a test order, and the emails it sends.
-
 ![System architecture: the storefront sends checkouts to Shopify; the orders/create webhook reaches n8n through an ngrok tunnel; n8n records each order once in Postgres, writes a Google Sheets row, reads stock from Shopify, and emails the owner and the customer through Gmail](docs/diagrams/architecture.svg)
 
 How it works, how it fails, and why it's built this way: [docs/architecture.md](docs/architecture.md). For the full-size, interactive diagram, open [`docs/diagrams/architecture.html`](docs/diagrams/architecture.html) from a local clone in a browser.
+
+The order lifecycle, step by step, is the sequence diagram in [docs/architecture.md](docs/architecture.md#how-an-order-moves-from-checkout-to-the-brewing-guide).
 
 ## What it does
 
@@ -46,6 +46,8 @@ How it works, how it fails, and why it's built this way: [docs/architecture.md](
 </details>
 
 ## Quick start
+
+**Prerequisites:** Node 24 or newer; pnpm 11 (`corepack enable` on Node 24; Node 25 and newer don't ship Corepack, so use pnpm's standalone installer from https://pnpm.io/installation); Docker with Compose v2; port 5678 free.
 
 **Offline**, with no third-party account:
 
@@ -241,6 +243,7 @@ Deliberate simplifications, each with its ceiling and upgrade path:
 - **A lost `Record order` response can strand an order with no alert.** If the INSERT commits but its response never reaches n8n, the retry's `ON CONFLICT DO NOTHING` reports the same `{success: true}` a real duplicate would. See `AGENTS.md`'s recovery steps.
 - **"Read stock and brew methods" has no per-request timeout.** The GraphQL node exposes no `options.timeout`, so a hung response holds the run until n8n's own default ends it. Upgrade path: HTTP Request with `options.timeout` and an explicit `errors` check.
 - **Stock is read seconds after the order,** so the low-stock alert reflects stock at read time, including any order placed in between. Upgrade path: subscribe to `inventory_levels/update` and alert from the stock change itself.
+- **One Google account tops out near 30 orders a minute.** Each order makes two Sheets reads and two writes against a 60-per-minute quota, and past it the order fails with an alert. See [scaling](docs/architecture.md#where-the-default-stack-stops-scaling). Upgrade path: a second Google project, or batching rows.
 - **A wait shorter than 65 seconds doesn't survive a restart.** n8n persists a Wait node's sleep only past `MAX_IN_PROCESS_WAIT_MS` (traced in n8n 2.45.7's source); anything shorter stays in memory. `guide_delay_minutes` is validated at 2 or more for this reason. Upgrade path: none needed at this delay.
 - **Queue mode's Redis has no password.** `compose.queue.yaml` publishes no Redis port, but any container on the Compose network can reach it. Upgrade path: set `QUEUE_BULL_REDIS_PASSWORD`.
 - **`pnpm run setup` waits 15 seconds after restarting n8n, then polls the dev harness's webhook.** The poll proves the harness is live, not that every sub-workflow already runs its newest published version under a slower reconciler. Upgrade path: poll `workflow_published_version` against `workflow_entity.activeVersionId`.

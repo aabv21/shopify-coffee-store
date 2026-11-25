@@ -1,5 +1,7 @@
 import { expect, it } from 'vitest';
-import { isLocale, LOCALES, normalizeLocale } from '../../src/lib/locale.ts';
+import { isLocale, LOCALES, normalizeLocale, STORE_TIMEZONE } from '../../src/lib/locale.ts';
+
+it('the store time zone is Bogota', () => expect(STORE_TIMEZONE).toBe('America/Bogota'));
 
 it('supports exactly English and Spanish', () => expect(LOCALES).toEqual(['en', 'es']));
 

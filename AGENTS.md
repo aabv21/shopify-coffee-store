@@ -29,7 +29,7 @@ This repo builds the order-processing backend for Nubandina Coffee, a fictional 
 - `.theme-build/` — gitignored, created by the theme toolchain: the cached Horizon download, the assembled theme, and the offline preview. Safe to delete.
 - `.lighthouse/` — gitignored, written by `pnpm run lighthouse`: one JSON report per run under `.lighthouse/<date>/`, with the storefront cookie removed, including from a failed run's report. Safe to delete.
 - `docs/screenshots/` — retake them from the offline preview whenever a component's look changes.
-- `.github/workflows/`, `.github/dependabot.yml` — CI (quality, security, actions-lint, and `n8n` jobs, plus CodeQL for TypeScript and the workflow files) and dependency updates.
+- `.github/workflows/`, `.github/dependabot.yml` — CI (quality, security, actions, and `n8n` jobs, plus CodeQL for TypeScript and the workflow files) and dependency updates.
 
 ## Documentation map
 
@@ -202,7 +202,7 @@ Prose names the n8n line, not the patch, so a Dependabot patch bump needs no doc
 
 - `main` holds released code and is the default branch; `develop` is the integration branch. Both take changes only through a pull request with CI green, and repository rulesets block direct pushes, force pushes, and deletion.
 - Work on a short-lived branch from `develop` (`feat/…`, `fix/…`, `docs/…`, `chore/…`) and open the pull request into `develop`, titled in Conventional Commits form. It's squash-merged, so the title becomes the commit.
-- A release is a pull request from `develop` into `main` titled `release: vX.Y.Z` (a summary may follow), merged with a merge commit. `.github/workflows/release.yml` then tags the merge commit `vX.Y.Z` and publishes a GitHub release with generated notes; a `release:` title without a version makes neither.
+- A release is a pull request from `develop` into `main` titled `release: vX.Y.Z` (a summary may follow), merged with a merge commit. `.github/workflows/release.yml` then tags the merge commit `vX.Y.Z` and publishes a GitHub release with generated notes; a `release:` PR only tags when its head branch is `develop` or `release/…`, and any other head is skipped without a message; a `release:` title without a version makes neither.
 - Dependabot opens its pull requests against `develop`.
 
 ## Definition of done

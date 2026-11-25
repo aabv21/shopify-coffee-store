@@ -79,8 +79,8 @@ export function run(input: SelectGuidesInput): GuideEmail {
     knownVariants.push(variant);
     const method = variant.brew_method;
     if (method === null || methodGuides.has(method)) continue;
-    // eslint-disable-next-line security/detect-object-injection -- method is a brew method read from Shopify product metadata, used only to look up a locally defined guide
-    const guide = guides[method];
+    // eslint-disable-next-line security/detect-object-injection -- own keys only: Object.hasOwn rules out inherited members such as constructor
+    const guide = Object.hasOwn(guides, method) ? guides[method] : undefined;
     if (guide !== undefined) methodGuides.set(method, guide);
   }
 

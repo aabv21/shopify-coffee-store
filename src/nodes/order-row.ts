@@ -1,3 +1,4 @@
+import { STORE_TIMEZONE } from '../lib/locale.ts';
 import type { NormalizedOrder, OrderLine, OrderRow } from './types.ts';
 
 function formatLine(line: OrderLine): string {
@@ -8,7 +9,7 @@ function formatLine(line: OrderLine): string {
 export function run(input: { order: NormalizedOrder }): OrderRow {
   const { order } = input;
 
-  const date = DateTime.fromISO(order.created_at).setZone('America/Bogota').toFormat('yyyy-LL-dd HH:mm');
+  const date = DateTime.fromISO(order.created_at).setZone(STORE_TIMEZONE).toFormat('yyyy-LL-dd HH:mm');
   const products = order.lines.map(formatLine).join('; ');
   const units = order.lines.reduce((sum, line) => sum + line.quantity, 0);
 

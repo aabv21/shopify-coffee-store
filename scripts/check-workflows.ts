@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
+import { STORE_TIMEZONE } from '../src/lib/locale.ts';
 import { listJsonFiles } from './lib/list-json-files.ts';
 import { CODE_NODES, CONFIG_LOADER_ID, CREDENTIALS, ERROR_WORKFLOW_ID, type CodeNodeEntry } from './lib/manifest.ts';
 import type { WorkflowJson, WorkflowNode } from './lib/workflow-types.ts';
@@ -53,7 +54,7 @@ export function checkWorkflow(
   if (settings !== null && typeof settings === 'object') {
     const s = settings as Record<string, unknown>;
     if (s.executionOrder !== 'v1') errors.push('settings.executionOrder must be v1');
-    if (s.timezone !== 'America/Bogota') errors.push('settings.timezone must be America/Bogota');
+    if (s.timezone !== STORE_TIMEZONE) errors.push(`settings.timezone must be ${STORE_TIMEZONE}`);
     if (s.callerPolicy !== 'workflowsFromSameOwner') errors.push('settings.callerPolicy must be workflowsFromSameOwner');
     // The error handler calls the config loader, so an error workflow on either one would loop.
     const exempt = wf.id === ERROR_WORKFLOW_ID || wf.id === CONFIG_LOADER_ID;

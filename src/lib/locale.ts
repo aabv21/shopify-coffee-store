@@ -1,5 +1,8 @@
 // No Node imports: Code nodes bundle this.
 
+/** The store's time zone: order dates, alert times and every workflow's `settings.timezone`. */
+export const STORE_TIMEZONE = 'America/Bogota';
+
 export const LOCALES = ['en', 'es'] as const;
 
 export type Locale = (typeof LOCALES)[number];
