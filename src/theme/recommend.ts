@@ -27,9 +27,9 @@ export const TASTE_TO_ROAST: Readonly<Record<Taste, 'light' | 'medium' | 'dark'>
 export const QUESTIONS = ['brew_method', 'taste', 'people'] as const;
 export type Question = (typeof QUESTIONS)[number];
 
-const BREW_METHODS: readonly BrewMethod[] = ['pour-over', 'espresso', 'french-press'];
-const TASTES: readonly Taste[] = ['mild', 'balanced', 'intense'];
-const PEOPLE = new Set([1, 2, 3]);
+export const BREW_METHODS: readonly BrewMethod[] = ['pour-over', 'espresso', 'french-press'];
+export const TASTES: readonly Taste[] = ['mild', 'balanced', 'intense'];
+export const PEOPLE = [1, 2, 3] as const;
 
 function isBrewMethod(value: unknown): value is BrewMethod {
   return typeof value === 'string' && BREW_METHODS.includes(value as BrewMethod);
@@ -40,7 +40,7 @@ function isTaste(value: unknown): value is Taste {
 }
 
 function isPeople(value: unknown): value is string {
-  return typeof value === 'string' && PEOPLE.has(Number(value));
+  return typeof value === 'string' && (PEOPLE as readonly number[]).includes(Number(value));
 }
 
 /** The best variant for a given party size: lightest available for 1–2 people, heaviest for 3, keeping the first on a tie. */
