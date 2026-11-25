@@ -17,6 +17,7 @@ const EXPECTED_CONFIG = {
   guide_delay_minutes: 60,
   default_locale: 'en',
   team_locale: 'en',
+  reorder_reminder_days: 21,
 };
 
 const FRESH_ORDER = {

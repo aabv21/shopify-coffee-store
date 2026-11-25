@@ -24,6 +24,7 @@ const EXPECTED_CONFIG = {
   guide_delay_minutes: 60,
   default_locale: 'en',
   team_locale: 'en',
+  reorder_reminder_days: 21,
 };
 
 /** Shopify, Google, or Gmail: what `process-order` reaches. Matched by type, so a new credential of these kinds is covered. */

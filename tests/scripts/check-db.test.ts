@@ -109,11 +109,12 @@ describe('workflow statements', () => {
       'cancel-order.json › Record cancellation',
       'intake-order.json › Record order',
       'process-order.json › Check order status',
+      'reorder-reminder.json › Check order status',
     ]);
   });
 
   it('confirms no other workflow issues Postgres SQL of its own', () => {
-    const own = new Set(['intake-order.json', 'cancel-order.json', 'process-order.json']);
+    const own = new Set(['intake-order.json', 'cancel-order.json', 'process-order.json', 'reorder-reminder.json']);
     for (const path of listJsonFiles('workflows')) {
       const file = basename(path);
       if (own.has(file)) continue;

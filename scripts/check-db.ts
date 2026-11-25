@@ -91,6 +91,7 @@ export const PROBES: readonly Probe[] = [
   { file: 'intake-order.json', node: 'Record order', params: [PROBE_ORDER_ID, '#check-db-probe', '8000000001'] },
   { file: 'cancel-order.json', node: 'Record cancellation', params: [PROBE_ORDER_ID] },
   { file: 'process-order.json', node: 'Check order status', params: [PROBE_ORDER_ID] },
+  { file: 'reorder-reminder.json', node: 'Check order status', params: [PROBE_ORDER_ID] },
 ];
 
 const label = (s: { file: string; node: string }): string => `${s.file} › ${s.node}`;

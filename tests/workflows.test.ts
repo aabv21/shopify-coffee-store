@@ -225,7 +225,7 @@ it('the guides are read from the mounted file after the wait and sent as HTML', 
   expect(p.emailType ?? 'html').toBe('html');
   expect(p.options).toMatchObject({ appendAttribution: false });
 });
-it('the guide chain runs from the wait to the conditional send, with nothing on the no-guide branch', () => {
+it('the guide chain runs from the wait to the conditional send, with the no-guide branch going straight to the reminder gate', () => {
   const connections = wf('process-order.json').connections as Record<string, { main?: { node: string }[][] }>;
   expect(connections['Wait before guide']?.main?.[0]?.map((c) => c.node)).toEqual(['Check order status']);
   expect(connections['Still active?']?.main?.[0]?.map((c) => c.node)).toEqual(['Read brewing guides']);
@@ -235,7 +235,7 @@ it('the guide chain runs from the wait to the conditional send, with nothing on 
   expect(connections['Build guide email']?.main?.[0]?.map((c) => c.node)).toEqual(['Has guide email?']);
   const guideGateOutputs = connections['Has guide email?']?.main ?? [];
   expect(guideGateOutputs[0]?.map((c) => c.node)).toEqual(['Email brewing guide']);
-  expect(guideGateOutputs[1] ?? []).toEqual([]);
+  expect(guideGateOutputs[1]?.map((c) => c.node)).toEqual(['Wants reminder?']);
 });
 it('the guide gate checks a plain boolean is true', () => {
   const gate = node('process-order.json', 'Has guide email?').parameters;
@@ -337,4 +337,45 @@ it('the order row gains a status column, and the dev harness reaches cancel-orde
 test.each(workflowFiles)('%s gives every node its own id, which n8n requires on import', (file) => {
   const ids = wf(file).nodes.map((n) => n.id);
   expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+});
+
+it('process-order starts the reminder only with marketing consent, without waiting and without retry', () => {
+  const gate = node('process-order.json', 'Wants reminder?').parameters.conditions as { conditions: { leftValue: string; operator: { type: string; operation: string } }[] };
+  expect(gate.conditions).toMatchObject([{ leftValue: "={{ $('When called').first().json.order.accepts_marketing === true }}", operator: { type: 'boolean', operation: 'true' } }]);
+  // The guide step ends in this gate whether or not a guide email was sent.
+  expect(targets('process-order.json', 'Email brewing guide')).toEqual(['Wants reminder?']);
+  expect(targets('process-order.json', 'Has guide email?', 1)).toEqual(['Wants reminder?']);
+  expect(targets('process-order.json', 'Wants reminder?', 0)).toEqual(['Start reorder reminder']);
+  expect(targets('process-order.json', 'Wants reminder?', 1)).toEqual([]);
+  const start = node('process-order.json', 'Start reorder reminder');
+  expect(JSON.stringify(start.parameters)).toContain('nbcReorderRemind');
+  expect(start.parameters.options).toMatchObject({ waitForSubWorkflow: false });
+  expect(start.parameters.mode).toBe('once');
+  expect(start.retryOnFail).not.toBe(true);
+  expect(JSON.stringify(start.parameters.workflowInputs)).toContain("$('Select low-stock variants').first().json.variants");
+});
+it('the reminder waits reorder_reminder_days in days, re-checks the order status, and emails only when Build reorder reminder says send', () => {
+  expect(node('reorder-reminder.json', 'Wait before reminder').parameters).toMatchObject({ unit: 'days', amount: "={{ $('When called').first().json.config.reorder_reminder_days }}" });
+  expect(targets('reorder-reminder.json', 'Wait before reminder')).toEqual(['Check order status']);
+  expect(targets('reorder-reminder.json', 'Check order status')).toEqual(['Collect reminder input']);
+  expect(targets('reorder-reminder.json', 'Collect reminder input')).toEqual(['Build reorder reminder']);
+  expect(targets('reorder-reminder.json', 'Build reorder reminder')).toEqual(['Has reminder?']);
+  const gate = node('reorder-reminder.json', 'Has reminder?').parameters.conditions as { conditions: { leftValue: string; operator: { type: string; operation: string } }[] };
+  expect(gate.conditions).toMatchObject([{ leftValue: '={{ $json.send }}', operator: { type: 'boolean', operation: 'true' } }]);
+  expect(targets('reorder-reminder.json', 'Has reminder?', 0)).toEqual(['Email reorder reminder']);
+  expect(targets('reorder-reminder.json', 'Has reminder?', 1)).toEqual([]);
+  const mail = node('reorder-reminder.json', 'Email reorder reminder').parameters;
+  expect(mail).toMatchObject({ emailType: 'html', sendTo: '={{ $json.to }}', subject: '={{ $json.subject }}', message: '={{ $json.html }}' });
+  expect(mail.options).toMatchObject({ appendAttribution: false });
+  expect(params('reorder-reminder.json', 'When called')).toContain('"inputSource":"workflowInputs"');
+});
+it('process-order stays at 25 non-sticky nodes or fewer', () => {
+  expect(wf('process-order.json').nodes.filter((n) => n.type !== 'n8n-nodes-base.stickyNote').length).toBeLessThanOrEqual(25);
+});
+it("the reminder's Check order status runs exactly ORDER_STATUS_SQL", () => {
+  expect(node('reorder-reminder.json', 'Check order status').parameters.query).toBe(ORDER_STATUS_SQL);
+  expect(node('reorder-reminder.json', 'Check order status').parameters.options).toMatchObject({ queryReplacement: "={{ $('When called').first().json.order.order_id }}" });
+});
+it('the reminder hands Build reorder reminder the status the query read, recorded included', () => {
+  expect(params('reorder-reminder.json', 'Collect reminder input')).toContain('recorded: $json.recorded');
 });

@@ -209,6 +209,20 @@
         120,
         64
       ]
+    },
+    {
+      "id": "reorder-reminder",
+      "type": "backend",
+      "label": "reorder-reminder",
+      "sublabel": "wait · re-check · email",
+      "pos": [
+        1070,
+        300
+      ],
+      "size": [
+        120,
+        64
+      ]
     }
   ],
   "connections": [
@@ -374,6 +388,20 @@
     {
       "id": "fail-cancel",
       "from": "cancel-order",
+      "to": "error-handler",
+      "label": "on failure",
+      "variant": "security"
+    },
+    {
+      "id": "remind-start",
+      "from": "process-order",
+      "to": "reorder-reminder",
+      "label": "if consented",
+      "variant": "default"
+    },
+    {
+      "id": "fail-reminder",
+      "from": "reorder-reminder",
       "to": "error-handler",
       "label": "on failure",
       "variant": "security"

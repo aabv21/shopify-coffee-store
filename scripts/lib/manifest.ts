@@ -39,6 +39,7 @@ const readEnv = (env: Readonly<Record<string, string>>, key: string): string => 
 export const WORKFLOWS: readonly WorkflowEntry[] = [
   { id: CONFIG_LOADER_ID, name: 'Load config', file: 'load-config.json', publish: true, liveTrigger: false },
   { id: ERROR_WORKFLOW_ID, name: 'Error handler', file: 'error-handler.json', publish: true, liveTrigger: false },
+  { id: 'nbcReorderRemind', name: 'Reorder reminder', file: 'reorder-reminder.json', publish: true, liveTrigger: false },
   { id: 'nbcProcessOrder1', name: 'Process order', file: 'process-order.json', publish: true, liveTrigger: false },
   { id: 'nbcIntakeOrder01', name: 'Intake order', file: 'intake-order.json', publish: true, liveTrigger: false },
   { id: 'nbcCancelOrder01', name: 'Cancel order', file: 'cancel-order.json', publish: true, liveTrigger: false },
@@ -153,6 +154,12 @@ export const CODE_NODES: readonly CodeNodeEntry[] = [
     node: 'Build cancellation notice',
     source: 'src/nodes/cancel-notice.ts',
     why: "writes the owner's cancellation notice from an en/es message table with the Bogota time and a readable reason",
+  },
+  {
+    file: 'reorder-reminder.json',
+    node: 'Build reorder reminder',
+    source: 'src/nodes/reorder-reminder.ts',
+    why: "decides consent, cancellation, and reorder in one tested place and renders the branded reminder with a cart link in the customer's language",
   },
   {
     file: 'error-handler.json',

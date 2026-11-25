@@ -643,9 +643,9 @@
         -60
       ],
       "parameters": {
-        "width": 2320,
+        "width": 2600,
         "height": 160,
-        "content": "## Brewing guide (after the wait)\nAfter guide_delay_minutes, checks the order's status: a cancelled order stops here. Otherwise emails the customer one HTML email with a guide per brew method among the order's known variants, in the order's locale (else config.default_locale). Sends nothing without an email address or a known brew method."
+        "content": "## Brewing guide (after the wait)\nAfter guide_delay_minutes, checks the order's status: a cancelled order stops here. Otherwise emails the customer one HTML email with a guide per brew method among the order's known variants, in the order's locale (else config.default_locale). Sends nothing without an email address or a known brew method. Then, only when the customer accepted marketing, starts Reorder reminder without waiting for it."
       }
     },
     {
@@ -723,6 +723,102 @@
           ]
         },
         "options": {}
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000025",
+      "name": "Wants reminder?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        4900,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "30000000-0025-4000-8000-0000000a0001",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $('When called').first().json.order.accepts_marketing === true }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000026",
+      "name": "Start reorder reminder",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        5180,
+        100
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "nbcReorderRemind"
+        },
+        "mode": "once",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "order": "={{ $('When called').first().json.order }}",
+            "config": "={{ $('When called').first().json.config }}",
+            "variants": "={{ $('Select low-stock variants').first().json.variants }}"
+          },
+          "schema": [
+            {
+              "id": "order",
+              "displayName": "order",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "config",
+              "displayName": "config",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "variants",
+              "displayName": "variants",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "array",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
       }
     }
   ],
@@ -919,7 +1015,13 @@
             "index": 0
           }
         ],
-        []
+        [
+          {
+            "node": "Wants reminder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Check order status": {
@@ -938,6 +1040,29 @@
         [
           {
             "node": "Read brewing guides",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Email brewing guide": {
+      "main": [
+        [
+          {
+            "node": "Wants reminder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wants reminder?": {
+      "main": [
+        [
+          {
+            "node": "Start reorder reminder",
             "type": "main",
             "index": 0
           }
