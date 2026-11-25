@@ -4,7 +4,7 @@ This page follows one order from checkout to the brewing-guide email. It then co
 
 ![System architecture: the storefront sends checkouts to Shopify; Shopify’s orders/create webhook reaches shopify-orders through ngrok; intake-order records each order once in Postgres and starts process-order, which writes the sheet row, reads stock from Shopify, waits in Postgres, and sends email through Gmail](diagrams/architecture.svg)
 
-Both diagrams come from JSON sources in `docs/diagrams/`. [archify](https://github.com/tt-a1i/archify) renders each one as an SVG image and an interactive HTML page, and `AGENTS.md` lists the steps to regenerate them.
+The four diagrams come from JSON sources in `docs/diagrams/`. [archify](https://github.com/tt-a1i/archify) renders each one as an SVG image and an interactive HTML page, and [`diagrams/README.md`](diagrams/README.md) lists the steps to regenerate them.
 
 ## Context: who uses it and where it runs
 
@@ -51,6 +51,17 @@ Every email’s text comes from an `{ en, es }` message table in its Code node, 
 
 The workflows read their settings from `config/config.json`, which Compose mounts read-only at `/files/config/`. It holds the owner’s email, the sheet ID and tab name, the store subdomain and API version, the low-stock threshold, the guide delay, and two languages: `default_locale` for customer emails when an order carries no usable locale, and `team_locale` for the owner’s emails. Both are `en` or `es` and default to `en`. Git ignores the file, and `config/config.example.json` is its template. `validateConfig` (`src/lib/config.ts`) checks it in `pnpm run check:config`, in `pnpm run setup`, and in the `Check config` node.
 
+## HTTP surface
+
+Two routes accept requests. Everything else answers 404 at the tunnel, and n8n's editor and REST API are never published beyond `127.0.0.1`.
+
+| Route | Caller | Auth | Request and response | Errors |
+|---|---|---|---|---|
+| `POST /webhook/4b1d2c3e-5f60-4a7b-8c9d-0e1f2a3b4c5d/webhook`, through ngrok | Shopify, `orders/create` | The HMAC in `X-Shopify-Hmac-Sha256`, plus the topic, shop, and API-version headers | The order payload, answered `200 {"message":"Webhook call received"}` on receipt, before any node runs | A bad HMAC also gets 200, with no execution. ngrok answers 429 above 60 requests a minute per client IP, and 404 for any other path. |
+| `POST /webhook/dev`, localhost only | `scripts/dev-call.ts`, `check-dev-response.ts`, CI | `X-Dev-Token` (credential `nbcCredDevToken1`) | `{ "target": "load-config" \| "intake-order", "input": … }`, answered with the target's last output: `{ config }`; for `intake-order`, `{ order, config }`, or `{ success: true }` for a duplicate | 403 with no token or a wrong one; 404 `{"error":"unknown_target"}` |
+
+The dev harness calls its target with no retry, and the tunnel's policy gives it no public route.
+
 ## The storefront and the token script
 
 The theme is Shopify’s Horizon 4.3.0, pinned by commit in `scripts/lib/horizon.ts`. The repo never copies Horizon in. `pnpm run theme:assemble` downloads that commit, copies `theme/**` over it, and applies five anchored insertions from `scripts/lib/theme-insertions.ts`. The result in `.theme-build/theme/` is the theme you push.
@@ -82,6 +93,8 @@ The sequence diagram groups the path into seven bands, and the numbered steps be
 
 ## What the system stores, and for how long
 
+![Data flow: the Shopify payload reaches shopify-orders; the full payload stays in n8n's executions for 168 hours, the orders table keeps the id, number, and time, the sheet keeps name, city, and totals, and the owner, customer, and error emails carry only what each needs](diagrams/data-flow.svg)
+
 The Orders sheet is the business record. Postgres holds only what the gate and the wait need:
 
 | Store | What it holds | How long |
@@ -96,9 +109,11 @@ The Orders sheet is the business record. Postgres holds only what the gate and t
 
 ## Failure modes: behavior, detection, and recovery
 
+![Order states: delivered, recorded, config checked, row and email, waiting, and guide sent. A bad signature or a repeat stops silently. An intake failure returns to delivered after the orders row is deleted. A process-order failure is its own run, retried from its failed node while the row stays.](diagrams/order-lifecycle.svg)
+
 Each row gives a failure’s behavior, the signal you’d notice, and the fix. Unless a row says otherwise, every Postgres, Google Sheets, Gmail, and GraphQL call makes 3 tries, 1000 ms apart. An Execute Workflow call never retries, since a retry would repeat a sub-workflow’s side effects. When a failure outlasts its retries, the execution fails and `error-handler` emails the owner.
 
-A retry from n8n’s executions list resumes at the failed node and reuses the stored output of every node before it. That includes the config passed down, so a config fix doesn’t reach a retry that resumes after the config was loaded. [`AGENTS.md`’s guardrails](../AGENTS.md#guardrails) summarize them.
+A retry from n8n’s executions list resumes at the failed node and reuses the stored output of every node before it. That includes the config passed down, so a config fix doesn’t reach a retry that resumes after the config was loaded. [`AGENTS.md`](../AGENTS.md#rules-an-agent-must-not-break) lists the rules that follow from them.
 
 | Failure | Behavior | Detection | Recovery |
 |---|---|---|---|
@@ -157,6 +172,7 @@ Shopify’s webhook is the only way in from the internet. The backend binds, esc
 - **Theme**: The bar and the finder write only through `textContent`, never `innerHTML`. Liquid escapes every settings string and the store’s money format. The finder embeds product data as JSON in a `<script type="application/json">` tag, and Shopify’s `json` filter documents only quote escaping. So the section replaces `</` with `<\/` across the whole JSON, which `JSON.parse` reads back unchanged.
 - **Honest storefront messages**: The finder says “Added to your cart.” only after a confirmed add: `updateCart` returned no `userErrors`, or the Cart AJAX fallback answered OK. A failure to open the cart drawer afterwards can’t turn that into an error. The bar logs one console warning when its markup lacks the parts its script fills. The finder does the same when an add can’t find its status or message element.
 - **Secrets**: Secrets live only in `.env`, which git ignores, and in n8n’s credentials, encrypted with `N8N_ENCRYPTION_KEY`. `pnpm run setup` learns which credentials exist from an encrypted export and logs only names and IDs. CI runs gitleaks over the full history.
+- **Send-only Gmail**: The Gmail credential (`nbcCredGmail0001`) is narrowed in `scripts/lib/manifest.ts` to `https://www.googleapis.com/auth/gmail.send`, so leave `senderName` unset on Gmail nodes (`tests/workflows.test.ts` checks it). An existing stack needs `pnpm run setup -- --refresh nbcCredGmail0001` and a new consent in the n8n editor, which should show only “Send email on your behalf”. The old grant stays valid until someone revokes it on the Google Account’s [third-party access](https://myaccount.google.com/connections) page.
 - **Files**: n8n’s file nodes can read only `/files` (`N8N_RESTRICT_FILE_ACCESS_TO`), where Compose mounts `config/` and `data/` read-only.
 
 ## Platform behaviors this design depends on

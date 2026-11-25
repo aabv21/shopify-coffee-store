@@ -1,0 +1,199 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Where Order Data Goes",
+    "locale": "en",
+    "output": "docs/diagrams/data-flow.html",
+    "viewBox": [
+      1080,
+      540
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "stages": [
+    {
+      "label": "Source"
+    },
+    {
+      "label": "Workflows"
+    },
+    {
+      "label": "Stored"
+    },
+    {
+      "label": "Sent"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "payload",
+      "type": "external",
+      "label": "Shopify payload",
+      "sublabel": "name, email, address",
+      "stage": 0,
+      "row": 1,
+      "tag": "PII"
+    },
+    {
+      "id": "workflows",
+      "type": "backend",
+      "label": "shopify-orders",
+      "sublabel": "then the chain",
+      "stage": 1,
+      "row": 1,
+      "tag": "HMAC"
+    },
+    {
+      "id": "executions",
+      "type": "database",
+      "label": "n8n executions",
+      "sublabel": "database n8n",
+      "stage": 2,
+      "row": 1,
+      "tag": "168 h"
+    },
+    {
+      "id": "orders",
+      "type": "database",
+      "label": "orders table",
+      "sublabel": "id, number, time",
+      "stage": 2,
+      "row": 0,
+      "tag": "kept"
+    },
+    {
+      "id": "sheet",
+      "type": "external",
+      "label": "Sheets row",
+      "sublabel": "name, city, totals",
+      "stage": 2,
+      "row": 2,
+      "tag": "until deleted"
+    },
+    {
+      "id": "owner",
+      "type": "external",
+      "label": "Owner Gmail",
+      "sublabel": "summary, stock",
+      "stage": 3,
+      "row": 0,
+      "tag": "plain text"
+    },
+    {
+      "id": "customer",
+      "type": "external",
+      "label": "Customer Gmail",
+      "sublabel": "brewing guide",
+      "stage": 3,
+      "row": 1,
+      "tag": "escaped"
+    },
+    {
+      "id": "alert",
+      "type": "security",
+      "label": "Error email",
+      "sublabel": "error text as-is",
+      "stage": 3,
+      "row": 2,
+      "tag": "owner only"
+    }
+  ],
+  "flows": [
+    {
+      "id": "f-payload",
+      "from": "payload",
+      "to": "workflows",
+      "label": "full payload",
+      "classification": "PII",
+      "variant": "security"
+    },
+    {
+      "id": "f-executions",
+      "from": "workflows",
+      "to": "executions",
+      "label": "payload",
+      "classification": "PII",
+      "variant": "security"
+    },
+    {
+      "id": "f-orders",
+      "from": "workflows",
+      "to": "orders",
+      "label": "id, number, time",
+      "classification": "kept",
+      "variant": "emphasis",
+      "fromSide": "top",
+      "toSide": "left",
+      "via": [
+        [
+          315,
+          157
+        ]
+      ]
+    },
+    {
+      "id": "f-sheet",
+      "from": "workflows",
+      "to": "sheet",
+      "label": "name, city, totals",
+      "classification": "business record",
+      "variant": "default",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "via": [
+        [
+          315,
+          385
+        ]
+      ]
+    },
+    {
+      "id": "f-owner",
+      "from": "executions",
+      "to": "owner",
+      "label": "owner summary",
+      "classification": "plain text",
+      "variant": "default"
+    },
+    {
+      "id": "f-customer",
+      "from": "executions",
+      "to": "customer",
+      "label": "guide",
+      "classification": "email",
+      "variant": "default",
+      "labelAt": [
+        664,
+        270
+      ]
+    },
+    {
+      "id": "f-alert",
+      "from": "executions",
+      "to": "alert",
+      "label": "node, error, link",
+      "classification": "error text",
+      "variant": "default"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Personal data",
+      "items": [
+        "The full payload, with name, email, and address, lives only in n8n's executions for 168 hours",
+        "The sheet keeps the name and city, never the email"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "What is kept",
+      "items": [
+        "The orders table keeps the id, number, and time until someone deletes it",
+        "The error email carries the failed node, the error text as-is, and the execution link"
+      ]
+    }
+  ]
+}
