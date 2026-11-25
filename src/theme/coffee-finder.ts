@@ -1,6 +1,7 @@
 // Writes text only through textContent, never innerHTML: product data and settings are
 // merchant-entered, and Shopify's messages are text too.
 import { favoritePicks, isPreferredSize, missingAnswers, parseProducts, readAnswers, recommend, type FinderProduct, type FinderVariant, type Question } from './recommend.ts';
+import { addToCart } from './cart-add.ts';
 import './shopify-actions.d.ts';
 
 const TAG_NAME = 'coffee-finder';
@@ -186,26 +187,13 @@ class CoffeeFinder extends HTMLElement {
     delete status.dataset.state;
 
     try {
-      const actions = window.Shopify?.actions;
-      if (actions) {
-        const result = await actions.updateCart(
-          { lines: [{ merchandiseId: variantId, quantity: 1 }] },
-          { event: { context: 'standard-action' } },
-        );
-        if (result.userErrors && result.userErrors.length > 0) {
-          this.setStatus(status, 'error', errorText);
-        } else {
-          // The add already succeeded; opening the drawer is best-effort and can't undo that.
-          this.setStatus(status, 'success', this.successText(addedText, result.warnings));
-          try {
-            await actions.openCart();
-          } catch (err: unknown) {
-            console.warn('coffee-finder: openCart failed after a successful add', err);
-          }
-        }
-      } else {
-        await this.addViaCartAjax(variantId, status, addedText, errorText);
-      }
+      const result = await addToCart(variantId, {
+        cartAddUrl: this.dataset.cartAddUrl ?? '/cart/add',
+        cartUrl: this.dataset.cartUrl ?? '/cart',
+        openCart: true,
+      });
+      if (result.ok) this.setStatus(status, 'success', this.successText(addedText, result.warnings));
+      else this.setStatus(status, 'error', errorText);
     } catch {
       this.setStatus(status, 'error', errorText);
     } finally {
@@ -213,27 +201,8 @@ class CoffeeFinder extends HTMLElement {
     }
   }
 
-  private successText(addedText: string, warnings?: { message: string }[]): string {
-    if (!warnings || warnings.length === 0) return addedText;
-    return [addedText, ...warnings.map((warning) => warning.message)].join(' ');
-  }
-
-  private async addViaCartAjax(variantId: string, status: HTMLElement, addedText: string, errorText: string): Promise<void> {
-    const cartAddUrl = this.dataset.cartAddUrl ?? '/cart/add';
-    const cartUrl = this.dataset.cartUrl ?? '/cart';
-
-    const response = await fetch(`${cartAddUrl}.js`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1 }] }),
-    });
-
-    if (response.ok) {
-      this.setStatus(status, 'success', addedText);
-      window.location.assign(cartUrl);
-    } else {
-      this.setStatus(status, 'error', errorText);
-    }
+  private successText(addedText: string, warnings: string[]): string {
+    return warnings.length === 0 ? addedText : [addedText, ...warnings].join(' ');
   }
 }
 

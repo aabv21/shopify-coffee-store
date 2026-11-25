@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../../src/theme/free-shipping-bar.ts';
-import { renderBar } from '../lib/theme-render.ts';
+import type { UpdateCartResult } from '../../src/theme/shopify-actions.d.ts';
+import { barSettings, renderBar } from '../lib/theme-render.ts';
 
 const CART_EVENT = 'shopify:cart:lines-update';
 
@@ -26,6 +27,7 @@ const track = () => document.querySelector('[data-bar-track]')!;
 
 afterEach(() => {
   document.body.replaceChildren();
+  delete window.Shopify;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -115,5 +117,120 @@ describe('free-shipping bar in the DOM', () => {
     bar().dataset.thresholdCents = '0';
     bar().dataset.totalCents = '4000000';
     expect(bar().hidden).toBe(true);
+  });
+});
+
+const suggestion = () => document.querySelector<HTMLElement>('[data-bar-suggestion]')!;
+const suggestionText = () => document.querySelector('[data-suggestion-text]')!.textContent;
+const addButton = () => document.querySelector<HTMLButtonElement>('[data-suggestion-add]')!;
+const suggestionStatus = () => document.querySelector('[data-suggestion-status]')!.textContent;
+const stubActions = (updateCart: () => Promise<UpdateCartResult>) => {
+  const actions = { updateCart: vi.fn(updateCart), openCart: vi.fn(() => Promise.resolve()) };
+  window.Shopify = { actions };
+  return actions;
+};
+
+describe('free-shipping bar suggestion', () => {
+  it('at 114,000 COP the bar suggests Sierra Nevada 250 g for $38.000', async () => {
+    mount(await renderBar(11_400_000));
+    expect(suggestion().hidden).toBe(false);
+    expect(suggestionText()).toBe('Add Sierra Nevada 250 g ($38.000) and shipping is free.');
+    expect(addButton().textContent.trim()).toBe('Add');
+  });
+
+  it('speaks Spanish in a Spanish storefront', async () => {
+    mount(await renderBar(11_400_000, 'es'));
+    expect(suggestionText()).toBe('Agregue Sierra Nevada 250 g ($38.000) y el envío le sale gratis.');
+    expect(addButton().textContent.trim()).toBe('Agregar');
+  });
+
+  it('Add puts the suggested variant in the cart without opening the drawer', async () => {
+    mount(await renderBar(11_400_000));
+    const actions = stubActions(() => Promise.resolve({}));
+    stubFetch(() => cartResponse(15_200_000));
+    addButton().click();
+    await vi.waitFor(() => expect(actions.updateCart).toHaveBeenCalled());
+    const [payload] = actions.updateCart.mock.calls[0] as unknown as [{ lines: { merchandiseId: string; quantity: number }[] }];
+    expect(payload.lines).toHaveLength(1);
+    expect(payload.lines[0]?.quantity).toBe(1);
+    expect(actions.openCart).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(message()).toBe('You’ve got free shipping!'));
+    expect(suggestion().hidden).toBe(true);
+  });
+
+  it('a failed add shows the suggestion error', async () => {
+    mount(await renderBar(11_400_000));
+    stubActions(() => Promise.resolve({ userErrors: [{ message: 'x' }] }));
+    addButton().click();
+    await vi.waitFor(() => expect(suggestionStatus()).toBe('We couldn’t add it. Please try again.'));
+    expect(addButton().hasAttribute('aria-busy')).toBe(false);
+    expect(suggestion().hidden).toBe(false);
+  });
+
+  it('a failed cart re-read after a successful add only warns: the add did not fail', async () => {
+    mount(await renderBar(11_400_000));
+    const actions = stubActions(() => Promise.resolve({}));
+    stubFetch(() => Promise.resolve({ ok: false, status: 500 }));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    addButton().click();
+    await vi.waitFor(() => expect(warn).toHaveBeenCalled());
+    expect(actions.updateCart).toHaveBeenCalledOnce();
+    expect(suggestionStatus()).toBe('');
+    expect(addButton().hasAttribute('aria-busy')).toBe(false);
+  });
+
+  it('after an add that reaches free shipping, focus moves to the bar message instead of falling to the page', async () => {
+    mount(await renderBar(11_400_000));
+    stubActions(() => Promise.resolve({}));
+    stubFetch(() => cartResponse(15_200_000));
+    addButton().focus();
+    expect(document.activeElement).toBe(addButton());
+    addButton().click();
+    await vi.waitFor(() => expect(suggestion().hidden).toBe(true));
+    expect(document.activeElement).toBe(document.querySelector('[data-bar-message]'));
+    expect(document.querySelector('[data-bar-message]')!.getAttribute('tabindex')).toBe('-1');
+  });
+
+  it('focus elsewhere is left alone when the suggestion hides', async () => {
+    mount(await renderBar(11_400_000));
+    const other = document.createElement('button');
+    document.body.append(other);
+    other.focus();
+    stubFetch(() => cartResponse(15_200_000));
+    document.dispatchEvent(new CustomEvent(CART_EVENT));
+    await vi.waitFor(() => expect(suggestion().hidden).toBe(true));
+    expect(document.activeElement).toBe(other);
+  });
+
+  it('a rejected add shows the suggestion error too', async () => {
+    mount(await renderBar(11_400_000));
+    stubActions(() => Promise.reject(new Error('network')));
+    addButton().click();
+    await vi.waitFor(() => expect(suggestionStatus()).toBe('We couldn’t add it. Please try again.'));
+  });
+
+  it('at free shipping the suggestion hides', async () => {
+    mount(await renderBar(15_200_000));
+    expect(suggestion().hidden).toBe(true);
+  });
+
+  it('the suggestion follows the cart: it hides when an update reaches free shipping', async () => {
+    mount(await renderBar(11_400_000));
+    stubFetch(() => cartResponse(15_200_000));
+    document.dispatchEvent(new CustomEvent(CART_EVENT));
+    await vi.waitFor(() => expect(suggestion().hidden).toBe(true));
+  });
+
+  it('no suggestion when no bag covers the gap', async () => {
+    mount(await renderBar(0));
+    expect(suggestion().hidden).toBe(true);
+  });
+
+  it('with the suggestion turned off, nothing renders', async () => {
+    expect(barSettings.free_shipping_suggestion_enabled).toBe(true);
+    mount(await renderBar(11_400_000, 'en', { free_shipping_suggestion_enabled: false }));
+    expect(document.querySelector('[data-bar-suggestion]')).toBeNull();
+    expect(document.querySelector('[data-bar-suggestions]')).toBeNull();
+    expect(message()).toBe('You’re $6.000 away from free shipping');
   });
 });

@@ -33,7 +33,10 @@
     "free_shipping_bar": {
       "message_remaining": "You’re [amount] away from free shipping",
       "message_reached": "You’ve got free shipping!",
-      "progress_label": "Progress toward free shipping"
+      "progress_label": "Progress toward free shipping",
+      "suggestion_message": "Add [product] ([price]) and shipping is free.",
+      "suggestion_add_label": "Add",
+      "suggestion_error": "We couldn’t add it. Please try again."
     },
     "reassurance": "Roasted to order. Ships within 2 business days."
   }
