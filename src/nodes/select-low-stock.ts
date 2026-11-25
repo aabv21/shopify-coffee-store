@@ -1,4 +1,4 @@
-import { normalizeLocale, type Locale } from '../lib/locale.ts';
+import { messagesFor, type Locale } from '../lib/locale.ts';
 import type { LowStockItem, NormalizedOrder, StockReport, VariantInfo } from './types.ts';
 
 interface GraphQlError {
@@ -86,7 +86,7 @@ export function run(input: SelectLowStockInput): StockReport {
   }
 
   const lowStock = variants.filter((v) => v.tracked && v.available < input.threshold).map(toLowStockItem);
-  const m = MESSAGES[normalizeLocale(input.team_locale, 'en')];
+  const m = messagesFor(MESSAGES, input.team_locale);
 
   return {
     variants,

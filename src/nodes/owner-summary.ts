@@ -1,4 +1,4 @@
-import { normalizeLocale, type Locale } from '../lib/locale.ts';
+import { messagesFor, type Locale } from '../lib/locale.ts';
 import type { OrderRow } from './types.ts';
 
 export interface OwnerSummaryInput {
@@ -61,7 +61,7 @@ const MESSAGES: Record<Locale, Messages> = {
 
 export function run(input: OwnerSummaryInput): OwnerSummary {
   const { row } = input;
-  const m = MESSAGES[normalizeLocale(input.team_locale, 'en')];
+  const m = messagesFor(MESSAGES, input.team_locale);
   const amount = (value: number): string => `${value.toLocaleString(m.numberLocale)} COP`;
   const { labels } = m;
 

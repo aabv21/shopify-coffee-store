@@ -1,4 +1,4 @@
-import { normalizeLocale, type Locale } from '../lib/locale.ts';
+import { messagesFor, normalizeLocale, type Locale } from '../lib/locale.ts';
 import type { BrewingGuide, BrewingGuides, GuideEmail, GuideText, NormalizedOrder, VariantInfo } from './types.ts';
 
 export interface SelectGuidesInput {
@@ -19,6 +19,8 @@ interface Messages {
   signOff: string;
 }
 
+const ROAST_ES = new Map([['light', 'clara'], ['medium', 'media'], ['dark', 'oscura']]);
+
 const MESSAGES: Record<Locale, Messages> = {
   en: {
     subject: 'How to brew your Nubandina coffee',
@@ -32,7 +34,7 @@ const MESSAGES: Record<Locale, Messages> = {
     subject: 'Cómo preparar su café Nubandina',
     greeting: (firstName) => (firstName === null ? 'Hola:' : `Hola, ${firstName}:`),
     intro: (orderNumber) => `Gracias por su pedido ${orderNumber}. Así puede sacarle el máximo provecho a su café.`,
-    roast: (roast) => `tostión ${new Map([['light', 'clara'], ['medium', 'media'], ['dark', 'oscura']]).get(roast) ?? roast}`,
+    roast: (roast) => `tostión ${ROAST_ES.get(roast) ?? roast}`,
     ratio: 'Proporción',
     signOff: 'Que disfrute su café,',
   },
@@ -64,8 +66,7 @@ function guideSection(guide: GuideText, m: Messages): string {
 export function run(input: SelectGuidesInput): GuideEmail {
   const { order, variants, guides } = input;
   const locale = normalizeLocale(order.locale, normalizeLocale(input.default_locale, 'en'));
-  // eslint-disable-next-line security/detect-object-injection -- locale is always one of LOCALES
-  const m = MESSAGES[locale];
+  const m = messagesFor(MESSAGES, locale);
 
   const byGid = new Map<string, VariantInfo>();
   for (const variant of variants) byGid.set(variant.variant_gid, variant);

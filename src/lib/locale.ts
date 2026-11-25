@@ -21,3 +21,8 @@ export function normalizeLocale<F extends Locale | null>(value: unknown, fallbac
   const language = value.trim().toLowerCase().split(/[-_]/)[0];
   return isLocale(language) ? language : fallback;
 }
+
+/** The entry of a per-locale message table for a locale tag, or for `fallback` when the tag isn't supported. */
+export function messagesFor<T>(table: Readonly<Record<Locale, T>>, raw: unknown, fallback: Locale = 'en'): T {
+  return table[normalizeLocale(raw, fallback)];
+}
