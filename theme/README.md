@@ -54,10 +54,9 @@ shipping threshold, updating live as the cart changes.
   `THEME_ENTRIES` into `theme/assets/free-shipping-bar.js` (generated; never hand-edited).
 - `theme/snippets/free-shipping-bar.liquid` — renders the `<free-shipping-bar>` markup from the
   Theme contracts' DOM contract, reads the settings below (each blank message falling back to its
-  translation; see Translations), and loads the bundled script. The first
-  render is server-side: the message, the fill, `aria-valuenow`, `aria-valuetext`, and
-  `data-state` (`remaining` or `reached`) are already right before the script runs, so nothing
-  starts empty or shifts.
+  translation; see Translations), and loads the bundled script. The first render is server-side: the
+  message, the fill, `aria-valuenow`, and `data-state` (`remaining` or `reached`) are already right
+  before the script runs, so nothing starts empty or shifts.
 
 **Insertions** (`scripts/lib/theme-insertions.data.ts`'s `INSERTIONS`):
 
@@ -65,19 +64,24 @@ shipping threshold, updating live as the cart changes.
    on its own line, anchored immediately before `<div class="cart-totals">` (that line appears
    exactly once in Horizon's file).
 2. `config/settings_schema.json`: an `append-settings-group` insertion adding the group "Free
-   shipping bar" (`t:nubandina.free_shipping_bar.name`) with five settings:
+   shipping bar" (`t:nubandina.free_shipping_bar.name`) with seven settings:
    `free_shipping_bar_enabled` (checkbox, default on), `free_shipping_threshold` (number, default
    120000), `free_shipping_message_remaining` (text, `[amount]` placeholder),
-   `free_shipping_message_reached` (text), and `free_shipping_progress_label` (text, the progress
-   bar's accessible label). Every label and info text is a `t:` key, and the three texts have no
-   default: left blank, each shows its storefront translation.
+   `free_shipping_message_reached` (text), `free_shipping_progress_label` (text, the progress bar's
+   accessible label), `reassurance_enabled` (checkbox, default on), and `reassurance_text` (text,
+   the line under the bar and under the coffee finder's results). Every label and info text is a
+   `t:` key, and the four texts have no default: left blank, each shows its storefront translation.
 
-**States and accessibility.** The track is a `role="progressbar"` with `aria-valuenow` (the
-percent), `aria-valuetext` (the same message the bar shows), and the progress label setting as its
-name. At the threshold, `data-state="reached"` shows a check icon (inline SVG, `aria-hidden`, since
-the message already says it) and sets the message in bold. The fill is a full-width bar slid into
-place with `transform`, transitioned only under `prefers-reduced-motion: no-preference`. The script
-writes the message and attributes only when they change, so the polite live region doesn't
+**States and accessibility.** The track is a `role="progressbar"` with `aria-valuenow` (the percent)
+and the progress label setting as its name. It has no `aria-valuetext`, so the message is spoken
+once, by its polite live region, and never twice. Under the track, a muted reassurance line
+("Roasted to order. Ships within 2 business days.") comes from `reassurance_text` or its
+translation, in Horizon's muted-text opacity; the coffee finder shows the same line under its
+results, and unticking `reassurance_enabled` hides both, since a blank text only falls back to the
+translation. At the threshold, `data-state="reached"` shows a check icon (inline SVG, `aria-hidden`,
+since the message already says it) and sets the message in bold. The fill is a full-width bar slid
+into place with `transform`, transitioned only under `prefers-reduced-motion: no-preference`. The
+script writes the message and attributes only when they change, so the polite live region doesn't
 re-announce what the server already rendered.
 
 **Staying live.** The bar updates two ways: it listens on `document` for
@@ -120,13 +124,19 @@ two coffees from product metafields, and adds the chosen bag to the cart.
 **Layout and states.** Mobile first: each answer is a full-width option at least 48px tall, the
 whole option clickable; from 750px the three answers sit side by side, and from 990px the intro
 stays beside the form. A chosen option takes the primary color as its border and a light tint.
-Submitting with a question unanswered marks that question's options, sets `aria-invalid` and
-`aria-describedby` on its radios, shows the "Unanswered question message" setting in a
-`role="alert"` region beside the button, and moves focus to the first unanswered question; answering
-it clears the mark. Results come in as cards (image, linked title, notes, size, price, and an "Add
-to cart" button); with no match, the "No match text" shows with a link to every coffee. While an
-add is in flight, the button shows a small spinning ring (static under reduced motion). The card's
-status line says whether the add worked, styled by `data-state="success"` or `"error"`.
+Submitting with a question unanswered marks that question's options, shows its own "Choose one
+answer." line under the question, sets `aria-invalid` and an `aria-describedby` naming that line and
+the summary on its radios, shows the "Unanswered question message" setting in a `role="alert"`
+region beside the button, and moves focus to the first unanswered question; answering it clears the
+mark and hides its line. Results come in as cards (image with a 400 and 800 pixel `srcset`, linked
+title, notes, size, price, and an "Add to cart" button). One line under the results heading says why
+the size fits ("Sized for three or more people"); it is hidden when a sold-out bag made any card
+fall back to another size, so it never contradicts the bag shown. With no match, the heading changes
+to "No exact match" and the text below it names the favorites shown, two, one, or none, with a link
+to every coffee. The favorites are the first available coffees of the collection, in the size the
+answer implies. A reassurance line shows under the results. While an add is in flight, the button
+shows a small spinning ring (static under reduced motion). The card's status line says whether the
+add worked, styled by `data-state="success"` or `"error"`.
 
 **Insertions** (`scripts/lib/theme-insertions.data.ts`'s `INSERTIONS`):
 
@@ -156,14 +166,15 @@ shows the error text and re-enables the add button.
 
 **Accessibility.** Each question is a native `<fieldset>` with a `<legend>` and radio inputs (the
 question number before each legend is CSS-generated with empty alternative text, so it isn't read
-out); the whole option shows the focus ring, and the radio's own ring is dropped only where
-`:has()` can draw that replacement. The results region is `aria-live="polite"`; submitting moves
-focus to the results heading (`tabindex="-1"`, since it isn't otherwise focusable), which shows a
-focus ring when reached by keyboard. Each card's title is a link to the product. The add button
-sets `aria-busy` while the request is in flight, instead of `disabled`, which would drop keyboard
-focus to the page; a second press while busy does nothing. Each card's add button carries the
-product and variant name in a visually-hidden span inside it, so its accessible name names the
-coffee, and its status line is a `role="status"` region. The card template's image has `alt=""`.
+out); the whole option shows the focus ring, and the radio's own ring is dropped only where `:has()`
+can draw that replacement. The results region is not a live region, so it never announces on top of
+the focus move; submitting moves focus to the results heading (`tabindex="-1"`, since it isn't
+otherwise focusable), which shows no outline box because it isn't a control. Each card's title is a
+link to the product. The add button sets `aria-busy` while the request is in flight, instead of
+`disabled`, which would drop keyboard focus to the page; a second press while busy does nothing.
+Each card's add button carries the product and variant name in a visually-hidden span inside it, so
+its accessible name names the coffee, and its status line is a `role="status"` region. The card
+template's image has `alt=""`.
 
 **Limitations:**
 
@@ -246,10 +257,10 @@ English, and Spanish exists only in the translation files.
 `locales/es.json` would replace Horizon's whole file) holds four partial Shopify locale files, each
 with a single top-level key, `nubandina`:
 
-- `en.default.json` and `es.json` — storefront strings: the coffee finder's 22 texts and the
-  free-shipping bar's three, including the status and error messages the scripts read from data
-  attributes (`data-message`, `data-added`, `data-error`, `data-message-remaining`,
-  `data-message-reached`).
+- `en.default.json` and `es.json` — storefront strings: the coffee finder's 28 texts, the
+  free-shipping bar's three, and the shared reassurance line, including the status and error
+  messages the scripts read from data attributes (`data-message`, `data-added`, `data-error`,
+  `data-message-remaining`, `data-message-reached`).
 - `en.default.schema.json` and `es.schema.json` — the theme editor's labels and help text, which
   the section schema and the free-shipping settings group reference as `t:nubandina.…`.
 
@@ -372,7 +383,8 @@ asserts the Spanish text and that none of this repo's English strings is left in
 ## Screenshots
 
 From the offline preview, so an approximation of the storefront (see above). Each is 390 × 844 and
-1280 × 800.
+1280 × 800, except the laptop finder results, which are 1280 × 1160 so all three
+questions show above the cards.
 
 | | 390 × 844 | 1280 × 800 |
 | --- | --- | --- |
@@ -465,8 +477,8 @@ run yet:
   checkout charges 0 shipping.
 - **Disabled.** A blank threshold, or unticking "Show the free shipping bar", hides the bar with no
   console errors.
-- **Screen reader.** VoiceOver reads the bar as "Progress toward free shipping" with its message as
-  the value, and announces the new message once after a cart change, not on page load.
+- **Screen reader.** VoiceOver reads the bar as "Progress toward free shipping" with its percent as
+  the value, and announces a cart change once, never on page load.
 
 ### Coffee finder (deferred live checks)
 
@@ -474,10 +486,12 @@ These need `pnpm dlx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme`,
 Chrome DevTools open, so they haven't been run yet:
 
 - **Keyboard path.** Tab reaches each radio group and arrow keys move within it. Submitting
-  "Pour-over / Mild and bright / Just me" moves focus to "Our pick for you", which shows one card:
-  Nariño 250 g, its price, and its notes.
+  "Pour-over / Mild and bright / Just me" moves focus to "Our pick for you", with no outline box,
+  and shows one card: Nariño 250 g, its price, and its notes, with "Sized for one or two people"
+  under the heading.
 - **Unanswered question.** Submitting with only a brew method chosen marks the other two questions,
-  announces "Choose an answer for each question.", and moves focus to the taste question.
+  announces "Choose an answer for each question.", shows "Choose one answer." under each, and moves
+  focus to the taste question.
 - **Adding to cart.** "Add to cart" with Enter shows the busy ring, keeps focus on the button,
   opens the cart drawer, and the free-shipping bar reflects the new total.
 - **Second option.** "Espresso / Mild and bright / Three or more" shows two cards, Sierra Nevada
