@@ -29,7 +29,7 @@ This repo builds the order-processing backend for Nubandina Coffee, a fictional 
 - `.theme-build/` — gitignored, created by the theme toolchain: the cached Horizon download, the assembled theme, and the offline preview. Safe to delete.
 - `.lighthouse/` — gitignored, written by `pnpm run lighthouse`: one JSON report per run under `.lighthouse/<date>/`, with the storefront cookie removed, including from a failed run's report. Safe to delete.
 - `docs/screenshots/` — retake them from the offline preview whenever a component's look changes.
-- `.github/workflows/`, `.github/dependabot.yml` — CI (quality, security, actions-lint, and `n8n` jobs, plus CodeQL for TypeScript and the workflow files) and dependency updates.
+- `.github/workflows/`, `.github/dependabot.yml` — CI (quality, security, actions, and `n8n` jobs, plus CodeQL for TypeScript and the workflow files) and dependency updates.
 
 ## Documentation map
 

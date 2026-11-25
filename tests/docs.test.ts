@@ -36,13 +36,11 @@ describe('README', () => {
       'License',
     ]));
 
-  it('README shows the Demo label and the video line above the diagram', () => {
+  it('README shows the Demo label above the diagram and promises no video', () => {
     const diagram = readme.findIndex((line) => line.includes('docs/diagrams/architecture.svg'));
     expect(diagram).toBeGreaterThan(0);
     expect(readme.indexOf('**Demo**')).toBeGreaterThanOrEqual(0);
     expect(readme.indexOf('**Demo**')).toBeLessThan(diagram);
-    const video = readme.findIndex((line) => line.startsWith('**Video:**'));
-    expect(video).toBeGreaterThanOrEqual(0);
-    expect(video).toBeLessThan(diagram);
+    expect(readme.some((line) => /\*\*Video:\*\*/.test(line))).toBe(false);
   });
 });
