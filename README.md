@@ -8,7 +8,7 @@ A Shopify coffee store with a self-hosted n8n order backend, in English and Span
 
 How it works, how it fails, and why it's built this way: [docs/architecture.md](docs/architecture.md). For the full-size, interactive diagram, open [`docs/diagrams/architecture.html`](docs/diagrams/architecture.html) from a local clone in a browser.
 
-The order lifecycle, step by step, is the sequence diagram in [docs/architecture.md](docs/architecture.md#how-an-order-moves-from-checkout-to-the-brewing-guide).
+The order lifecycle, step by step, is the sequence diagram in [docs/architecture.md](docs/architecture.md#how-an-order-moves-from-checkout-to-the-brewing-guide). The same page draws the [order states](docs/architecture.md#failure-modes-behavior-detection-and-recovery) and [where customer data goes](docs/architecture.md#what-the-system-stores-and-for-how-long).
 
 ## What it does
 

@@ -68,7 +68,9 @@ Part of the same `pnpm test` run above. These need no Docker and no running stac
 
 ## Diagrams
 
-`docs/diagrams/architecture.json` and `docs/diagrams/order-sequence.json` have no automated test: they're typed JSON sources rendered by [archify](https://github.com/tt-a1i/archify), validated by hand with `archify validate` at `--quality showcase` and regenerated only when a workflow or theme change actually makes one of them stale. See [`diagrams/README.md`](diagrams/README.md) for the exact commands.
+- **`tests/diagrams.test.ts`** ties the diagrams to `scripts/lib/manifest.ts`: the architecture diagram draws every workflow by file name and no other backend, and routes every workflow that names `error-handler` to it; the sequence diagram's backend participants are all manifest workflows; and each of the four sources has its `.html` and `.svg` beside it, with `docs/architecture.md` embedding every SVG.
+
+The diagrams are typed JSON sources rendered by [archify](https://github.com/tt-a1i/archify), validated by hand with `archify validate` at `--quality showcase`. See [`diagrams/README.md`](diagrams/README.md) for the exact commands.
 
 ## What CI runs
 

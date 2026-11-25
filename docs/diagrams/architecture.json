@@ -143,10 +143,10 @@
       "id": "postgres",
       "type": "database",
       "label": "Postgres 17",
-      "sublabel": "orders · waits",
+      "sublabel": "app · n8n data",
       "brand": "postgresql",
       "pos": [
-        761,
+        864,
         500
       ],
       "size": [
@@ -161,6 +161,20 @@
       "sublabel": "plain-text alerts",
       "pos": [
         1070,
+        500
+      ],
+      "size": [
+        120,
+        64
+      ]
+    },
+    {
+      "id": "load-config",
+      "type": "backend",
+      "label": "load-config",
+      "sublabel": "reads /files/config",
+      "pos": [
+        658,
         500
       ],
       "size": [
@@ -208,9 +222,7 @@
       "id": "record",
       "from": "intake-order",
       "to": "postgres",
-      "label": "record once",
-      "fromSide": "bottom",
-      "toSide": "top"
+      "label": "record once"
     },
     {
       "id": "wait",
@@ -255,9 +267,67 @@
       "from": "dev-harness",
       "to": "intake-order",
       "label": "test calls",
-      "variant": "dashed",
-      "fromSide": "right",
-      "toSide": "bottom"
+      "variant": "dashed"
+    },
+    {
+      "id": "config-intake",
+      "from": "intake-order",
+      "to": "load-config",
+      "label": "config"
+    },
+    {
+      "id": "config-errors",
+      "from": "error-handler",
+      "to": "load-config",
+      "label": "config",
+      "variant": "default",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          1130,
+          610
+        ],
+        [
+          718,
+          610
+        ]
+      ]
+    },
+    {
+      "id": "config-dev",
+      "from": "dev-harness",
+      "to": "load-config",
+      "label": "config",
+      "variant": "default"
+    },
+    {
+      "id": "fail-shopify-orders",
+      "from": "shopify-orders",
+      "to": "error-handler",
+      "label": "on failure",
+      "variant": "security"
+    },
+    {
+      "id": "fail-intake",
+      "from": "intake-order",
+      "to": "error-handler",
+      "label": "on failure",
+      "variant": "security"
+    },
+    {
+      "id": "fail-process",
+      "from": "process-order",
+      "to": "error-handler",
+      "label": "on failure",
+      "variant": "security"
+    },
+    {
+      "id": "fail-dev",
+      "from": "dev-harness",
+      "to": "error-handler",
+      "label": "on failure",
+      "variant": "security"
     }
   ],
   "cards": [

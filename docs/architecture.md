@@ -4,7 +4,7 @@ This page follows one order from checkout to the brewing-guide email. It then co
 
 ![System architecture: the storefront sends checkouts to Shopify; Shopify’s orders/create webhook reaches shopify-orders through ngrok; intake-order records each order once in Postgres and starts process-order, which writes the sheet row, reads stock from Shopify, waits in Postgres, and sends email through Gmail](diagrams/architecture.svg)
 
-Both diagrams come from JSON sources in `docs/diagrams/`. [archify](https://github.com/tt-a1i/archify) renders each one as an SVG image and an interactive HTML page, and [`diagrams/README.md`](diagrams/README.md) lists the steps to regenerate them.
+The four diagrams come from JSON sources in `docs/diagrams/`. [archify](https://github.com/tt-a1i/archify) renders each one as an SVG image and an interactive HTML page, and [`diagrams/README.md`](diagrams/README.md) lists the steps to regenerate them.
 
 ## Context: who uses it and where it runs
 
@@ -93,6 +93,8 @@ The sequence diagram groups the path into seven bands, and the numbered steps be
 
 ## What the system stores, and for how long
 
+![Data flow: the Shopify payload reaches shopify-orders; the full payload stays in n8n's executions for 168 hours, the orders table keeps the id, number, and time, the sheet keeps name, city, and totals, and the owner, customer, and error emails carry only what each needs](diagrams/data-flow.svg)
+
 The Orders sheet is the business record. Postgres holds only what the gate and the wait need:
 
 | Store | What it holds | How long |
@@ -106,6 +108,8 @@ The Orders sheet is the business record. Postgres holds only what the gate and t
 | Theme settings | The “Free shipping bar” group: on or off, the threshold, the two messages, and the progress bar’s label | In the theme |
 
 ## Failure modes: behavior, detection, and recovery
+
+![Order states: delivered, recorded, config checked, row and email, waiting, and guide sent. A bad signature or a repeat stops silently. An intake failure returns to delivered after the orders row is deleted. A process-order failure is its own run, retried from its failed node while the row stays.](diagrams/order-lifecycle.svg)
 
 Each row gives a failure’s behavior, the signal you’d notice, and the fix. Unless a row says otherwise, every Postgres, Google Sheets, Gmail, and GraphQL call makes 3 tries, 1000 ms apart. An Execute Workflow call never retries, since a retry would repeat a sub-workflow’s side effects. When a failure outlasts its retries, the execution fails and `error-handler` emails the owner.
 
