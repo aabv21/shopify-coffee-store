@@ -1,4 +1,5 @@
 import { messagesFor, normalizeLocale, type Locale } from '../lib/locale.ts';
+import { brandedEmail, escapeHtml, storeUrl } from './email-shell.ts';
 import type { BrewingGuide, BrewingGuides, GuideEmail, GuideText, NormalizedOrder, VariantInfo } from './types.ts';
 
 export interface SelectGuidesInput {
@@ -7,6 +8,8 @@ export interface SelectGuidesInput {
   guides: BrewingGuides;
   /** `config.default_locale`, as the workflow reads it: blank or missing means English. */
   default_locale?: string;
+  /** `config.shopify.store`: blank or missing means no "Shop again" button. */
+  store?: string;
 }
 
 // Every argument a message receives is already HTML-escaped.
@@ -17,6 +20,10 @@ interface Messages {
   roast: (roast: string) => string;
   ratio: string;
   signOff: string;
+  cta: string;
+  footer: string;
+  /** Receives the raw order number: the shell escapes it. */
+  preheader: (orderNumber: string) => string;
 }
 
 const ROAST_ES = new Map([['light', 'clara'], ['medium', 'media'], ['dark', 'oscura']]);
@@ -28,7 +35,10 @@ const MESSAGES: Record<Locale, Messages> = {
     intro: (orderNumber) => `Thanks for your order ${orderNumber}. Here's how to get the best from your coffee.`,
     roast: (roast) => `${roast} roast`,
     ratio: 'Ratio',
-    signOff: 'Enjoy your coffee,',
+    signOff: 'Enjoy your coffee.',
+    preheader: (orderNumber) => `Your brewing guide for order ${orderNumber}`,
+    cta: 'Shop again',
+    footer: "You're getting this email because you ordered from Nubandina Coffee.",
   },
   es: {
     subject: 'Cómo preparar su café Nubandina',
@@ -36,17 +46,16 @@ const MESSAGES: Record<Locale, Messages> = {
     intro: (orderNumber) => `Gracias por su pedido ${orderNumber}. Así puede sacarle el máximo provecho a su café.`,
     roast: (roast) => `tostión ${ROAST_ES.get(roast) ?? roast}`,
     ratio: 'Proporción',
-    signOff: 'Que disfrute su café,',
+    signOff: 'Que disfrute su café.',
+    preheader: (orderNumber) => `Su guía de preparación del pedido ${orderNumber}`,
+    cta: 'Volver a la tienda',
+    footer: 'Recibe este correo porque hizo un pedido en Nubandina Coffee.',
   },
 };
 
-const ESCAPE_RE = /[&<>"']/g;
-const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-
-function escapeHtml(value: string): string {
-  // eslint-disable-next-line security/detect-object-injection -- char is always one of ESCAPE_RE's own fixed characters
-  return value.replace(ESCAPE_RE, (char) => ESCAPES[char] ?? char);
-}
+// Email clients ignore stylesheets and apply their own tag margins, so each tag carries its own.
+const P_OPEN = '<p style="margin:0 0 16px">';
+const LIST_STYLE = 'margin:0 0 16px;padding-left:24px';
 
 function productListItem(variant: VariantInfo, m: Messages): string {
   const roastSuffix = variant.roast === null ? '' : `, ${m.roast(escapeHtml(variant.roast))}`;
@@ -60,7 +69,7 @@ function guideText(guide: BrewingGuide, locale: Locale): GuideText {
 
 function guideSection(guide: GuideText, m: Messages): string {
   const steps = guide.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join('');
-  return `<h2>${escapeHtml(guide.name)}</h2><p>${m.ratio}: ${escapeHtml(guide.ratio)}</p><ol>${steps}</ol>`;
+  return `<h2 style="margin:24px 0 8px;font-size:18px;line-height:1.3">${escapeHtml(guide.name)}</h2>${P_OPEN}${m.ratio}: ${escapeHtml(guide.ratio)}</p><ol style="${LIST_STYLE}">${steps}</ol>`;
 }
 
 export function run(input: SelectGuidesInput): GuideEmail {
@@ -88,15 +97,17 @@ export function run(input: SelectGuidesInput): GuideEmail {
   const methods = [...methodGuides.keys()];
   const send = order.email !== null && methods.length > 0;
 
-  const productList = `<ul>${knownVariants.map((variant) => productListItem(variant, m)).join('')}</ul>`;
+  const productList = `<ul style="${LIST_STYLE}">${knownVariants.map((variant) => productListItem(variant, m)).join('')}</ul>`;
   const guideSections = [...methodGuides.values()].map((guide) => guideSection(guideText(guide, locale), m)).join('');
-  const html = [
-    `<p>${m.greeting(order.first_name === null ? null : escapeHtml(order.first_name))}</p>`,
-    `<p>${m.intro(escapeHtml(order.order_number))}</p>`,
+  const bodyHtml = [
+    `${P_OPEN}${m.greeting(order.first_name === null ? null : escapeHtml(order.first_name))}</p>`,
+    `${P_OPEN}${m.intro(escapeHtml(order.order_number))}</p>`,
     productList,
     guideSections,
-    `<p>${m.signOff}<br>Nubandina Coffee</p>`,
+    `${P_OPEN}${m.signOff}</p>`,
   ].join('');
+  const url = storeUrl(input.store ?? '', locale);
+  const html = brandedEmail({ lang: locale, title: m.subject, bodyHtml, cta: url === null ? null : { label: m.cta, url }, footer: m.footer, preheader: m.preheader(order.order_number) });
 
   return {
     send,

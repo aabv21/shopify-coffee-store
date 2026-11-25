@@ -16,7 +16,7 @@ This repo builds the order-processing backend for Nubandina Coffee, a fictional 
 - `workflows/`: the n8n workflow JSON, mounted read-only: `shopify-orders`, `intake-order`, `process-order`, `load-config`, `error-handler`, `dev-harness`.
 - `scripts/lib/manifest.ts`: the single source of truth for fixed IDs (`WORKFLOWS`, `CREDENTIALS`, `CODE_NODES`, `TRIGGER_WEBHOOK_ID`).
 - `scripts/`: the CLIs behind Commands. `scripts/lib/` holds their shared helpers and the theme toolchain. In it, `theme-preview.ts`, `catalog.ts`, `color.ts` and `preview-css.ts` are the offline preview, and `theme-insertions.data.ts` is the data `theme-insertions.ts` applies.
-- `src/nodes/`: Code-node sources. `src/theme/`: the theme's TypeScript. `src/lib/`: shared pure helpers.
+- `src/nodes/`: Code-node sources; `email-shell.ts` is the branded HTML wrapper the emails share. `src/theme/`: the theme's TypeScript. `src/lib/`: shared pure helpers.
 - `theme/`: the overlay onto Shopify's Horizon theme. `theme-locales/`: the theme's translation sources.
 - `tests/`: Vitest tests, helpers, and fixtures.
 - `.n8n-import/`, `.theme-build/`, `.lighthouse/`: generated and gitignored. Never `rm -rf` `.n8n-import/`.
