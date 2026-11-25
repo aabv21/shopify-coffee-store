@@ -8,7 +8,7 @@
     "quality_profile": "showcase",
     "viewBox": [
       1230,
-      640
+      780
     ]
   },
   "components": [
@@ -45,7 +45,7 @@
       "id": "ngrok",
       "type": "security",
       "label": "ngrok",
-      "sublabel": "trigger path only",
+      "sublabel": "two webhook paths only",
       "pos": [
         246,
         300
@@ -192,7 +192,7 @@
         100
       ],
       "size": [
-        120,
+        150,
         64
       ]
     },
@@ -202,7 +202,7 @@
       "label": "cancel-order",
       "sublabel": "record · mark · notify",
       "pos": [
-        658,
+        700,
         100
       ],
       "size": [
@@ -216,8 +216,8 @@
       "label": "reorder-reminder",
       "sublabel": "wait · re-check · email",
       "pos": [
-        1070,
-        300
+        864,
+        700
       ],
       "size": [
         120,
@@ -236,7 +236,7 @@
       "id": "webhook",
       "from": "shopify",
       "to": "ngrok",
-      "label": "orders/create",
+      "label": "orders/create · cancelled",
       "variant": "emphasis"
     },
     {
@@ -322,19 +322,7 @@
       "from": "error-handler",
       "to": "load-config",
       "label": "config",
-      "variant": "default",
-      "fromSide": "bottom",
-      "toSide": "bottom",
-      "via": [
-        [
-          1130,
-          610
-        ],
-        [
-          718,
-          610
-        ]
-      ]
+      "variant": "default"
     },
     {
       "id": "config-dev",
@@ -375,7 +363,7 @@
       "id": "cancel-handoff",
       "from": "shopify-cancellations",
       "to": "cancel-order",
-      "label": "whole payload",
+      "label": "payload",
       "variant": "emphasis"
     },
     {
@@ -405,6 +393,41 @@
       "to": "error-handler",
       "label": "on failure",
       "variant": "security"
+    },
+    {
+      "id": "forward-cancel",
+      "from": "ngrok",
+      "to": "shopify-cancellations",
+      "label": "second path",
+      "variant": "emphasis"
+    },
+    {
+      "id": "cancel-sheet",
+      "from": "cancel-order",
+      "to": "sheets",
+      "label": "mark cancelled",
+      "variant": "default"
+    },
+    {
+      "id": "cancel-mail",
+      "from": "cancel-order",
+      "to": "gmail",
+      "label": "owner notice",
+      "variant": "default"
+    },
+    {
+      "id": "remind-mail",
+      "from": "reorder-reminder",
+      "to": "gmail",
+      "label": "reminder email",
+      "variant": "default"
+    },
+    {
+      "id": "remind-wait",
+      "from": "reorder-reminder",
+      "to": "postgres",
+      "label": "wait · re-check",
+      "variant": "default"
     }
   ],
   "cards": [
@@ -412,18 +435,18 @@
       "dot": "cyan",
       "title": "Order path",
       "items": [
-        "ngrok forwards only the Shopify Trigger's path",
-        "shopify-orders checks the HMAC and answers 200 on receipt",
-        "intake-order records each order once, then starts process-order"
+        "ngrok forwards only the two Shopify trigger paths",
+        "Each entry workflow checks the HMAC and answers 200 on receipt",
+        "intake-order and cancel-order each record once, behind a gate"
       ]
     },
     {
       "dot": "violet",
       "title": "process-order",
       "items": [
-        "Upserts the sheet row and emails the owner",
-        "Reads stock and brew methods in one GraphQL call",
-        "Waits in Postgres, then emails the brewing guide"
+        "Upserts the sheet row, reads stock, emails the owner",
+        "Waits in Postgres, then skips a cancelled order",
+        "Emails the guide, and starts the reminder if consented"
       ]
     },
     {

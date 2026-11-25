@@ -85,6 +85,27 @@
       "label": "Run failed",
       "sublabel": "process-order",
       "tag": "alert"
+    },
+    {
+      "id": "cancelled",
+      "type": "failure",
+      "label": "Cancelled",
+      "sublabel": "marked, owner told",
+      "tag": "stop"
+    },
+    {
+      "id": "reminder-waiting",
+      "type": "waiting",
+      "label": "Reminder waits",
+      "sublabel": "consented",
+      "tag": "wait"
+    },
+    {
+      "id": "reminder-sent",
+      "type": "success",
+      "label": "Reminder sent",
+      "sublabel": "customer",
+      "tag": "done"
     }
   ],
   "transitions": [
@@ -166,6 +187,48 @@
       "to": "row-sent",
       "label": "retry run",
       "variant": "dashed"
+    },
+    {
+      "id": "waiting-cancelled",
+      "from": "waiting",
+      "to": "cancelled",
+      "label": "cancelled",
+      "variant": "security"
+    },
+    {
+      "id": "guide-reminder",
+      "from": "guide-sent",
+      "to": "reminder-waiting",
+      "label": "consent",
+      "variant": "dashed"
+    },
+    {
+      "id": "reminder-due",
+      "from": "reminder-waiting",
+      "to": "reminder-sent",
+      "label": "due",
+      "variant": "dashed"
+    },
+    {
+      "id": "reminder-skip",
+      "from": "reminder-waiting",
+      "to": "stopped",
+      "label": "skipped",
+      "variant": "security"
+    },
+    {
+      "id": "guide-cancelled",
+      "from": "guide-sent",
+      "to": "cancelled",
+      "label": "cancelled",
+      "variant": "security"
+    },
+    {
+      "id": "waiting-reminder",
+      "from": "waiting",
+      "to": "reminder-waiting",
+      "label": "no guide",
+      "variant": "dashed"
     }
   ],
   "cards": [
@@ -174,7 +237,8 @@
       "title": "Main path",
       "items": [
         "Each order is recorded once before any side effect",
-        "The guide waits in Postgres, so a restart doesn't lose it"
+        "The guide waits in Postgres, so a restart doesn't lose it",
+        "A consenting customer's reminder waits in Postgres too"
       ]
     },
     {
@@ -183,7 +247,8 @@
       "items": [
         "A bad signature or a repeat stops silently, with no alert",
         "An intake failure needs the orders row deleted, then a retry of shopify-orders",
-        "A process-order failure is its own run: retry that run, and keep the row"
+        "A process-order failure is its own run: retry that run, and keep the row",
+        "A cancellation stops the guide or the reminder if it comes first; later it only marks the row"
       ]
     }
   ]

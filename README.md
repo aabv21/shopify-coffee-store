@@ -4,7 +4,7 @@
 
 A Shopify coffee store with a self-hosted n8n order backend, in English and Spanish. The backend handles each order once. It logs a Google Sheets row, emails the owner, alerts on low stock, and later emails the customer a brewing guide in the customer's language. It's built with a strict TypeScript toolchain and runs locally in Docker.
 
-![System architecture: the storefront sends checkouts to Shopify; the orders/create webhook reaches n8n through an ngrok tunnel; n8n records each order once in Postgres, writes a Google Sheets row, reads stock from Shopify, and emails the owner and the customer through Gmail](docs/diagrams/architecture.svg)
+![System architecture: the storefront sends checkouts to Shopify; the orders/create webhook reaches n8n through an ngrok tunnel; n8n records each order once in Postgres, writes a Google Sheets row, reads stock from Shopify, and emails the owner and the customer through Gmail; a second webhook records cancelled orders, and a reminder workflow starts for consenting customers](docs/diagrams/architecture.svg)
 
 How it works, how it fails, and why it's built this way: [docs/architecture.md](docs/architecture.md). For the full-size, interactive diagram, open [`docs/diagrams/architecture.html`](docs/diagrams/architecture.html) from a local clone in a browser.
 
@@ -15,16 +15,18 @@ The order lifecycle, step by step, is the sequence diagram in [docs/architecture
 **Storefront** — Shopify's Horizon theme plus this repo's overlay ([`theme/README.md`](theme/README.md)):
 
 - A **coffee finder** on the home page asks three questions (brew method, taste, party size) and recommends one or two coffees in the right bag size, with an "Add to cart" button on each.
-- A **free-shipping bar** in the cart shows how far the cart is from free shipping (120,000 COP), rendered on the server and updated live as the cart changes.
+- A **free-shipping bar** in the cart shows how far the cart is from free shipping (120,000 COP), rendered on the server and updated live as the cart changes. When one bag would cover the gap, it suggests the cheapest one that's in stock, with an "Add" button.
 - **English and Spanish.** Every string the theme adds has a translation, and a merchant's own text in the theme editor overrides it.
 - **The Nubandina brand**, set in Horizon's own settings: a coffee palette held to WCAG AA and the Alegreya fonts.
 
-**Order backend** — n8n workflows behind Shopify's `orders/create` webhook ([`docs/architecture.md`](docs/architecture.md)):
+**Order backend** — n8n workflows behind Shopify's `orders/create` and `orders/cancelled` webhooks ([`docs/architecture.md`](docs/architecture.md)):
 
 - Records **each order once** in Postgres before any side effect, so a repeated delivery does nothing.
 - Writes one **Google Sheets row** per order and emails the **owner** a summary.
 - Reads stock from Shopify and emails a **low-stock alert** for each tracked variant left under the threshold.
 - **Waits** in Postgres (60 minutes by default, surviving a restart), then emails the customer a **brewing guide** for each brew method in the order, in the customer's language, in a branded email with a "Shop again" button.
+- Records a **cancelled order** once, marks its Orders row `cancelled`, emails the owner, and sends no guide or reminder for it, even when the cancellation arrives during the wait.
+- Sends a **reorder reminder** (21 days after the order by default) only to a customer who agreed to marketing emails at checkout and has a Shopify customer id, and only if the order is still recorded and they haven't cancelled or ordered again by then. Its button opens a cart with the same bags, and its footer tells the customer to reply to stop.
 - Emails the owner an **error alert** with the failed node and an execution link when any step fails.
 
 ![The coffee finder's recommendations on a laptop: two coffee cards with photos, notes, prices, and Add to cart buttons under the three answered questions](docs/screenshots/finder-results-1280.png)
@@ -85,7 +87,7 @@ Already running a local stack from before `db/migrations/` or `app_runtime` exis
 | The n8n owner account and Google sign-in | n8n itself | Create the owner account the first time you open <http://localhost:5678>. Then choose **Sign in with Google** on the "Google Sheets" and "Gmail" credentials; Gmail should ask only to send email. |
 | ngrok | `.env`: `NGROK_AUTHTOKEN`, `NGROK_DOMAIN`, and `WEBHOOK_URL=https://<NGROK_DOMAIN>/` | An ngrok account with a static domain |
 | The Orders sheet | `config/config.json`: `google.orders_sheet_id`, `google.orders_tab` | [`docs/shopify-setup.md`](docs/shopify-setup.md) §9 |
-| The rest of the config | `config/config.json`: `owner_email`, `low_stock_threshold`, `guide_delay_minutes` (2 or more), `default_locale`, `team_locale` | `pnpm run check:config` validates the file |
+| The rest of the config | `config/config.json`: `owner_email`, `low_stock_threshold`, `guide_delay_minutes` (2 or more), `default_locale`, `team_locale`, and optionally `reorder_reminder_days` (1 or more, 21 when absent) | `pnpm run check:config` validates the file |
 | The free-shipping threshold | The theme setting **Theme settings > Free shipping bar** | Equal to the free shipping rate's minimum, 120,000 COP ([`docs/shopify-setup.md`](docs/shopify-setup.md) §5) |
 
 ### Languages
@@ -159,7 +161,8 @@ It runs Lighthouse's mobile defaults 5 times per theme, alternating, and prints 
   ```
 
   It lists exactly one `ORDERS_CREATE`, at `https://<NGROK_DOMAIN>/webhook/4b1d2c3e-5f60-4a7b-8c9d-0e1f2a3b4c5d/webhook`.
-- **Subscription cycle.** `curl -s "https://$SHOPIFY_STORE.myshopify.com/admin/api/2026-10/webhooks.json" -H "X-Shopify-Access-Token: $SHOPIFY_ACCESS_TOKEN"` before and after `pnpm run setup -- --live` (with `.env` loaded as above) shows one `orders/create` subscription each time, with a new `id` after.
+- **Cancellation subscription.** The same query lists exactly one `ORDERS_CANCELLED`, at `https://<NGROK_DOMAIN>/webhook/7c2e9a14-3b5d-4f6e-8a1b-2c3d4e5f6a7b/webhook`, once `pnpm run setup -- --live` has published `shopify-cancellations`.
+- **Subscription cycle.** `curl -s "https://$SHOPIFY_STORE.myshopify.com/admin/api/2026-10/webhooks.json" -H "X-Shopify-Access-Token: $SHOPIFY_ACCESS_TOKEN"` before and after `pnpm run setup -- --live` (with `.env` loaded as above) shows one `orders/create` and one `orders/cancelled` subscription each time, with new `id`s after.
 - **Delivery log.** For each test order, the app's webhook deliveries in the Dev Dashboard show one `orders/create` with response 200, and n8n shows one "Shopify orders" execution.
 
 **Google**
@@ -177,7 +180,7 @@ It runs Lighthouse's mobile defaults 5 times per theme, alternating, and prints 
 - **Expression-like names.** An order whose shipping name is `| json` or contains `<!--` shows the literal text in the `customer` cell and the owner email, with no n8n expression evaluated and no HTML comment swallowing the rest of the email.
 - **Guide escaping.** A real order whose first name is `<b>Ana</b> O'Neil & Co` gets a guide that greets "Hi <b>Ana</b> O'Neil & Co," as literal text, with no bold.
 - **Tampered signature.** `pnpm run send-test-order -- --tamper --order-id <digits>` gets HTTP 200, starts no execution, and creates no row.
-- **Payload fields.** In one real order's execution data, every field `normalize-order` reads is present (`admin_graphql_api_id`, `name`, `email`, `shipping_address.name`/`city`, `line_items[].variant_id`/`variant_title`/`sku`, `total_shipping_price_set`, `shipping_lines`). If a field moved, update the fixture and the mapper.
+- **Payload fields.** In one real order's execution data, every field `normalize-order` reads is present (`admin_graphql_api_id`, `name`, `email`, `buyer_accepts_marketing`, `customer.id`, `shipping_address.name`/`city`, `line_items[].variant_id`/`variant_title`/`sku`, `total_shipping_price_set`, `shipping_lines`). If a field moved, update the fixture and the mapper.
 - **Low stock.** A real order of 2 × Sierra Nevada 500 g (stock 6) sends `Low stock after order <#>` with the line `Sierra Nevada (500 g), SKU NBC-SNV-500: 4 left (threshold 5)`. An order of Huila 250 g sends no alert.
 - **Unknown variants.** A signed fixture order, whose variants don't exist in the store, sends no alert and doesn't fail.
 - **Stock-read failure.** Setting `config.shopify.store` to a store subdomain that doesn't exist makes the stock read fail after its retries, and the error workflow emails the owner. After restoring the subdomain, the next order reads stock again. Retrying the failed run from the UI fails again, because a retry reuses the config the run started with.
@@ -192,6 +195,15 @@ It runs Lighthouse's mobile defaults 5 times per theme, alternating, and prints 
 - **Error alert in n8n.** The stock-read failure above sends its alert through `Collect alert input` and `Build error alert`, in English, and in Spanish once `team_locale` is `es`.
 - **Team locale.** With `team_locale: "es"`, the next order's summary reads "Nuevo pedido …" with amounts like `96.000 COP`, and a low-stock alert reads "Inventario bajo tras el pedido …".
 
+**Cancellations and the reorder reminder**, with `shopify-orders` and `shopify-cancellations` published by `--live`:
+
+- **A cancellation.** `pnpm run send-test-order -- --fixture below-threshold --order-id <digits>`, then `pnpm run send-test-order -- --cancel --order-id <digits>`. One "Cancel order" execution runs, the Orders row's `status` reads `cancelled`, and the owner gets one email, `Order #T<digits> cancelled`.
+- **A repeated cancellation.** The same `--cancel` again starts a "Cancel order" execution that stops at "Is first cancellation?", with no second email.
+- **An unknown order.** `pnpm run send-test-order -- --cancel --order-id <unseen digits>` stops at the same gate: no row change, no email.
+- **A cancellation during the wait.** With `guide_delay_minutes: 2`, send a `two-methods` order and `--cancel` it within 2 minutes. No guide email goes out, and the "Process order" execution ends at "Still active?".
+- **A real cancellation.** Cancel a real storefront order in the Shopify admin. The result matches the first check, with the reason the admin chose.
+- **The reminder.** With `reorder_reminder_days: 1`, place a real order with "Email me with news and offers" ticked, and one without. The first gets "Time to restock your coffee?" about 24 hours later, and its button opens a cart with the same bags; the second gets none. n8n shows the "Reorder reminder" executions waiting until then.
+
 **Tunnel and queue mode**
 
 - **Tunnel.** `for p in / /rest/login /webhook-test/x /webhook/dev/x //webhook/x; do curl -s -o /dev/null -w "%{http_code} $p\n" "https://$NGROK_DOMAIN$p"; done` prints 404 for each path, and only the trigger's own path reaches n8n.
@@ -202,6 +214,7 @@ It runs Lighthouse's mobile defaults 5 times per theme, alternating, and prints 
 **Storefront**, with `pnpm dlx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme`:
 
 - **Drawer.** With Sierra Nevada 250 g in the cart, the bar shows "You’re $82.000 away from free shipping" at 31%.
+- **Suggestion.** With Sierra Nevada 250 g × 3 (114,000 COP), the bar adds "Add Sierra Nevada 250 g ($38.000) and shipping is free." and an "Add" button. Pressing it puts that bag in the cart without opening the drawer, and the bar switches to "You’ve got free shipping!".
 - **Live updates.** Raising the quantity to 4 (152,000 COP) switches it to "You’ve got free shipping!" without a reload, in the drawer and on `/cart`. Lowering it again restores the remaining message.
 - **Boundary.** Huila 250 g plus Huila 500 g (exactly 120,000 COP) shows the reached message, and checkout charges 0 shipping.
 - **Disabled.** A blank threshold, or unticking "Show the free shipping bar", hides the bar with no console errors.
@@ -267,7 +280,14 @@ Deliberate simplifications, each with its ceiling and upgrade path:
 - **The free-shipping bar can disagree with checkout.** It reads `cart.total_price`, after cart-level discounts but before anything applied at checkout, so a checkout discount code can take the order below free shipping after the bar showed "You’ve got free shipping!".
 - **The threshold is in the shop currency.** With Shopify Markets converting prices, the bar would compare a converted cart with a COP threshold. Upgrade path: read `cart.currency` and convert the threshold with presentment prices.
 - **Taxes aren't configured.** The CSV sets `Charge tax` to `FALSE` for every variant. Upgrade path: set up Colombian VAT in Shopify and import with `Charge tax` on.
-- **The guide email isn't consent-gated.** Every order with an email address gets it. Upgrade path: send it only when the order's `buyer_accepts_marketing` is true, or describe it at checkout as part of the order.
+- **The guide email isn't consent-gated; the reorder reminder is.** Every order with an email address gets the guide, which is part of the order. The reminder goes only to a customer whose order carries `buyer_accepts_marketing: true`.
+- **Refunds aren't tracked.** Only `orders/cancelled` marks a row. Upgrade path: subscribe to `refunds/create`.
+- **The reminder's consent is the one given at checkout.** A customer who unsubscribes in Shopify afterwards still gets the reminder unless they reply to stop; its footer says so. Upgrade path: re-read `customer.emailMarketingConsent.marketingState` through the Admin GraphQL API after the wait, which needs the `read_customers` scope.
+- **A guest checkout gets no reminder.** Without a Shopify customer id there is no way to tell a guest has already reordered. Upgrade path: match guests by email, which would mean storing the email in `orders`.
+- **The reminder's bags come from the stock read at order time.** A bag deleted or sold out during the wait can still appear in the cart link. Upgrade path: repeat the stock read after the wait and drop unavailable lines.
+- **A cancellation that arrives before its order is ignored.** Shopify sends `orders/create` first in practice. Upgrade path: park the cancellation and replay it when the order is recorded.
+- **The reminder's cart link opens in the store's default language.** Shopify's cart permalink carries no locale. Upgrade path: a locale-prefixed link where Shopify supports it.
+- **The reminder holds one waiting execution per consenting order.** At `reorder_reminder_days` of 21, three weeks of consenting orders are always waiting in Postgres. Upgrade path: a daily scheduled query for orders due a reminder.
 - **The dev store is password-protected.** Visitors need the storefront password until the store is on a paid plan and launched.
 - **A Horizon upgrade needs the insertions re-anchored.** Each insertion throws when its anchor drifts, so an upgrade fails assembly until the anchors are updated.
 - **A Google OAuth app left in Testing expires sign-ins after 7 days.** The Sheets and Gmail credentials then stop working. Upgrade path: publish the consent screen to Production.

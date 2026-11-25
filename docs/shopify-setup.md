@@ -102,11 +102,13 @@ The core order workflow (`process-order`) logs every order to a Google Sheet, no
 1. Create a new Google Sheet and rename its first tab to match `config.google.orders_tab` exactly (`Orders` in `config/config.example.json`).
 2. Give that tab a header row with these column names, in order:
 
-   `date | order_number | customer | city | products | units | subtotal | shipping | total | free_shipping`
+   `date | order_number | customer | city | products | units | subtotal | shipping | total | free_shipping | status`
 
 3. Copy the sheet's id (the long value between `/d/` and `/edit` in its URL) into `config.google.orders_sheet_id`.
 
-`process-order`'s "Upsert order row" node finds the tab by this name and matches column data to the header row automatically; a missing or renamed header column breaks the write instead of silently landing a value elsewhere.
+`process-order`'s "Upsert order row" node finds the tab by this name and matches column data to the header row automatically; a missing or renamed header column breaks the write instead of silently landing a value elsewhere. `status` reads `placed` for a new order, and `cancel-order` sets it to `cancelled`.
+
+**Upgrading an existing sheet:** add the `status` column header after `free_shipping`. Without it, `Upsert order row` fails with `Column names were updated after the node's setup`. Rows written before the upgrade keep a blank `status`.
 
 ## 10. Add Spanish
 

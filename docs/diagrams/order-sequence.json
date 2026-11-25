@@ -9,7 +9,7 @@
     "column_fit": "spread",
     "viewBox": [
       1400,
-      960
+      1160
     ],
     "legend": {
       "entries": {
@@ -67,6 +67,11 @@
       "label": "process-order"
     },
     {
+      "id": "reminder",
+      "type": "backend",
+      "label": "reorder-reminder"
+    },
+    {
       "id": "alerts",
       "type": "backend",
       "label": "error-handler"
@@ -110,13 +115,18 @@
     },
     {
       "from": 764,
-      "to": 798,
-      "label": "7 Brewing guide"
+      "to": 858,
+      "label": "7 Status check and brewing guide"
     },
     {
-      "from": 818,
-      "to": 852,
-      "label": "8 Failure path"
+      "from": 878,
+      "to": 1000,
+      "label": "8 Reorder reminder"
+    },
+    {
+      "from": 1020,
+      "to": 1054,
+      "label": "9 Failure path"
     }
   ],
   "messages": [
@@ -228,15 +238,55 @@
     },
     {
       "from": "process",
-      "to": "google",
+      "to": "db",
       "y": 782,
+      "label": "check order status"
+    },
+    {
+      "from": "db",
+      "to": "process",
+      "y": 810,
+      "label": "cancelled: stop, no guide",
+      "variant": "return"
+    },
+    {
+      "from": "process",
+      "to": "google",
+      "y": 838,
       "label": "brewing guide email",
       "variant": "dashed"
     },
     {
       "from": "process",
+      "to": "reminder",
+      "y": 896,
+      "label": "if consented, no wait",
+      "variant": "dashed"
+    },
+    {
+      "from": "reminder",
+      "to": "db",
+      "y": 924,
+      "label": "wait reorder_reminder_days"
+    },
+    {
+      "from": "db",
+      "to": "reminder",
+      "y": 952,
+      "label": "resume, re-check status",
+      "variant": "return"
+    },
+    {
+      "from": "reminder",
+      "to": "google",
+      "y": 980,
+      "label": "reminder email",
+      "variant": "dashed"
+    },
+    {
+      "from": "process",
       "to": "alerts",
-      "y": 836,
+      "y": 1038,
       "label": "on failure after 3 tries: alert email",
       "variant": "dashed"
     }
