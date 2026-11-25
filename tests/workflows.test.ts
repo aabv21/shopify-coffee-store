@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { expect, it, test } from 'vitest';
+import { STORE_TIMEZONE } from '../src/lib/locale.ts';
 import { CREDENTIALS } from '../scripts/lib/manifest.ts';
 import { listJsonFiles } from '../scripts/lib/list-json-files.ts';
 import type { WorkflowJson, WorkflowNode } from '../scripts/lib/workflow-types.ts';
@@ -39,7 +40,7 @@ it('error emails reach the owner, built in the team locale by a Code node from t
   const collect = params('error-handler.json', 'Collect alert input');
   expect(collect).toContain("$('On workflow error').first().json");
   expect(collect).toContain("$json.config.team_locale ?? ''");
-  expect(collect).toContain("$now.setZone('America/Bogota').toFormat('yyyy-LL-dd HH:mm')");
+  expect(collect).toContain(`$now.setZone('${STORE_TIMEZONE}').toFormat('yyyy-LL-dd HH:mm')`);
   const connections = wf('error-handler.json').connections as Record<string, { main?: { node: string }[][] }>;
   expect(connections['Load config']?.main?.[0]?.map((c) => c.node)).toEqual(['Collect alert input']);
   expect(connections['Collect alert input']?.main?.[0]?.map((c) => c.node)).toEqual(['Build error alert']);
@@ -141,6 +142,10 @@ const workflowFiles = listJsonFiles('workflows').map((path) => basename(path));
 
 it('workflows/ is not empty, so the check below covers something', () => {
   expect(workflowFiles.length).toBeGreaterThan(0);
+});
+
+test.each(workflowFiles)('%s runs in the store time zone', (file) => {
+  expect((wf(file).settings as Record<string, unknown>).timezone).toBe(STORE_TIMEZONE);
 });
 
 test.each(workflowFiles)('%s never saves a manual execution', (file) => {

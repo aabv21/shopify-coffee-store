@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from 'vitest';
+import { STORE_TIMEZONE } from '../src/lib/locale.ts';
 import { TRIGGER_WEBHOOK_ID } from '../scripts/lib/manifest.ts';
 
 const compose = readFileSync('compose.yaml', 'utf8');
@@ -7,6 +8,11 @@ const policy = readFileSync('ngrok/traffic-policy.yml', 'utf8');
 const triggerWebhookId = TRIGGER_WEBHOOK_ID;
 const service = (name: string): string =>
   compose.split(/^ {2}(?=[a-z][\w-]*:$)/m).find((block) => block.startsWith(`${name}:`)) ?? '';
+
+test("compose.yaml runs n8n in the store's time zone", () => {
+  expect(compose).toContain(`GENERIC_TIMEZONE: ${STORE_TIMEZONE}`);
+  expect(compose).toContain(`TZ: ${STORE_TIMEZONE}`);
+});
 
 test('images are pinned', () => {
   // Patches on the 2.45 line arrive through Dependabot; a minor or major move is a deliberate change.

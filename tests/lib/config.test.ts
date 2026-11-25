@@ -16,6 +16,9 @@ it.each([
   [{ team_locale: null }, 'team_locale must be "en" or "es"'],
 ])('rejects %j', (patch, message) => expect(() => validateConfig({ ...example, ...patch })).toThrow(message));
 
+it('accepts the lowest allowed values', () =>
+  expect(validateConfig({ ...example, low_stock_threshold: 1, guide_delay_minutes: 2 })).toMatchObject({ low_stock_threshold: 1, guide_delay_minutes: 2 }));
+
 it('accepts Spanish for either locale', () =>
   expect(validateConfig({ ...example, default_locale: 'es', team_locale: 'es' })).toMatchObject({ default_locale: 'es', team_locale: 'es' }));
 
