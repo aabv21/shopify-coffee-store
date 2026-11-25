@@ -181,6 +181,34 @@
         120,
         64
       ]
+    },
+    {
+      "id": "shopify-cancellations",
+      "type": "backend",
+      "label": "shopify-cancellations",
+      "sublabel": "HMAC check",
+      "pos": [
+        452,
+        100
+      ],
+      "size": [
+        120,
+        64
+      ]
+    },
+    {
+      "id": "cancel-order",
+      "type": "backend",
+      "label": "cancel-order",
+      "sublabel": "record · mark · notify",
+      "pos": [
+        658,
+        100
+      ],
+      "size": [
+        120,
+        64
+      ]
     }
   ],
   "connections": [
@@ -325,6 +353,27 @@
     {
       "id": "fail-dev",
       "from": "dev-harness",
+      "to": "error-handler",
+      "label": "on failure",
+      "variant": "security"
+    },
+    {
+      "id": "cancel-handoff",
+      "from": "shopify-cancellations",
+      "to": "cancel-order",
+      "label": "whole payload",
+      "variant": "emphasis"
+    },
+    {
+      "id": "fail-shopify-cancellations",
+      "from": "shopify-cancellations",
+      "to": "error-handler",
+      "label": "on failure",
+      "variant": "security"
+    },
+    {
+      "id": "fail-cancel",
+      "from": "cancel-order",
       "to": "error-handler",
       "label": "on failure",
       "variant": "security"

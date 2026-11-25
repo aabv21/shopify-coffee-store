@@ -93,6 +93,8 @@ export function run(order: ShopifyOrderPayload): NormalizedOrder {
     customer_name: customerName,
     city,
     locale: normalizeLocale(order.customer_locale, null),
+    customer_id: order.customer?.id == null ? null : String(order.customer.id),
+    accepts_marketing: order.buyer_accepts_marketing === true,
     currency: order.currency,
     subtotal,
     shipping,

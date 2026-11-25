@@ -175,3 +175,12 @@ describe('isDuplicateIntakeResponse', () => {
     expect(isDuplicateIntakeResponse('x')).toBe(false);
   });
 });
+
+describe('the cancellation check', () => {
+  it('an unknown cancellation stops at the gate', () => {
+    const check = checksFor({ fresh: true }).find((c) => c.target === 'cancel-order');
+    expect(check?.input).toMatchObject({ admin_graphql_api_id: 'gid://shopify/Order/9999999999999', name: '#CHECK' });
+    expect(check?.isExpected({ success: true })).toBe(true);
+    expect(check?.isExpected({ order_id: '9999999999999' })).toBe(false);
+  });
+});

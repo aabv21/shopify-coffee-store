@@ -35,20 +35,27 @@ describe('isDenied', () => {
   });
 });
 
+const GRANTED = ['order_cancellations:INSERT', 'order_cancellations:SELECT', 'orders:INSERT', 'orders:SELECT'];
+
 describe('diffGrants', () => {
+  it('passes the two-table grant list', () => {
+    expect(Object.keys(RUNTIME_GRANTS)).toEqual(['orders', 'order_cancellations']);
+    expect(diffGrants(RUNTIME_GRANTS, GRANTED)).toEqual({ missing: [], extra: [] });
+  });
+
   it('finds nothing when the role holds exactly the listed privileges', () => {
-    expect(diffGrants(RUNTIME_GRANTS, ['orders:INSERT', 'orders:SELECT'])).toEqual({ missing: [], extra: [] });
+    expect(diffGrants(RUNTIME_GRANTS, GRANTED)).toEqual({ missing: [], extra: [] });
   });
 
   it('reports a privilege beyond the list, on a listed table or any other', () => {
-    expect(diffGrants(RUNTIME_GRANTS, ['orders:INSERT', 'orders:SELECT', 'orders:UPDATE', 'orders:DELETE'])).toEqual({
+    expect(diffGrants(RUNTIME_GRANTS, [...GRANTED, 'orders:UPDATE', 'orders:DELETE'])).toEqual({
       missing: [],
       extra: ['orders:DELETE', 'orders:UPDATE'],
     });
   });
 
   it('reports a listed privilege the role lacks', () => {
-    expect(diffGrants(RUNTIME_GRANTS, ['orders:SELECT'])).toEqual({ missing: ['orders:INSERT'], extra: [] });
+    expect(diffGrants(RUNTIME_GRANTS, GRANTED.filter((g) => g !== 'orders:INSERT'))).toEqual({ missing: ['orders:INSERT'], extra: [] });
   });
 });
 
@@ -97,18 +104,27 @@ describe('workflow statements', () => {
   const statements = workflowStatements(listJsonFiles('workflows').map((path) => ({ file: basename(path), wf: readWorkflow(path) })));
   const key = (s: { file: string; node: string }): string => `${s.file} › ${s.node}`;
 
-  it('finds the one Postgres query node in workflows/: intake-order’s Record order', () => {
-    expect(statements.map(key)).toEqual(['intake-order.json › Record order']);
+  it('finds every Postgres query node in workflows/', () => {
+    expect(statements.map(key).sort()).toEqual([
+      'cancel-order.json › Record cancellation',
+      'intake-order.json › Record order',
+      'process-order.json › Check order status',
+    ]);
   });
 
   it('confirms no other workflow issues Postgres SQL of its own', () => {
+    const own = new Set(['intake-order.json', 'cancel-order.json', 'process-order.json']);
     for (const path of listJsonFiles('workflows')) {
       const file = basename(path);
-      if (file === 'intake-order.json') continue;
+      if (own.has(file)) continue;
       const wf = readWorkflow(path);
       const pgNodes = wf.nodes.filter((n) => n.type === 'n8n-nodes-base.postgres' || n.type.toLowerCase().includes('chatmemory'));
       expect(pgNodes, file).toEqual([]);
     }
+  });
+
+  it('PROBES covers every Postgres statement in workflows/, so probeScript never meets one without a probe', () => {
+    expect(() => probeScript(statements, PROBES)).not.toThrow();
   });
 
   it('has exactly one probe per statement, with one value per $n, so a new Postgres node cannot skip the check', () => {
@@ -136,7 +152,7 @@ describe('workflow statements', () => {
 });
 
 describe('RUNTIME_GRANTS', () => {
-  it('covers only orders, with exactly what ON CONFLICT DO NOTHING RETURNING needs', () => {
-    expect(RUNTIME_GRANTS).toEqual({ orders: ['SELECT', 'INSERT'] });
+  it('covers only the two insert-only tables, with exactly what ON CONFLICT DO NOTHING RETURNING needs', () => {
+    expect(RUNTIME_GRANTS).toEqual({ orders: ['SELECT', 'INSERT'], order_cancellations: ['SELECT', 'INSERT'] });
   });
 });

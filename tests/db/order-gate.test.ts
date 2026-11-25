@@ -3,7 +3,7 @@ import type { PGlite } from '@electric-sql/pglite';
 import { freshAppDb, schemaStatements, workflowQuery } from '../lib/pglite.ts';
 
 const RECORD_ORDER = workflowQuery('intake-order.json', 'Record order');
-const ORDER = ['7000000001', '#T1001'];
+const ORDER = ['7000000001', '#T1001', '8000000001'];
 
 let db: PGlite | undefined;
 const fresh = async (): Promise<PGlite> => (db = await freshAppDb());

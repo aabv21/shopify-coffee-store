@@ -7,6 +7,15 @@ import { existingCredentialIds } from './setup-credentials.ts';
 
 const FIXTURE = JSON.parse(readFileSync('tests/fixtures/orders/below-threshold.json', 'utf8')) as Record<string, unknown>;
 
+/** An `orders/cancelled` payload for an order this store never recorded; `cancel-order` stops it at the gate. */
+export const UNKNOWN_CANCELLATION = {
+  id: 9999999999999,
+  admin_graphql_api_id: 'gid://shopify/Order/9999999999999',
+  name: '#CHECK',
+  cancelled_at: '2026-11-04T09:20:00-05:00',
+  cancel_reason: 'other',
+};
+
 const EXPECTED_CONFIG = {
   owner_email: 'owner@example.com',
   google: { orders_sheet_id: 'REPLACE_ME', orders_tab: 'Orders' },
@@ -88,6 +97,7 @@ export function checksFor({ fresh }: { fresh: boolean }): readonly { target: str
       input: FIXTURE,
       isExpected: fresh ? isFreshIntakeResponse : (r: unknown) => isFreshIntakeResponse(r) || isDuplicateIntakeResponse(r),
     },
+    { target: 'cancel-order', input: UNKNOWN_CANCELLATION, isExpected: isDuplicateIntakeResponse },
   ];
 }
 

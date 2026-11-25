@@ -41,7 +41,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Why Code: joins line items and converts the timestamp to Bogota time. Generated from src/nodes/order-row.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/order-row.ts\n  var order_row_exports = {};\n  __export(order_row_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var STORE_TIMEZONE = \"America/Bogota\";\n\n  // src/nodes/order-row.ts\n  function formatLine(line) {\n    const name = line.variant_title === null ? line.product_title : `${line.product_title} (${line.variant_title})`;\n    return `${name} x ${String(line.quantity)}`;\n  }\n  function run(input) {\n    const { order } = input;\n    const date = DateTime.fromISO(order.created_at).setZone(STORE_TIMEZONE).toFormat(\"yyyy-LL-dd HH:mm\");\n    const products = order.lines.map(formatLine).join(\"; \");\n    const units = order.lines.reduce((sum, line) => sum + line.quantity, 0);\n    return {\n      date,\n      order_number: order.order_number,\n      customer: order.customer_name,\n      city: order.city,\n      products,\n      units,\n      subtotal: order.subtotal,\n      shipping: order.shipping,\n      total: order.total,\n      free_shipping: order.free_shipping ? \"yes\" : \"no\"\n    };\n  }\n  return __toCommonJS(order_row_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
+        "jsCode": "// Why Code: joins line items and converts the timestamp to Bogota time. Generated from src/nodes/order-row.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/order-row.ts\n  var order_row_exports = {};\n  __export(order_row_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var STORE_TIMEZONE = \"America/Bogota\";\n\n  // src/nodes/order-row.ts\n  function formatLine(line) {\n    const name = line.variant_title === null ? line.product_title : `${line.product_title} (${line.variant_title})`;\n    return `${name} x ${String(line.quantity)}`;\n  }\n  function run(input) {\n    const { order } = input;\n    const date = DateTime.fromISO(order.created_at).setZone(STORE_TIMEZONE).toFormat(\"yyyy-LL-dd HH:mm\");\n    const products = order.lines.map(formatLine).join(\"; \");\n    const units = order.lines.reduce((sum, line) => sum + line.quantity, 0);\n    return {\n      date,\n      order_number: order.order_number,\n      customer: order.customer_name,\n      city: order.city,\n      products,\n      units,\n      subtotal: order.subtotal,\n      shipping: order.shipping,\n      total: order.total,\n      free_shipping: order.free_shipping ? \"yes\" : \"no\",\n      status: \"placed\"\n    };\n  }\n  return __toCommonJS(order_row_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
       }
     },
     {
@@ -160,6 +160,15 @@
             {
               "id": "free_shipping",
               "displayName": "free_shipping",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -472,7 +481,7 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1.1,
       "position": [
-        2940,
+        3500,
         200
       ],
       "alwaysOutputData": true,
@@ -487,7 +496,7 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1.2,
       "position": [
-        3220,
+        3780,
         200
       ],
       "parameters": {
@@ -502,7 +511,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        3500,
+        4060,
         200
       ],
       "parameters": {
@@ -550,7 +559,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3780,
+        4340,
         200
       ],
       "notes": "Why Code: picks one guide per brew method and renders escaped HTML in the customer's language",
@@ -566,7 +575,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.4,
       "position": [
-        4060,
+        4620,
         200
       ],
       "parameters": {
@@ -600,7 +609,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        4340,
+        4900,
         100
       ],
       "retryOnFail": true,
@@ -634,9 +643,9 @@
         -60
       ],
       "parameters": {
-        "width": 1760,
+        "width": 2320,
         "height": 160,
-        "content": "## Brewing guide (after the wait)\nAfter guide_delay_minutes, emails the customer one HTML email with a guide per brew method among the order's known variants, in the order's locale (else config.default_locale). Sends nothing without an email address or a known brew method."
+        "content": "## Brewing guide (after the wait)\nAfter guide_delay_minutes, checks the order's status: a cancelled order stops here. Otherwise emails the customer one HTML email with a guide per brew method among the order's known variants, in the order's locale (else config.default_locale). Sends nothing without an email address or a known brew method."
       }
     },
     {
@@ -652,6 +661,68 @@
         "width": 420,
         "height": 160,
         "content": "NOTE: a wait shorter than 65 s (MAX_IN_PROCESS_WAIT_MS) stays in process memory and is lost on a restart, so guide_delay_minutes must be at least 2."
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000027",
+      "name": "Check order status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        2940,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "nbcCredAppDb0001",
+          "name": "App DB"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT\n  EXISTS (SELECT 1 FROM order_cancellations WHERE order_id = $1) AS cancelled,\n  EXISTS (\n    SELECT 1 FROM orders this_order\n    JOIN orders later ON later.customer_id = this_order.customer_id AND later.received_at > this_order.received_at\n    WHERE this_order.order_id = $1\n      AND NOT EXISTS (SELECT 1 FROM order_cancellations c WHERE c.order_id = later.order_id)\n  ) AS reordered,\n  EXISTS (SELECT 1 FROM orders WHERE order_id = $1) AS recorded;\n",
+        "options": {
+          "queryReplacement": "={{ $('When called').first().json.order.order_id }}",
+          "queryBatching": "independently"
+        }
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000024",
+      "name": "Still active?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        3220,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "30000000-0024-4000-8000-0000000a0001",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.cancelled }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "options": {}
       }
     }
   ],
@@ -788,7 +859,7 @@
       "main": [
         [
           {
-            "node": "Read brewing guides",
+            "node": "Check order status",
             "type": "main",
             "index": 0
           }
@@ -844,6 +915,29 @@
         [
           {
             "node": "Email brewing guide",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Check order status": {
+      "main": [
+        [
+          {
+            "node": "Still active?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still active?": {
+      "main": [
+        [
+          {
+            "node": "Read brewing guides",
             "type": "main",
             "index": 0
           }

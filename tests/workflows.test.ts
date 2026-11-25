@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { expect, it, test } from 'vitest';
 import { STORE_TIMEZONE } from '../src/lib/locale.ts';
-import { CREDENTIALS } from '../scripts/lib/manifest.ts';
+import { CANCEL_TRIGGER_WEBHOOK_ID, CREDENTIALS } from '../scripts/lib/manifest.ts';
+import { CANCELLATION_SQL, ORDER_STATUS_SQL } from './lib/pglite.ts';
 import { listJsonFiles } from '../scripts/lib/list-json-files.ts';
 import type { WorkflowJson, WorkflowNode } from '../scripts/lib/workflow-types.ts';
 
@@ -61,7 +62,12 @@ it('the entry hands every order to intake-order, waiting, with no mapping and no
 });
 
 it('the idempotency gate inserts on the primary key and tests the returned id', () => {
-  expect(params('intake-order.json', 'Record order')).toContain('ON CONFLICT (order_id) DO NOTHING RETURNING order_id');
+  const recordOrder = params('intake-order.json', 'Record order');
+  expect(recordOrder).toContain("VALUES ($1, $2, NULLIF($3, ''))");
+  expect(recordOrder).toContain('ON CONFLICT (order_id) DO NOTHING RETURNING order_id');
+  expect(node('intake-order.json', 'Record order').parameters.options).toMatchObject({
+    queryReplacement: "={{ $json.order_id }},{{ $json.order_number }},{{ $json.customer_id ?? '' }}",
+  });
   const gate = node('intake-order.json', 'Is new order?').parameters;
   const conditions = gate.conditions as { conditions: { leftValue: string; operator: { operation: string } }[] };
   expect(conditions.conditions).toMatchObject([{ leftValue: '={{ $json.order_id }}', operator: { operation: 'notEmpty' } }]);
@@ -221,7 +227,8 @@ it('the guides are read from the mounted file after the wait and sent as HTML', 
 });
 it('the guide chain runs from the wait to the conditional send, with nothing on the no-guide branch', () => {
   const connections = wf('process-order.json').connections as Record<string, { main?: { node: string }[][] }>;
-  expect(connections['Wait before guide']?.main?.[0]?.map((c) => c.node)).toEqual(['Read brewing guides']);
+  expect(connections['Wait before guide']?.main?.[0]?.map((c) => c.node)).toEqual(['Check order status']);
+  expect(connections['Still active?']?.main?.[0]?.map((c) => c.node)).toEqual(['Read brewing guides']);
   expect(connections['Read brewing guides']?.main?.[0]?.map((c) => c.node)).toEqual(['Parse guides']);
   expect(connections['Parse guides']?.main?.[0]?.map((c) => c.node)).toEqual(['Collect guide input']);
   expect(connections['Collect guide input']?.main?.[0]?.map((c) => c.node)).toEqual(['Build guide email']);
@@ -256,4 +263,78 @@ it('the dev harness hands intake-order the order payload as the trigger would em
   expect(intakeOrderOutputIndex).toBeGreaterThanOrEqual(0);
   const connections = wf('dev-harness.json').connections as Record<string, { main?: { node: string }[][] }>;
   expect(connections['Route by target']?.main?.[intakeOrderOutputIndex]?.map((c) => c.node)).toEqual(['Shape order item']);
+});
+
+const connectionsOf = (f: string) => wf(f).connections as Record<string, { main?: { node: string }[][] }>;
+const targets = (f: string, from: string, output = 0) => (connectionsOf(f)[from]?.main?.[output] ?? []).map((c) => c.node);
+
+it('the cancellation entry is the HMAC-checking Shopify Trigger on orders/cancelled with its own webhook id', () => {
+  const t = node('shopify-cancellations.json', 'Receive cancellation');
+  expect([t.type, t.webhookId, t.parameters.topic, t.parameters.authentication, t.credentials?.shopifyAccessTokenApi?.id])
+    .toEqual(['n8n-nodes-base.shopifyTrigger', CANCEL_TRIGGER_WEBHOOK_ID, 'orders/cancelled', 'accessToken', 'nbcCredShopify01']);
+  expect(CANCEL_TRIGGER_WEBHOOK_ID).not.toBe(node('shopify-orders.json', 'Receive order').webhookId);
+});
+it('the cancellation entry hands every payload to cancel-order, waiting, with no mapping and no retry', () => {
+  const n = node('shopify-cancellations.json', 'Hand to cancel-order');
+  expect(JSON.stringify(n.parameters)).toContain('nbcCancelOrder01');
+  expect(n.parameters.options).toMatchObject({ waitForSubWorkflow: true });
+  expect(n.parameters.workflowInputs).toBeUndefined();
+  expect(n.retryOnFail).not.toBe(true);
+  expect(targets('shopify-cancellations.json', 'Receive cancellation')).toEqual(['Hand to cancel-order']);
+});
+it('cancel-order records the cancellation behind a gate, and a repeat or unknown order reaches nothing else', () => {
+  expect(targets('cancel-order.json', 'Record cancellation')).toEqual(['Is first cancellation?']);
+  const gate = node('cancel-order.json', 'Is first cancellation?').parameters.conditions as { conditions: { leftValue: string; operator: { operation: string } }[] };
+  expect(gate.conditions).toMatchObject([{ leftValue: '={{ $json.order_id }}', operator: { operation: 'notEmpty' } }]);
+  expect(targets('cancel-order.json', 'Is first cancellation?', 0)).toEqual(['Load config']);
+  expect(targets('cancel-order.json', 'Is first cancellation?', 1)).toEqual([]);
+});
+it('cancel-order marks the Orders row by order_number, then emails the owner in plain text', () => {
+  const mark = node('cancel-order.json', 'Mark order cancelled').parameters;
+  expect(mark.operation).toBe('update');
+  expect((mark.columns as { matchingColumns: string[] }).matchingColumns).toEqual(['order_number']);
+  expect(mark.options).toMatchObject({ cellFormat: 'RAW' });
+  expect(JSON.stringify(mark)).toContain('config.google.orders_sheet_id');
+  expect(params('cancel-order.json', 'Collect cancelled row')).toContain('"value":"cancelled"');
+  const mail = node('cancel-order.json', 'Email owner').parameters;
+  expect(mail).toMatchObject({ emailType: 'text', subject: '={{ $json.subject }}', message: '={{ $json.text }}' });
+  expect(mail.options).toMatchObject({ appendAttribution: false });
+  expect(JSON.stringify(mail)).toContain('config.owner_email');
+  expect(targets('cancel-order.json', 'Mark order cancelled')).toEqual(['Collect notice input']);
+  expect(targets('cancel-order.json', 'Build cancellation notice')).toEqual(['Email owner']);
+});
+it('after the wait, process-order checks the order status and a cancelled order reaches neither the guide nor the reminder', () => {
+  expect(targets('process-order.json', 'Wait before guide')).toEqual(['Check order status']);
+  expect(targets('process-order.json', 'Check order status')).toEqual(['Still active?']);
+  expect(targets('process-order.json', 'Still active?', 0)).toEqual(['Read brewing guides']);
+  expect(targets('process-order.json', 'Still active?', 1)).toEqual([]);
+  const gate = node('process-order.json', 'Still active?').parameters.conditions as { conditions: { leftValue: string; operator: { type: string; operation: string } }[] };
+  expect(gate.conditions).toMatchObject([{ leftValue: '={{ $json.cancelled }}', operator: { type: 'boolean', operation: 'false' } }]);
+});
+it("Record cancellation and process-order's Check order status run exactly CANCELLATION_SQL and ORDER_STATUS_SQL", () => {
+  expect(node('cancel-order.json', 'Record cancellation').parameters.query).toBe(CANCELLATION_SQL);
+  expect(node('process-order.json', 'Check order status').parameters.query).toBe(ORDER_STATUS_SQL);
+  expect(node('process-order.json', 'Check order status').parameters.options).toMatchObject({ queryReplacement: "={{ $('When called').first().json.order.order_id }}" });
+});
+it('every workflow names nbcErrorHandler1 except error-handler and load-config', () => {
+  for (const { file, wf: w } of allWorkflows()) {
+    const expected = file === 'error-handler.json' || file === 'load-config.json' ? undefined : 'nbcErrorHandler1';
+    expect((w.settings as Record<string, unknown>).errorWorkflow, file).toBe(expected);
+  }
+});
+it('the order row gains a status column, and the dev harness reaches cancel-order', () => {
+  const schema = (node('process-order.json', 'Upsert order row').parameters.columns as { schema: { id: string }[] }).schema.map((c) => c.id);
+  expect(schema.at(-1)).toBe('status');
+  const rules = (node('dev-harness.json', 'Route by target').parameters.rules as { values: { outputKey: string }[] }).values;
+  const index = rules.findIndex((r) => r.outputKey === 'cancel-order');
+  expect(index).toBeGreaterThanOrEqual(0);
+  expect(targets('dev-harness.json', 'Route by target', index)).toEqual(['Shape cancellation item']);
+  expect(targets('dev-harness.json', 'Shape cancellation item')).toEqual(['Call cancel-order']);
+  expect(targets('dev-harness.json', 'Call cancel-order')).toEqual(['Respond with result']);
+  expect(JSON.stringify(node('dev-harness.json', 'Call cancel-order').parameters)).toContain('nbcCancelOrder01');
+});
+
+test.each(workflowFiles)('%s gives every node its own id, which n8n requires on import', (file) => {
+  const ids = wf(file).nodes.map((n) => n.id);
+  expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
 });

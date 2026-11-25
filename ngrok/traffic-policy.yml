@@ -9,11 +9,12 @@ on_http_request:
       - type: deny
         config:
           status_code: 404
-  # Allowlist: only the Shopify Trigger's own fixed webhookId
-  # (workflows/shopify-orders.json) gets through, not any webhook-shaped path.
+  # Allowlist: only the two Shopify Triggers' own fixed webhookIds
+  # (workflows/shopify-orders.json and workflows/shopify-cancellations.json) get through, not any
+  # webhook-shaped path.
   - name: Forward the Shopify trigger path only
     expressions:
-      - '!req.url.raw_path.matches("^/webhook/4b1d2c3e-5f60-4a7b-8c9d-0e1f2a3b4c5d/webhook$")'
+      - '!req.url.raw_path.matches("^/webhook/(4b1d2c3e-5f60-4a7b-8c9d-0e1f2a3b4c5d|7c2e9a14-3b5d-4f6e-8a1b-2c3d4e5f6a7b)/webhook$")'
     actions:
       - type: deny
         config:
