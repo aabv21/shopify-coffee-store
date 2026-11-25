@@ -1,6 +1,6 @@
 # How the database is run
 
-One Postgres 17 server holds two databases: `n8n`, n8n's own (workflows, credentials, executions), and `app`, the order backend's (`orders`, and the migration ledger `schema_migrations`). This page covers which role reaches what, every statement the workflow issues and the grant behind it, how schema changes ship, retention, backup and restore, connections, the upgrade path for an existing local volume, and how `node scripts/check-db.ts` proves the protections hold. The [architecture doc](architecture.md) covers the data model's place in the order flow.
+One Postgres 17 server holds two databases: `n8n`, n8n's own (workflows, credentials, executions), and `app`, the order backend's (`orders`, `order_cancellations`, and the migration ledger `schema_migrations`). This page covers which role reaches what, every statement the workflow issues and the grant behind it, how schema changes ship, retention, backup and restore, connections, the upgrade path for an existing local volume, and how `node scripts/check-db.ts` proves the protections hold. The [architecture doc](architecture.md) covers the data model's place in the order flow.
 
 ## Roles
 
@@ -11,25 +11,28 @@ One Postgres 17 server holds two databases: `n8n`, n8n's own (workflows, credent
 | `app` (`APP_DB_USER`) | database `app` and its tables | `db/init/` and `db-migrate` only | Everything in `app`. Never configured in n8n. |
 | `app_runtime` (`APP_RUNTIME_DB_USER`) | nothing | the `App DB` credential, which the one Postgres node in `workflows/` uses | The DML listed below, and nothing else. |
 
-`db/migrations/001_runtime_role.sql` creates `app_runtime` and grants it exactly what the statement below needs. This repo has no node that issues its own DDL — there's no Postgres Chat Memory node in these workflows — so, unlike demo 1, every Postgres node connects as the same runtime role; there's no second, owner-backed credential to maintain.
+`db/migrations/001_runtime_role.sql` creates `app_runtime` and grants it exactly what the statements below need; `002_order_lifecycle.sql` adds the cancellation table and its grant. This repo has no node that issues its own DDL — there's no Postgres Chat Memory node in these workflows — so, unlike demo 1, every Postgres node connects as the same runtime role; there's no second, owner-backed credential to maintain.
 
 ## Every statement and what covers it
 
-The only Postgres node in `workflows/` runs as `app_runtime`. Its `WHERE` (the conflict check) and `RETURNING` both read the row, so the insert needs `SELECT` as well as `INSERT`; this was checked against Postgres 17 with a role that held only `INSERT`, which fails `ON CONFLICT (order_id) DO NOTHING RETURNING order_id` with `permission denied for table orders`. The "Served by" column comes from `EXPLAIN` on Postgres 17.
+Four Postgres nodes in `workflows/` run as `app_runtime`. Each statement that inserts reads the row too (the conflict check and `RETURNING`), so it needs `SELECT` as well as `INSERT`; this was checked against Postgres 17 with a role that held only `INSERT`, which fails `ON CONFLICT (order_id) DO NOTHING RETURNING order_id` with `permission denied for table orders`. The "Served by" column comes from `EXPLAIN` on Postgres 17.
 
 | Workflow › node | Statement | Privileges it needs | Served by |
 |---|---|---|---|
-| `intake-order` › Record order | `INSERT INTO orders (order_id, order_number) VALUES ($1, $2) ON CONFLICT (order_id) DO NOTHING RETURNING order_id` | `INSERT`; `SELECT` for the conflict check and `RETURNING` | primary key, as the conflict arbiter |
+| `intake-order` › Record order | `INSERT INTO orders (order_id, order_number, customer_id) VALUES ($1, $2, NULLIF($3, '')) ON CONFLICT (order_id) DO NOTHING RETURNING order_id` | `INSERT`; `SELECT` for the conflict check and `RETURNING` | primary key, as the conflict arbiter |
+| `cancel-order` › Record cancellation | `INSERT INTO order_cancellations (order_id) SELECT $1::text WHERE EXISTS (SELECT 1 FROM orders WHERE order_id = $1::text) ON CONFLICT (order_id) DO NOTHING RETURNING order_id` | `INSERT` and `SELECT` on `order_cancellations`; `SELECT` on `orders` | primary keys of both tables |
+| `process-order` › Check order status | `ORDER_STATUS_SQL`: whether the order is cancelled, and whether a later uncancelled order has the same `customer_id` | `SELECT` on both tables | `order_cancellations`' primary key, and `orders_customer_id_received_at_idx` |
+| `reorder-reminder` › Check order status | the same statement | `SELECT` on both tables | the same |
 
-So `app_runtime` holds `SELECT, INSERT` on `orders`, and nothing else: no `UPDATE`, no `DELETE`, no sequence (the table's key is the Shopify order id, not a generated one), and nothing on `schema_migrations`.
+So `app_runtime` holds `SELECT, INSERT` on `orders` and on `order_cancellations`, and nothing else: no `UPDATE`, no `DELETE`, no sequence (each key is the Shopify order id, not a generated one), and nothing on `schema_migrations`. A cancellation is an insert, not an update of `orders`, so the role stays insert-only.
 
 ## The checklist
 
 ### 1. Roles
 
-- **The schema owner isn't the runtime role.** `app` owns `orders` and `schema_migrations`, the latter created under `SET LOCAL ROLE` by `db-migrate`. n8n's app credential, `App DB`, connects as `app_runtime`.
+- **The schema owner isn't the runtime role.** `app` owns `orders`, `order_cancellations`, and `schema_migrations`, the latter created under `SET LOCAL ROLE` by `db-migrate`. n8n's app credential, `App DB`, connects as `app_runtime`.
 - **What `app_runtime` can't do.**
-  - **DML only.** It has `SELECT, INSERT` on `orders` and nothing else: no DDL in `app`, no `TRUNCATE`. `001_runtime_role.sql` runs `REVOKE CREATE ON SCHEMA public FROM PUBLIC` and grants it nothing beyond `USAGE`.
+  - **DML only.** It has `SELECT, INSERT` on `orders` and `order_cancellations` and nothing else: no DDL in `app`, no `TRUNCATE`. `001_runtime_role.sql` runs `REVOKE CREATE ON SCHEMA public FROM PUBLIC` and grants it nothing beyond `USAGE`.
   - **No wider grants.** No `TRUNCATE`, no `UPDATE`, no `DELETE`, and no column-level grant beyond its table grant.
   - **No membership.** It's a member of no role, so it can't `SET ROLE` to the owner.
   - **No attributes.** `db-migrate` re-asserts `NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS` every time it sets the password.
@@ -42,19 +45,20 @@ So `app_runtime` holds `SELECT, INSERT` on `orders`, and nothing else: no `UPDAT
 
 ### 2. Schema
 
-- **Primary keys:** every table has one: `orders (order_id)` and `schema_migrations (filename)`.
-- **CHECKs on enumerated columns:** none — `orders` has no enumerated text column.
-- **`NOT NULL`:** set on every required value: `order_id`, `order_number`, `received_at`, and `applied_at`. No column is nullable.
-- **Timestamps** are `timestamptz` (`received_at`, `applied_at`). This repo has no MySQL.
+- **Primary keys:** every table has one: `orders (order_id)`, `order_cancellations (order_id)`, and `schema_migrations (filename)`.
+- **Foreign keys:** `order_cancellations.order_id` references `orders (order_id)` `ON DELETE CASCADE`, so deleting an order, as the recovery steps and an erasure request do, removes its cancellation.
+- **CHECKs on enumerated columns:** none — no table has an enumerated text column.
+- **`NOT NULL`:** set on every required value: `order_id`, `order_number`, `received_at`, `cancelled_at`, and `applied_at`. `orders.customer_id` is the one nullable column: a guest checkout has no Shopify customer.
+- **Timestamps** are `timestamptz` (`received_at`, `cancelled_at`, `applied_at`). This repo has no MySQL.
 
 ### 3. Indexes
 
-The only production query against `orders` is the insert itself (`Record order`), served by the primary key, as the table above shows — there is no separate lookup query to index. Nothing else in `workflows/` queries `orders`.
+The gate's insert and the cancellation insert are served by primary keys, as the table above shows. The status check's reorder lookup joins `orders` to itself on `customer_id` and `received_at`, so `orders_customer_id_received_at_idx` covers it. The index is partial (`WHERE customer_id IS NOT NULL`), which keeps guest orders out of it and matches the query, since a guest order never matches another.
 
 ### 4. Queries
 
-- **Bound values only.** The one Postgres node passes its values as `$n` Query Parameters. `pnpm run check` rejects a query that contains a `{{ }}` expression, and a `$n` placeholder inside a SQL comment.
-- **CI runs the statement.** `check-db` runs the workflow's own statement exactly as written, with psql's `\bind` supplying the values.
+- **Bound values only.** Every Postgres node passes its values as `$n` Query Parameters. `pnpm run check` rejects a query that contains a `{{ }}` expression, and a `$n` placeholder inside a SQL comment.
+- **CI runs the statements.** `check-db` runs each workflow statement exactly as written, with psql's `\bind` supplying the values.
 
 ### 5. Migrations
 
@@ -68,7 +72,7 @@ The only production query against `orders` is the insert itself (`Record order`)
 3. **Applies each pending file in order,** as the superuser over the container's local socket, with `--single-transaction` and `ON_ERROR_STOP`. Each file's transaction first takes a fixed advisory lock (`pg_advisory_xact_lock`), so two runs can't interleave. A concurrent second run then fails on the ledger's primary key instead of recording a file twice. The `INSERT` into `schema_migrations` is the file's last statement, so a failed file leaves no change and no record.
 4. **Sets `app_runtime`'s password and attributes** from `APP_RUNTIME_DB_PASSWORD`, even when no migration ran, with `ALTER ROLE … WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD …`. A hand-granted attribute doesn't survive the next run. `setup-credentials` rebuilds the `App DB` credential from `.env` on every run, so the role's password must follow it the same way. To rotate it, change `.env` and run `pnpm run setup`.
 
-There is no schema change beyond the role in this repo: `001_runtime_role.sql` is the only migration, and `db/schema.sql`'s baseline `orders` table needs no column, index, or constraint change to serve the one statement above.
+Two migrations ship. `001_runtime_role.sql` creates the role. `002_order_lifecycle.sql` adds `orders.customer_id`, its partial index, and the `order_cancellations` table with its grant, each `IF NOT EXISTS` so a second run changes nothing. `db/schema.sql` stays the baseline `orders` table, so a fresh volume gets `customer_id` from the migration. The offline SQL tests (`tests/db/`) load the baseline and every migration into pglite, which skips only the role, grant, and ownership statements and throws on any other DDL it doesn't know, so a migration can't change the schema in a way the tests miss.
 
 `db-migrate` passes each variable to `docker compose exec` as a bare `-e NAME`. Docker copies the value from `db-migrate`'s own environment, so it never appears in an argument list or in `ps`, and psql reads it with `\getenv`. A password reaches the server only inside `ALTER ROLE … PASSWORD`, which psql quotes itself. `db-migrate` redacts every `.env` secret from psql's output before printing an error.
 
@@ -83,7 +87,7 @@ The ledger already skips applied files, so a second `pnpm run setup` prints `no 
 
 ### 6. Retention
 
-**App tables:** `orders` holds only the Shopify order id and the merchant-facing order number — no name, email, address, phone, or any other customer data. There is no retention job for it, and none is needed: these two identifiers aren't personal data on their own, and `orders` is the idempotency gate's own record of which orders have already been seen, which the gate must keep indefinitely to keep working. `schema_migrations` holds no personal data either; it's the ledger.
+**App tables:** `orders` holds the Shopify order id, the merchant-facing order number, and `customer_id`, the Shopify customer's numeric id (null for a guest) — no name, email, address, or phone. There is no retention job for it, and none is needed: `order_id` and `order_number` aren't personal data on their own, and `orders` is the idempotency gate's own record of which orders have already been seen, which the gate must keep indefinitely to keep working. `customer_id` is pseudonymous personal data: it is kept with its order so the reorder check can tell whether the same customer ordered again, and it is erased on request. A customer erasure request is a manual `DELETE FROM orders WHERE customer_id = '<id>'`, run as the superuser; the cascade removes that customer's rows in `order_cancellations`, and a waiting `reorder-reminder` for such an order then skips itself, because `Check order status` reports it as no longer recorded. That waiting execution still holds the customer's name, email, and order lines until it finishes, for up to `reorder_reminder_days` plus the 168-hour execution retention below. `order_cancellations` holds an order id and a time. `schema_migrations` holds no personal data either; it's the ledger.
 
 **n8n execution data:** `compose.yaml` keeps `EXECUTIONS_DATA_PRUNE=true` and `EXECUTIONS_DATA_MAX_AGE=168`, so n8n deletes executions after 168 hours. A manual execution, started from the editor, is saved by default with every node's input and output. Every workflow in `workflows/` sets `settings.saveManualExecutions: false`, with no per-workflow exception, and `tests/workflows.test.ts` asserts it for every file. A per-workflow list wouldn't hold: `intake-order`, `process-order`, `shopify-orders`, and `dev-harness` each carry an order's customer name, email, address, or the dev harness's own `X-Dev-Token` header, but `load-config` and `error-handler` aren't exempt either — both start from a passthrough Execute Workflow Trigger whose caller sends no input schema, so each receives its caller's whole item: `load-config`'s caller passes it the order and config it's about to use, and `error-handler`'s caller passes it the failed execution's own data.
 
@@ -175,13 +179,13 @@ These steps take a volume created before `db/migrations/` existed to the current
 | connecting to the n8n database is denied | `permission denied for database "n8n"` |
 | SET ROLE to the owner is denied | `permission denied to set role` |
 | no role attribute, membership, column grant, or TEMP/CREATE on app beyond the grant list | Checked as the superuser: `app_runtime` holds none of `SUPERUSER`, `CREATEDB`, `CREATEROLE`, `REPLICATION`, or `BYPASSRLS`; `pg_auth_members` lists it as a member of nothing; `has_any_column_privilege` finds no column privilege its table grant doesn't cover; and it has no `TEMP` or `CREATE` on `app` |
-| table privileges are exactly the grant list | `app_runtime`'s privileges on every table and sequence in `public` equal `RUNTIME_GRANTS` (`orders: SELECT, INSERT`): none missing, none extra |
-| every workflow Postgres statement runs | the one statement runs as `app_runtime`, inside one transaction it rolls back |
+| table privileges are exactly the grant list | `app_runtime`'s privileges on every table and sequence in `public` equal `RUNTIME_GRANTS` (`orders` and `order_cancellations`: `SELECT, INSERT` each): none missing, none extra |
+| every workflow Postgres statement runs | the four statements run as `app_runtime`, inside one transaction it rolls back |
 | `schema_migrations` lists every file in `db/migrations` | every file is recorded |
 
 - **What counts as a denial.** Only the expected one passes. A statement that succeeds fails the check, and so does psql failing for any other reason, such as a missing role or a stopped container.
-- **Nothing persists.** The one statement that could change data runs inside `BEGIN … ROLLBACK`.
-- **The statement check reads the workflow.** It runs the Postgres node's query straight from `intake-order.json`. A unit test fails when a new Postgres node has no probe values in `PROBES`, and a separate test confirms no other workflow in `workflows/` touches Postgres at all.
+- **Nothing persists.** The statements that could change data run inside `BEGIN … ROLLBACK`.
+- **The statement check reads the workflows.** It runs each Postgres node's query straight from its workflow file. A unit test fails when a new Postgres node has no probe values in `PROBES`, and a separate test confirms no other workflow in `workflows/` touches Postgres at all.
 
 CI's `n8n` job runs `check-db` after `pnpm run setup` on a fresh volume. Then `check-dev-response.ts --fresh` drives `intake-order` through n8n, which proves `app_runtime`'s grants hold for a real run. On a fresh volume this is airtight, since `App DB` is imported fresh and can only be built from `APP_RUNTIME_DB_USER`. **It is not airtight on an upgraded local stack that skipped the refresh step above**: both checks would still report success, because neither one asks n8n which role its own credential actually uses — `check-db` runs its own, independent `psql` session as `app_runtime`, and `check-dev-response` only checks the shape of `intake-order`'s response. A stale `App DB` credential still connecting as the owner role `app` would pass both checks while every actual order write ran with full owner privileges. Short of decrypting the credential store, the refresh step is the only way to close this gap on an existing stack.
 

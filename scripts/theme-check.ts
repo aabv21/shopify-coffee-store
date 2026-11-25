@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { check } from '@shopify/theme-check-node';
 import { assembleTheme } from './assemble-theme.ts';
 import { ensureHorizon } from './lib/horizon.ts';
-import { INSERTIONS } from './lib/theme-insertions.ts';
+import { INSERTIONS } from './lib/theme-insertions.data.ts';
 
 const CACHE_ROOT = '.theme-build';
 const OUT_DIR = '.theme-build/theme';

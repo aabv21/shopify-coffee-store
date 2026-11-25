@@ -87,6 +87,30 @@
                 ]
               },
               "renameOutput": true
+            },
+            {
+              "outputKey": "cancel-order",
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "leftValue": "",
+                  "caseSensitive": true,
+                  "typeValidation": "strict"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "id": "40000000-0001-4000-8000-0000000a0103",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "leftValue": "={{ $json.body.target }}",
+                    "rightValue": "cancel-order"
+                  }
+                ]
+              },
+              "renameOutput": true
             }
           ]
         },
@@ -184,7 +208,7 @@
       "typeVersion": 1.5,
       "position": [
         400,
-        360
+        500
       ],
       "parameters": {
         "respondWith": "json",
@@ -206,7 +230,44 @@
       "parameters": {
         "width": 1080,
         "height": 160,
-        "content": "## Dev harness\nToken-protected test RPC: POST /webhook/dev with { target, input } runs a fixed sub-workflow and responds with its result; an unknown target answers 404. Targets: load-config, and intake-order, whose raw order input is shaped like the Shopify Trigger's item. Localhost only, never tunneled; unpublish before production use."
+        "content": "## Dev harness\nToken-protected test RPC: POST /webhook/dev with { target, input } runs a fixed sub-workflow and responds with its result; an unknown target answers 404. Targets: load-config, intake-order and cancel-order, whose raw input is shaped like the Shopify Trigger's item. Localhost only, never tunneled; unpublish before production use."
+      }
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000009",
+      "name": "Call cancel-order",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        660,
+        420
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "nbcCancelOrder01"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "40000000-0000-4000-8000-000000000010",
+      "name": "Shape cancellation item",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        400,
+        420
+      ],
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ $json.body.input }}",
+        "options": {}
       }
     }
   ],
@@ -234,6 +295,13 @@
         [
           {
             "node": "Shape order item",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Shape cancellation item",
             "type": "main",
             "index": 0
           }
@@ -274,6 +342,28 @@
         [
           {
             "node": "Respond with result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call cancel-order": {
+      "main": [
+        [
+          {
+            "node": "Respond with result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shape cancellation item": {
+      "main": [
+        [
+          {
+            "node": "Call cancel-order",
             "type": "main",
             "index": 0
           }

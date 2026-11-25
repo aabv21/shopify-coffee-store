@@ -15,6 +15,9 @@
   {%- capture free_shipping_progress_label -%}
     {%- render 'nubandina-text', value: settings.free_shipping_progress_label, key: 'nubandina.free_shipping_bar.progress_label' -%}
   {%- endcapture -%}
+  {%- capture free_shipping_reassurance -%}
+    {%- render 'nubandina-text', value: settings.reassurance_text, key: 'nubandina.reassurance' -%}
+  {%- endcapture -%}
   {%- liquid
     assign free_shipping_total_cents = cart.total_price | at_least: 0
     assign free_shipping_percent = free_shipping_total_cents | times: 100 | divided_by: free_shipping_threshold_cents | floor | at_most: 100
@@ -37,6 +40,7 @@
     data-message-remaining="{{ free_shipping_template_remaining }}"
     data-message-reached="{{ free_shipping_message_reached }}"
     data-cart-url="{{ routes.cart_url }}"
+    data-cart-add-url="{{ routes.cart_add_url }}"
     data-skip-subtree-update
   >
     <p class="free-shipping-bar__message">
@@ -52,7 +56,7 @@
         <circle cx="10" cy="10" r="8.25" stroke="currentColor" stroke-width="1.5"/>
         <path d="m6.5 10.25 2.25 2.25 4.75-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <span data-bar-message aria-live="polite">{{ free_shipping_message }}</span>
+      <span data-bar-message tabindex="-1" aria-live="polite">{{ free_shipping_message }}</span>
     </p>
     <div
       class="free-shipping-bar__track"
@@ -61,7 +65,6 @@
       aria-valuemin="0"
       aria-valuemax="100"
       aria-valuenow="{{ free_shipping_percent }}"
-      aria-valuetext="{{ free_shipping_message }}"
       aria-label="{{ free_shipping_progress_label }}"
     >
       <div
@@ -70,6 +73,57 @@
         style="--free-shipping-progress: {{ free_shipping_percent | divided_by: 100.0 }};"
       ></div>
     </div>
+    {%- if settings.free_shipping_suggestion_enabled -%}
+      {%- capture free_shipping_suggestion_message -%}
+        {%- render 'nubandina-text', value: settings.free_shipping_suggestion_message, key: 'nubandina.free_shipping_bar.suggestion_message' -%}
+      {%- endcapture -%}
+      {%- capture free_shipping_suggestion_add_label -%}
+        {%- render 'nubandina-text', value: settings.free_shipping_suggestion_add_label, key: 'nubandina.free_shipping_bar.suggestion_add_label' -%}
+      {%- endcapture -%}
+      {%- capture free_shipping_suggestion_error -%}
+        {%- render 'nubandina-text', value: settings.free_shipping_suggestion_error, key: 'nubandina.free_shipping_bar.suggestion_error' -%}
+      {%- endcapture -%}
+      {%- assign free_shipping_suggestion_products = settings.free_shipping_suggestion_collection.products | default: collections.all.products -%}
+      {%- capture free_shipping_suggestions_json -%}
+        [
+          {%- assign free_shipping_suggestion_first = true -%}
+          {%- for product in free_shipping_suggestion_products limit: 50 -%}
+            {%- for variant in product.variants -%}
+              {%- unless free_shipping_suggestion_first -%},{%- endunless -%}
+              {%- assign free_shipping_suggestion_first = false -%}
+              {%- if variant.title == 'Default Title' -%}
+                {%- assign free_shipping_suggestion_label = product.title -%}
+              {%- else -%}
+                {%- assign free_shipping_suggestion_label = product.title | append: ' ' | append: variant.title -%}
+              {%- endif -%}
+              {
+                "variantId": {{ variant.id | json }},
+                "label": {{ free_shipping_suggestion_label | json }},
+                "priceCents": {{ variant.price | json }},
+                "price": {{ variant.price | money | json }},
+                "available": {{ variant.available | json }}
+              }
+            {%- endfor -%}
+          {%- endfor -%}
+        ]
+      {%- endcapture -%}
+      <div
+        class="free-shipping-bar__suggestion"
+        data-bar-suggestion
+        hidden
+        data-message="{{ free_shipping_suggestion_message }}"
+        data-error="{{ free_shipping_suggestion_error }}"
+      >
+        <span data-suggestion-text></span>
+        <button type="button" class="button-secondary free-shipping-bar__suggestion-add" data-suggestion-add>{{ free_shipping_suggestion_add_label }}</button>
+        <span class="free-shipping-bar__suggestion-status" data-suggestion-status role="status"></span>
+      </div>
+      {%- comment -%} shopify.dev's json filter docs promise only quote escaping, so a product title containing "</script>" is neutralized here. {%- endcomment -%}
+      <script type="application/json" data-bar-suggestions>{{ free_shipping_suggestions_json | strip | replace: '</', '<\/' }}</script>
+    {%- endif -%}
+    {%- if settings.reassurance_enabled and free_shipping_reassurance != blank -%}
+      <p class="free-shipping-bar__reassurance">{{ free_shipping_reassurance }}</p>
+    {%- endif -%}
   </free-shipping-bar>
   <script src="{{ 'free-shipping-bar.js' | asset_url }}" type="module"></script>
 {%- endif -%}
@@ -103,6 +157,49 @@
 
   .free-shipping-bar[data-state='reached'] .free-shipping-bar__message {
     font-weight: 700;
+  }
+
+  .free-shipping-bar__suggestion {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap-xs);
+  }
+
+  .free-shipping-bar__suggestion [data-suggestion-text] {
+    flex: 1 1 14rem;
+    text-wrap: pretty;
+  }
+
+  .free-shipping-bar__message [data-bar-message]:focus-visible {
+    outline-offset: 2px;
+  }
+
+  .free-shipping-bar__suggestion[hidden] {
+    display: none;
+  }
+
+  /* Horizon's button padding makes this as tall as Checkout; the padding goes and the 44 px touch
+     target stays, so the button sits beside its sentence. */
+  .free-shipping-bar__suggestion-add {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-block: 0;
+    padding-inline: var(--padding-lg);
+    min-block-size: var(--minimum-touch-target);
+  }
+
+  .free-shipping-bar__suggestion-add[aria-busy='true'] {
+    opacity: var(--opacity-50);
+  }
+
+  .free-shipping-bar__reassurance {
+    margin: 0;
+    font-size: var(--font-size--sm);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-muted-text));
+    text-wrap: pretty;
   }
 
   .free-shipping-bar__track {

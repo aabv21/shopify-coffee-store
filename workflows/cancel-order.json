@@ -1,0 +1,509 @@
+{
+  "id": "nbcCancelOrder01",
+  "name": "Cancel order",
+  "description": null,
+  "nodes": [
+    {
+      "id": "70000000-0000-4000-8000-000000000001",
+      "name": "When called",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -700,
+        260
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000002",
+      "name": "Read cancellation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -420,
+        260
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "70000000-0002-4000-8000-0000000a0001",
+              "name": "order_id",
+              "type": "string",
+              "value": "={{ String($json.admin_graphql_api_id ?? $json.id ?? '').replace('gid://shopify/Order/', '') }}"
+            },
+            {
+              "id": "70000000-0002-4000-8000-0000000a0002",
+              "name": "order_number",
+              "type": "string",
+              "value": "={{ $json.name ?? '' }}"
+            },
+            {
+              "id": "70000000-0002-4000-8000-0000000a0003",
+              "name": "cancelled_at",
+              "type": "string",
+              "value": "={{ $json.cancelled_at ?? '' }}"
+            },
+            {
+              "id": "70000000-0002-4000-8000-0000000a0004",
+              "name": "cancel_reason",
+              "type": "string",
+              "value": "={{ $json.cancel_reason ?? '' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000003",
+      "name": "Record cancellation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        -140,
+        260
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "nbcCredAppDb0001",
+          "name": "App DB"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "INSERT INTO order_cancellations (order_id)\nSELECT $1::text\nWHERE EXISTS (SELECT 1 FROM orders WHERE order_id = $1::text)\nON CONFLICT (order_id) DO NOTHING RETURNING order_id;\n",
+        "options": {
+          "queryReplacement": "={{ $json.order_id }}",
+          "queryBatching": "independently"
+        }
+      }
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000004",
+      "name": "Is first cancellation?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        140,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "70000000-0004-4000-8000-0000000a0001",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.order_id }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000005",
+      "name": "Load config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        420,
+        180
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "nbcLoadConfig001"
+        },
+        "mode": "once",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "schema": [],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        }
+      }
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000006",
+      "name": "Check config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        180
+      ],
+      "notes": "Why Code: validates the hand-edited config before a cancellation touches the sheet",
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Why Code: validates the hand-edited config before a cancellation touches the sheet. Generated from src/nodes/check-config.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/check-config.ts\n  var check_config_exports = {};\n  __export(check_config_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var LOCALES = [\"en\", \"es\"];\n  function isLocale(value) {\n    return typeof value === \"string\" && LOCALES.includes(value);\n  }\n\n  // src/lib/config.ts\n  var LOCALE_DEFAULT = \"en\";\n  var REORDER_REMINDER_DAYS_DEFAULT = 21;\n  var EMAIL_RE = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n  var SHOPIFY_STORE_RE = /^[a-z0-9][a-z0-9-]*$/;\n  var SHOPIFY_API_VERSION_RE = /^\\d{4}-(01|04|07|10)$/;\n  function isPlainObject(value) {\n    return typeof value === \"object\" && value !== null && !Array.isArray(value);\n  }\n  function asObject(value, path) {\n    if (!isPlainObject(value)) throw new Error(`${path} must be an object`);\n    return value;\n  }\n  function requireNonEmptyString(path, value) {\n    if (typeof value !== \"string\" || value === \"\") throw new Error(`${path} must be a non-empty string`);\n  }\n  function requireIntegerAtLeast(path, value, min) {\n    if (typeof value !== \"number\" || !Number.isInteger(value) || value < min) {\n      throw new Error(`${path} must be an integer >= ${String(min)}`);\n    }\n  }\n  function readLocale(path, value) {\n    if (value === void 0) return LOCALE_DEFAULT;\n    if (!isLocale(value)) throw new Error(`${path} must be \"en\" or \"es\"`);\n    return value;\n  }\n  function validateConfig(value) {\n    const root = asObject(value, \"config\");\n    if (typeof root.owner_email !== \"string\" || !EMAIL_RE.test(root.owner_email)) {\n      throw new Error(\"owner_email must be an email address\");\n    }\n    const google = asObject(root.google, \"config.google\");\n    requireNonEmptyString(\"google.orders_sheet_id\", google.orders_sheet_id);\n    requireNonEmptyString(\"google.orders_tab\", google.orders_tab);\n    const shopify = asObject(root.shopify, \"config.shopify\");\n    if (typeof shopify.store !== \"string\" || !SHOPIFY_STORE_RE.test(shopify.store)) {\n      throw new Error(\"shopify.store must be the store subdomain\");\n    }\n    if (typeof shopify.api_version !== \"string\" || !SHOPIFY_API_VERSION_RE.test(shopify.api_version)) {\n      throw new Error(\"shopify.api_version must look like 2026-10\");\n    }\n    requireIntegerAtLeast(\"low_stock_threshold\", root.low_stock_threshold, 1);\n    requireIntegerAtLeast(\"guide_delay_minutes\", root.guide_delay_minutes, 2);\n    const defaultLocale = readLocale(\"default_locale\", root.default_locale);\n    const teamLocale = readLocale(\"team_locale\", root.team_locale);\n    if (root.reorder_reminder_days !== void 0) requireIntegerAtLeast(\"reorder_reminder_days\", root.reorder_reminder_days, 1);\n    const reminderDays = root.reorder_reminder_days === void 0 ? REORDER_REMINDER_DAYS_DEFAULT : root.reorder_reminder_days;\n    return { ...root, default_locale: defaultLocale, team_locale: teamLocale, reorder_reminder_days: reminderDays };\n  }\n\n  // src/nodes/check-config.ts\n  function run(input) {\n    return { config: validateConfig(input.config) };\n  }\n  return __toCommonJS(check_config_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
+      }
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000007",
+      "name": "Collect cancelled row",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        940,
+        180
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "70000000-0007-4000-8000-0000000a0001",
+              "name": "order_number",
+              "type": "string",
+              "value": "={{ $('Read cancellation').first().json.order_number }}"
+            },
+            {
+              "id": "70000000-0007-4000-8000-0000000a0002",
+              "name": "status",
+              "type": "string",
+              "value": "cancelled"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000008",
+      "name": "Mark order cancelled",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1220,
+        180
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "nbcCredGSheets01",
+          "name": "Google Sheets"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Check config').first().json.config.google.orders_sheet_id }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Check config').first().json.config.google.orders_tab }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": null,
+          "matchingColumns": [
+            "order_number"
+          ],
+          "schema": [
+            {
+              "id": "order_number",
+              "displayName": "order_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {
+          "cellFormat": "RAW"
+        }
+      }
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000009",
+      "name": "Collect notice input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1500,
+        180
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "70000000-0009-4000-8000-0000000a0001",
+              "name": "cancellation",
+              "type": "object",
+              "value": "={{ $('Read cancellation').first().json }}"
+            },
+            {
+              "id": "70000000-0009-4000-8000-0000000a0002",
+              "name": "team_locale",
+              "type": "string",
+              "value": "={{ $('Check config').first().json.config.team_locale ?? '' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000010",
+      "name": "Build cancellation notice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        180
+      ],
+      "notes": "Why Code: writes the owner's cancellation notice from an en/es message table with the Bogota time and a readable reason",
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "// Why Code: writes the owner's cancellation notice from an en/es message table with the Bogota time and a readable reason. Generated from src/nodes/cancel-notice.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/cancel-notice.ts\n  var cancel_notice_exports = {};\n  __export(cancel_notice_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var STORE_TIMEZONE = \"America/Bogota\";\n  var LOCALES = [\"en\", \"es\"];\n  function isLocale(value) {\n    return typeof value === \"string\" && LOCALES.includes(value);\n  }\n  function normalizeLocale(value, fallback) {\n    if (typeof value !== \"string\") return fallback;\n    const language = value.trim().toLowerCase().split(/[-_]/)[0];\n    return isLocale(language) ? language : fallback;\n  }\n  function messagesFor(table, raw, fallback = \"en\") {\n    return table[normalizeLocale(raw, fallback)];\n  }\n\n  // src/nodes/cancel-notice.ts\n  var MESSAGES = {\n    en: {\n      subject: (n) => `Order ${n} cancelled`,\n      line1: (n) => `Order ${n} was cancelled in Shopify.`,\n      reason: \"Reason\",\n      cancelledAt: \"Cancelled at\",\n      line4: 'Its Orders row now reads \"cancelled\". No brewing guide or reorder reminder goes out for it from now on.',\n      notGiven: \"not given\",\n      unknown: \"unknown\",\n      reasons: { customer: \"customer request\", fraud: \"fraud\", inventory: \"out of stock\", declined: \"payment declined\", staff: \"staff error\", other: \"other\" }\n    },\n    es: {\n      subject: (n) => `Pedido ${n} cancelado`,\n      line1: (n) => `El pedido ${n} se canceló en Shopify.`,\n      reason: \"Motivo\",\n      cancelledAt: \"Cancelado el\",\n      line4: 'Su fila en Orders ahora dice \"cancelled\". A partir de ahora no se enviará la guía de preparación ni el recordatorio de recompra.',\n      notGiven: \"no indicado\",\n      unknown: \"desconocida\",\n      reasons: { customer: \"solicitud del cliente\", fraud: \"fraude\", inventory: \"sin inventario\", declined: \"pago rechazado\", staff: \"error del personal\", other: \"otro\" }\n    }\n  };\n  function run(input) {\n    const m = messagesFor(MESSAGES, input.team_locale);\n    const { cancellation } = input;\n    const number = cancellation.order_number.replace(/\\s*[\\r\\n]+\\s*/g, \" \").trim();\n    const reasonKey = cancellation.cancel_reason.trim();\n    const reason = reasonKey === \"\" ? m.notGiven : new Map(Object.entries(m.reasons)).get(reasonKey) ?? reasonKey;\n    const parsed = DateTime.fromISO(cancellation.cancelled_at);\n    const time = parsed.isValid ? parsed.setZone(STORE_TIMEZONE).toFormat(\"yyyy-LL-dd HH:mm\") : m.unknown;\n    return {\n      subject: m.subject(number),\n      text: [m.line1(number), `${m.reason}: ${reason}`, `${m.cancelledAt}: ${time} ${STORE_TIMEZONE}`, m.line4].join(\"\\n\")\n    };\n  }\n  return __toCommonJS(cancel_notice_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
+      }
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000011",
+      "name": "Email owner",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2060,
+        180
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "nbcCredGmail0001",
+          "name": "Gmail"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $('Check config').first().json.config.owner_email }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      }
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000012",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -740,
+        20
+      ],
+      "parameters": {
+        "width": 900,
+        "height": 160,
+        "content": "## Record the cancellation\nRecords the cancellation once, and only for an order this store recorded. A repeated delivery, or a cancellation for an unknown order, stops here: no row change, no email."
+      }
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000013",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        380,
+        -40
+      ],
+      "parameters": {
+        "width": 1980,
+        "height": 160,
+        "content": "## Mark the order and tell the owner\nSets the order's Orders row to \"cancelled\" (matched by order_number), then emails the owner a plain-text notice in the team language. Process order checks the same record after its wait, so a cancelled order gets no brewing guide and no reorder reminder."
+      }
+    },
+    {
+      "id": "70000000-0000-4000-8000-000000000014",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        140,
+        460
+      ],
+      "parameters": {
+        "width": 560,
+        "height": 200,
+        "content": "NOTE: a cancellation that arrives before its order was recorded is ignored, and the order stays \"placed\". Ceiling: Shopify sends orders/create first in practice. Upgrade path: park the cancellation and replay it when the order is recorded."
+      }
+    }
+  ],
+  "connections": {
+    "When called": {
+      "main": [
+        [
+          {
+            "node": "Read cancellation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read cancellation": {
+      "main": [
+        [
+          {
+            "node": "Record cancellation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record cancellation": {
+      "main": [
+        [
+          {
+            "node": "Is first cancellation?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is first cancellation?": {
+      "main": [
+        [
+          {
+            "node": "Load config",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Load config": {
+      "main": [
+        [
+          {
+            "node": "Check config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check config": {
+      "main": [
+        [
+          {
+            "node": "Collect cancelled row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect cancelled row": {
+      "main": [
+        [
+          {
+            "node": "Mark order cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark order cancelled": {
+      "main": [
+        [
+          {
+            "node": "Collect notice input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect notice input": {
+      "main": [
+        [
+          {
+            "node": "Build cancellation notice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build cancellation notice": {
+      "main": [
+        [
+          {
+            "node": "Email owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Bogota",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "nbcErrorHandler1",
+    "saveManualExecutions": false
+  },
+  "meta": null,
+  "nodeGroups": [],
+  "sourceWorkflowId": null,
+  "tags": [],
+  "versionMetadata": {
+    "name": null,
+    "description": null
+  }
+}

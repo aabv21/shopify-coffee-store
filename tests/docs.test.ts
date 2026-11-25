@@ -36,13 +36,31 @@ describe('README', () => {
       'License',
     ]));
 
-  it('README shows the Demo label and the video line above the diagram', () => {
+  it('README shows the Demo label above the diagram and promises no video', () => {
     const diagram = readme.findIndex((line) => line.includes('docs/diagrams/architecture.svg'));
     expect(diagram).toBeGreaterThan(0);
     expect(readme.indexOf('**Demo**')).toBeGreaterThanOrEqual(0);
     expect(readme.indexOf('**Demo**')).toBeLessThan(diagram);
-    const video = readme.findIndex((line) => line.startsWith('**Video:**'));
-    expect(video).toBeGreaterThanOrEqual(0);
-    expect(video).toBeLessThan(diagram);
+    expect(readme.some((line) => /\*\*Video:\*\*/.test(line))).toBe(false);
+  });
+});
+
+describe('agent docs', () => {
+  const agents = readFileSync('AGENTS.md', 'utf8');
+
+  it('AGENTS.md stays at 150 lines or fewer', () => expect(agents.trimEnd().split('\n').length).toBeLessThanOrEqual(150));
+
+  it('AGENTS.md links every doc it hands procedures to', () => {
+    for (const target of ['docs/operations.md', 'docs/i18n.md', 'docs/diagrams/README.md', 'docs/architecture.md#http-surface', 'CONTRIBUTING.md', 'theme/README.md']) {
+      expect(agents, target).toContain(target);
+    }
+  });
+
+  it('docs/architecture.md has an HTTP surface table naming every route and status', () => {
+    const text = readFileSync('docs/architecture.md', 'utf8');
+    const section = text.split('\n## ').find((s) => s.startsWith('HTTP surface')) ?? '';
+    for (const token of ['/webhook/dev', '/webhook/4b1d2c3e-5f60-4a7b-8c9d-0e1f2a3b4c5d/webhook', 'X-Dev-Token', 'X-Shopify-Hmac-Sha256', 'unknown_target', '403', '404', '429']) {
+      expect(section, token).toContain(token);
+    }
   });
 });

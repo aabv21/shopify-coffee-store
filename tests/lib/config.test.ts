@@ -14,7 +14,13 @@ it.each([
   [{ default_locale: 'es-CO' }, 'default_locale must be "en" or "es"'],
   [{ team_locale: '' }, 'team_locale must be "en" or "es"'],
   [{ team_locale: null }, 'team_locale must be "en" or "es"'],
+  [{ reorder_reminder_days: 0 }, 'reorder_reminder_days must be an integer >= 1'],
+  [{ reorder_reminder_days: 1.5 }, 'reorder_reminder_days must be an integer >= 1'],
+  [{ reorder_reminder_days: '21' }, 'reorder_reminder_days must be an integer >= 1'],
 ])('rejects %j', (patch, message) => expect(() => validateConfig({ ...example, ...patch })).toThrow(message));
+
+it('accepts the lowest allowed values', () =>
+  expect(validateConfig({ ...example, low_stock_threshold: 1, guide_delay_minutes: 2 })).toMatchObject({ low_stock_threshold: 1, guide_delay_minutes: 2 }));
 
 it('accepts Spanish for either locale', () =>
   expect(validateConfig({ ...example, default_locale: 'es', team_locale: 'es' })).toMatchObject({ default_locale: 'es', team_locale: 'es' }));
@@ -26,3 +32,13 @@ it('defaults a config written before the locale keys existed to English', () => 
   expect(validateConfig(legacy)).toEqual({ ...legacy, default_locale: 'en', team_locale: 'en' });
   expect(legacy).not.toHaveProperty('team_locale');
 });
+
+it('defaults a config without reorder_reminder_days to 21 days', () => {
+  const older: Record<string, unknown> = { ...example };
+  delete older.reorder_reminder_days;
+  expect(validateConfig(older)).toEqual({ ...older, reorder_reminder_days: 21 });
+  expect(older).not.toHaveProperty('reorder_reminder_days');
+});
+
+it('accepts reorder_reminder_days: 1', () => expect(validateConfig({ ...example, reorder_reminder_days: 1 })).toMatchObject({ reorder_reminder_days: 1 }));
+

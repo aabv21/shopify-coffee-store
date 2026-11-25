@@ -1,5 +1,7 @@
 import { expect, it } from 'vitest';
-import { isLocale, LOCALES, normalizeLocale } from '../../src/lib/locale.ts';
+import { isLocale, LOCALES, messagesFor, normalizeLocale, STORE_TIMEZONE } from '../../src/lib/locale.ts';
+
+it('the store time zone is Bogota', () => expect(STORE_TIMEZONE).toBe('America/Bogota'));
 
 it('supports exactly English and Spanish', () => expect(LOCALES).toEqual(['en', 'es']));
 
@@ -27,4 +29,12 @@ it.each([[undefined], [null], [''], ['fr'], ['fr-CA'], ['pt-BR'], ['spanish'], [
 it('recognizes only an exact supported locale', () => {
   expect([isLocale('en'), isLocale('es')]).toEqual([true, true]);
   expect([isLocale('es-CO'), isLocale('EN'), isLocale(undefined)]).toEqual([false, false, false]);
+});
+
+it('messagesFor picks the table entry by tag and falls back', () => {
+  const table = { en: 'E', es: 'S' };
+  expect(messagesFor(table, 'es-CO')).toBe('S');
+  expect(messagesFor(table, 'fr')).toBe('E');
+  expect(messagesFor(table, 'fr', 'es')).toBe('S');
+  expect(messagesFor(table, undefined)).toBe('E');
 });

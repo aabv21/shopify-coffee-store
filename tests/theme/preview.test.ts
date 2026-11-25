@@ -1,19 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { parseCatalog } from '../../scripts/lib/catalog.ts';
+import { hoverShift, parseHex, shiftLightness, toHex } from '../../scripts/lib/color.ts';
+import { parseFontHandle, presetFontSizes, previewFontsUrl, staticRootVariables, themeCssVariables } from '../../scripts/lib/preview-css.ts';
 import {
   createPreviewEngine,
-  hoverShift,
-  parseCatalog,
-  parseFontHandle,
-  parseHex,
-  presetFontSizes,
-  previewFontsUrl,
   previewScope,
   resolveSettings,
   sectionSettingDefaults,
-  shiftLightness,
-  staticRootVariables,
-  themeCssVariables,
-  toHex,
   translate,
 } from '../../scripts/lib/theme-preview.ts';
 import { parsePreviewArgs, previewPage } from '../../scripts/theme-preview.ts';
@@ -180,7 +173,7 @@ describe('preview engine', () => {
     const { html, stylesheets } = render(snippet, 7_200_000);
     expect(html).toContain('data-state="remaining"');
     expect(html).toContain('aria-valuenow="60"');
-    expect(html).toContain('aria-valuetext="You’re $48.000 away from free shipping"');
+    expect(html).not.toContain('aria-valuetext');
     expect(html).toContain('--free-shipping-progress: 0.6;');
     expect(stylesheets.join('')).toContain('.free-shipping-bar__fill');
 
@@ -188,6 +181,24 @@ describe('preview engine', () => {
     expect(reached).toContain('data-state="reached"');
     expect(reached).toContain('aria-valuenow="100"');
     expect(reached).toContain('You’ve got free shipping!');
+  });
+  it("renders the reassurance line under the bar and the finder's results, in each language", () => {
+    for (const [locale, line] of [['en', 'Roasted to order. Ships within 2 business days.'], ['es', 'Tostado bajo pedido. Sale en 2 días hábiles.']] as const) {
+      const opts = { locale };
+      expect(render(snippet, 7_200_000, barSettings, opts).html).toContain(`<p class="free-shipping-bar__reassurance">${line}</p>`);
+      expect(render(section, 0, barSettings, opts).html).toContain(`<p class="coffee-finder__reassurance">${line}</p>`);
+    }
+    const custom = { ...barSettings, reassurance_text: 'Fresh <b>always</b>' };
+    expect(render(snippet, 7_200_000, custom).html).toContain('<p class="free-shipping-bar__reassurance">Fresh &lt;b&gt;always&lt;/b&gt;</p>');
+  });
+  it('the reassurance toggle hides the line everywhere, even though blank text falls back to the translation', () => {
+    const off = { ...barSettings, reassurance_enabled: false };
+    expect(render(snippet, 7_200_000, off).html).not.toContain('reassurance');
+    expect(render(section, 0, off).html).not.toContain('<p class="coffee-finder__reassurance">');
+    expect(barSettings.reassurance_enabled).toBe(true);
+  });
+  it('sets the reassurance line in the same muted opacity as the rest of the theme', () => {
+    for (const source of [snippet, section]) expect(source).toContain('var(--opacity-muted-text)');
   });
   it('hides the bar when the threshold is zero', () =>
     expect(render(snippet, 100, { ...barSettings, free_shipping_threshold: 0 }).html).not.toContain('<free-shipping-bar'));
@@ -212,7 +223,7 @@ describe('preview engine', () => {
     expect(html).toContain('data-error="No pudimos agregar este producto a su carrito. Inténtelo de nuevo."');
     const bar = render(snippet, 7_200_000, { ...barSettings, free_shipping_message_remaining: 'Only [amount] to <go>' }).html;
     expect(bar).toContain('data-message-remaining="Only [amount] to &lt;go&gt;"');
-    expect(bar).toContain('aria-valuetext="Only $48.000 to &lt;go&gt;"');
+    expect(bar).toContain('<span data-bar-message tabindex="-1" aria-live="polite">Only $48.000 to &lt;go&gt;</span>');
   });
 });
 
@@ -245,7 +256,7 @@ describe('Spanish render', () => {
   });
   it('renders the free-shipping bar in Spanish, with the template the script fills in', () => {
     const html = render(snippet, 7_200_000);
-    expect(html).toContain('<span data-bar-message aria-live="polite">Le faltan $48.000 para el envío gratis</span>');
+    expect(html).toContain('<span data-bar-message tabindex="-1" aria-live="polite">Le faltan $48.000 para el envío gratis</span>');
     expect(html).toContain('data-message-remaining="Le faltan [amount] para el envío gratis"');
     expect(html).toContain('data-message-reached="¡Su pedido tiene envío gratis!"');
     expect(html).toContain('aria-label="Progreso hacia el envío gratis"');

@@ -41,7 +41,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Why Code: joins line items and converts the timestamp to Bogota time. Generated from src/nodes/order-row.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/order-row.ts\n  var order_row_exports = {};\n  __export(order_row_exports, {\n    run: () => run\n  });\n  function formatLine(line) {\n    const name = line.variant_title === null ? line.product_title : `${line.product_title} (${line.variant_title})`;\n    return `${name} x ${String(line.quantity)}`;\n  }\n  function run(input) {\n    const { order } = input;\n    const date = DateTime.fromISO(order.created_at).setZone(\"America/Bogota\").toFormat(\"yyyy-LL-dd HH:mm\");\n    const products = order.lines.map(formatLine).join(\"; \");\n    const units = order.lines.reduce((sum, line) => sum + line.quantity, 0);\n    return {\n      date,\n      order_number: order.order_number,\n      customer: order.customer_name,\n      city: order.city,\n      products,\n      units,\n      subtotal: order.subtotal,\n      shipping: order.shipping,\n      total: order.total,\n      free_shipping: order.free_shipping ? \"yes\" : \"no\"\n    };\n  }\n  return __toCommonJS(order_row_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
+        "jsCode": "// Why Code: joins line items and converts the timestamp to Bogota time. Generated from src/nodes/order-row.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/order-row.ts\n  var order_row_exports = {};\n  __export(order_row_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var STORE_TIMEZONE = \"America/Bogota\";\n\n  // src/nodes/order-row.ts\n  function formatLine(line) {\n    const name = line.variant_title === null ? line.product_title : `${line.product_title} (${line.variant_title})`;\n    return `${name} x ${String(line.quantity)}`;\n  }\n  function run(input) {\n    const { order } = input;\n    const date = DateTime.fromISO(order.created_at).setZone(STORE_TIMEZONE).toFormat(\"yyyy-LL-dd HH:mm\");\n    const products = order.lines.map(formatLine).join(\"; \");\n    const units = order.lines.reduce((sum, line) => sum + line.quantity, 0);\n    return {\n      date,\n      order_number: order.order_number,\n      customer: order.customer_name,\n      city: order.city,\n      products,\n      units,\n      subtotal: order.subtotal,\n      shipping: order.shipping,\n      total: order.total,\n      free_shipping: order.free_shipping ? \"yes\" : \"no\",\n      status: \"placed\"\n    };\n  }\n  return __toCommonJS(order_row_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
       }
     },
     {
@@ -165,6 +165,15 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -224,7 +233,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Why Code: writes the owner's order summary from an en/es message table with locale-aware amounts. Generated from src/nodes/owner-summary.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/owner-summary.ts\n  var owner_summary_exports = {};\n  __export(owner_summary_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var LOCALES = [\"en\", \"es\"];\n  function isLocale(value) {\n    return typeof value === \"string\" && LOCALES.includes(value);\n  }\n  function normalizeLocale(value, fallback) {\n    if (typeof value !== \"string\") return fallback;\n    const language = value.trim().toLowerCase().split(/[-_]/)[0];\n    return isLocale(language) ? language : fallback;\n  }\n\n  // src/nodes/owner-summary.ts\n  var MESSAGES = {\n    en: {\n      numberLocale: \"en-US\",\n      subject: (orderNumber, total) => `New order ${orderNumber}: ${total} COP`,\n      labels: {\n        order: \"Order\",\n        date: \"Date\",\n        customer: \"Customer\",\n        city: \"City\",\n        products: \"Products\",\n        units: \"Units\",\n        subtotal: \"Subtotal\",\n        shipping: \"Shipping\",\n        total: \"Total\",\n        freeShipping: \"Free shipping\"\n      },\n      yes: \"yes\",\n      no: \"no\"\n    },\n    es: {\n      numberLocale: \"es-CO\",\n      subject: (orderNumber, total) => `Nuevo pedido ${orderNumber}: ${total} COP`,\n      labels: {\n        order: \"Pedido\",\n        date: \"Fecha\",\n        customer: \"Cliente\",\n        city: \"Ciudad\",\n        products: \"Productos\",\n        units: \"Unidades\",\n        subtotal: \"Subtotal\",\n        shipping: \"Envío\",\n        total: \"Total\",\n        freeShipping: \"Envío gratis\"\n      },\n      yes: \"sí\",\n      no: \"no\"\n    }\n  };\n  function run(input) {\n    const { row } = input;\n    const m = MESSAGES[normalizeLocale(input.team_locale, \"en\")];\n    const amount = (value) => `${value.toLocaleString(m.numberLocale)} COP`;\n    const { labels } = m;\n    const lines = [\n      [labels.order, row.order_number],\n      [labels.date, row.date],\n      [labels.customer, row.customer],\n      [labels.city, row.city],\n      [labels.products, row.products],\n      [labels.units, String(row.units)],\n      [labels.subtotal, amount(row.subtotal)],\n      [labels.shipping, amount(row.shipping)],\n      [labels.total, amount(row.total)],\n      [labels.freeShipping, row.free_shipping === \"yes\" ? m.yes : m.no]\n    ];\n    return {\n      subject: m.subject(row.order_number, row.total.toLocaleString(m.numberLocale)),\n      text: lines.map(([label, value]) => `${label}: ${value}`).join(\"\\n\")\n    };\n  }\n  return __toCommonJS(owner_summary_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
+        "jsCode": "// Why Code: writes the owner's order summary from an en/es message table with locale-aware amounts. Generated from src/nodes/owner-summary.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/owner-summary.ts\n  var owner_summary_exports = {};\n  __export(owner_summary_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var LOCALES = [\"en\", \"es\"];\n  function isLocale(value) {\n    return typeof value === \"string\" && LOCALES.includes(value);\n  }\n  function normalizeLocale(value, fallback) {\n    if (typeof value !== \"string\") return fallback;\n    const language = value.trim().toLowerCase().split(/[-_]/)[0];\n    return isLocale(language) ? language : fallback;\n  }\n  function messagesFor(table, raw, fallback = \"en\") {\n    return table[normalizeLocale(raw, fallback)];\n  }\n\n  // src/nodes/owner-summary.ts\n  var MESSAGES = {\n    en: {\n      numberLocale: \"en-US\",\n      subject: (orderNumber, total) => `New order ${orderNumber}: ${total} COP`,\n      labels: {\n        order: \"Order\",\n        date: \"Date\",\n        customer: \"Customer\",\n        city: \"City\",\n        products: \"Products\",\n        units: \"Units\",\n        subtotal: \"Subtotal\",\n        shipping: \"Shipping\",\n        total: \"Total\",\n        freeShipping: \"Free shipping\"\n      },\n      yes: \"yes\",\n      no: \"no\"\n    },\n    es: {\n      numberLocale: \"es-CO\",\n      subject: (orderNumber, total) => `Nuevo pedido ${orderNumber}: ${total} COP`,\n      labels: {\n        order: \"Pedido\",\n        date: \"Fecha\",\n        customer: \"Cliente\",\n        city: \"Ciudad\",\n        products: \"Productos\",\n        units: \"Unidades\",\n        subtotal: \"Subtotal\",\n        shipping: \"Envío\",\n        total: \"Total\",\n        freeShipping: \"Envío gratis\"\n      },\n      yes: \"sí\",\n      no: \"no\"\n    }\n  };\n  function run(input) {\n    const { row } = input;\n    const m = messagesFor(MESSAGES, input.team_locale);\n    const amount = (value) => `${value.toLocaleString(m.numberLocale)} COP`;\n    const { labels } = m;\n    const lines = [\n      [labels.order, row.order_number],\n      [labels.date, row.date],\n      [labels.customer, row.customer],\n      [labels.city, row.city],\n      [labels.products, row.products],\n      [labels.units, String(row.units)],\n      [labels.subtotal, amount(row.subtotal)],\n      [labels.shipping, amount(row.shipping)],\n      [labels.total, amount(row.total)],\n      [labels.freeShipping, row.free_shipping === \"yes\" ? m.yes : m.no]\n    ];\n    return {\n      subject: m.subject(row.order_number, row.total.toLocaleString(m.numberLocale)),\n      text: lines.map(([label, value]) => `${label}: ${value}`).join(\"\\n\")\n    };\n  }\n  return __toCommonJS(owner_summary_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
       }
     },
     {
@@ -356,7 +365,7 @@
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Why Code: parses the GraphQL response, de-duplicates variants, fails loudly on API errors, and words the alert in the team locale. Generated from src/nodes/select-low-stock.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/select-low-stock.ts\n  var select_low_stock_exports = {};\n  __export(select_low_stock_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var LOCALES = [\"en\", \"es\"];\n  function isLocale(value) {\n    return typeof value === \"string\" && LOCALES.includes(value);\n  }\n  function normalizeLocale(value, fallback) {\n    if (typeof value !== \"string\") return fallback;\n    const language = value.trim().toLowerCase().split(/[-_]/)[0];\n    return isLocale(language) ? language : fallback;\n  }\n\n  // src/nodes/select-low-stock.ts\n  var MESSAGES = {\n    en: {\n      subject: (orderNumber) => `Low stock after order ${orderNumber}`,\n      line: (item, threshold) => `${item.product_title} (${item.variant_title}), SKU ${item.sku ?? \"\"}: ${String(item.available)} left (threshold ${String(threshold)})`\n    },\n    es: {\n      subject: (orderNumber) => `Inventario bajo tras el pedido ${orderNumber}`,\n      line: (item, threshold) => `${item.product_title} (${item.variant_title}), SKU ${item.sku ?? \"\"}: quedan ${String(item.available)} (umbral ${String(threshold)})`\n    }\n  };\n  function toVariantInfo(gid, node) {\n    return {\n      variant_gid: gid,\n      product_title: node.product.title,\n      variant_title: node.title,\n      sku: node.sku,\n      tracked: node.inventoryItem.tracked,\n      available: node.inventoryQuantity,\n      roast: node.product.roast?.value ?? null,\n      brew_method: node.product.brewMethod?.value ?? null\n    };\n  }\n  function toLowStockItem(variant) {\n    return { product_title: variant.product_title, variant_title: variant.variant_title, sku: variant.sku, available: variant.available };\n  }\n  function run(input) {\n    const response = input.response;\n    if (response.errors && response.errors.length > 0) {\n      throw new Error(`Shopify GraphQL error: ${response.errors.map((e) => e.message).join(\"; \")}`);\n    }\n    const nodes = response.data?.nodes;\n    if (!Array.isArray(nodes)) throw new Error(\"Shopify GraphQL response has no nodes\");\n    const byGid = /* @__PURE__ */ new Map();\n    for (const node of nodes) {\n      if (node !== null) byGid.set(node.id, node);\n    }\n    const variants = [];\n    for (const gid of input.order.variant_gids) {\n      const node = byGid.get(gid);\n      if (node) variants.push(toVariantInfo(gid, node));\n    }\n    const lowStock = variants.filter((v) => v.tracked && v.available < input.threshold).map(toLowStockItem);\n    const m = MESSAGES[normalizeLocale(input.team_locale, \"en\")];\n    return {\n      variants,\n      low_stock: lowStock,\n      subject: m.subject(input.order.order_number),\n      text: lowStock.map((item) => m.line(item, input.threshold)).join(\"\\n\")\n    };\n  }\n  return __toCommonJS(select_low_stock_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
+        "jsCode": "// Why Code: parses the GraphQL response, de-duplicates variants, fails loudly on API errors, and words the alert in the team locale. Generated from src/nodes/select-low-stock.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/select-low-stock.ts\n  var select_low_stock_exports = {};\n  __export(select_low_stock_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var LOCALES = [\"en\", \"es\"];\n  function isLocale(value) {\n    return typeof value === \"string\" && LOCALES.includes(value);\n  }\n  function normalizeLocale(value, fallback) {\n    if (typeof value !== \"string\") return fallback;\n    const language = value.trim().toLowerCase().split(/[-_]/)[0];\n    return isLocale(language) ? language : fallback;\n  }\n  function messagesFor(table, raw, fallback = \"en\") {\n    return table[normalizeLocale(raw, fallback)];\n  }\n\n  // src/nodes/select-low-stock.ts\n  var MESSAGES = {\n    en: {\n      subject: (orderNumber) => `Low stock after order ${orderNumber}`,\n      line: (item, threshold) => `${item.product_title} (${item.variant_title}), SKU ${item.sku ?? \"\"}: ${String(item.available)} left (threshold ${String(threshold)})`\n    },\n    es: {\n      subject: (orderNumber) => `Inventario bajo tras el pedido ${orderNumber}`,\n      line: (item, threshold) => `${item.product_title} (${item.variant_title}), SKU ${item.sku ?? \"\"}: quedan ${String(item.available)} (umbral ${String(threshold)})`\n    }\n  };\n  function toVariantInfo(gid, node) {\n    return {\n      variant_gid: gid,\n      product_title: node.product.title,\n      variant_title: node.title,\n      sku: node.sku,\n      tracked: node.inventoryItem.tracked,\n      available: node.inventoryQuantity,\n      roast: node.product.roast?.value ?? null,\n      brew_method: node.product.brewMethod?.value ?? null\n    };\n  }\n  function toLowStockItem(variant) {\n    return { product_title: variant.product_title, variant_title: variant.variant_title, sku: variant.sku, available: variant.available };\n  }\n  function run(input) {\n    const response = input.response;\n    if (response.errors && response.errors.length > 0) {\n      throw new Error(`Shopify GraphQL error: ${response.errors.map((e) => e.message).join(\"; \")}`);\n    }\n    const nodes = response.data?.nodes;\n    if (!Array.isArray(nodes)) throw new Error(\"Shopify GraphQL response has no nodes\");\n    const byGid = /* @__PURE__ */ new Map();\n    for (const node of nodes) {\n      if (node !== null) byGid.set(node.id, node);\n    }\n    const variants = [];\n    for (const gid of input.order.variant_gids) {\n      const node = byGid.get(gid);\n      if (node) variants.push(toVariantInfo(gid, node));\n    }\n    const lowStock = variants.filter((v) => v.tracked && v.available < input.threshold).map(toLowStockItem);\n    const m = messagesFor(MESSAGES, input.team_locale);\n    return {\n      variants,\n      low_stock: lowStock,\n      subject: m.subject(input.order.order_number),\n      text: lowStock.map((item) => m.line(item, input.threshold)).join(\"\\n\")\n    };\n  }\n  return __toCommonJS(select_low_stock_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
       }
     },
     {
@@ -472,7 +481,7 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1.1,
       "position": [
-        2940,
+        3500,
         200
       ],
       "alwaysOutputData": true,
@@ -487,7 +496,7 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1.2,
       "position": [
-        3220,
+        3780,
         200
       ],
       "parameters": {
@@ -502,7 +511,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.5,
       "position": [
-        3500,
+        4060,
         200
       ],
       "parameters": {
@@ -532,6 +541,12 @@
               "name": "default_locale",
               "type": "string",
               "value": "={{ $('When called').first().json.config.default_locale ?? '' }}"
+            },
+            {
+              "id": "30000000-0016-4000-8000-0000000a0005",
+              "name": "store",
+              "type": "string",
+              "value": "={{ $('When called').first().json.config.shopify.store ?? '' }}"
             }
           ]
         },
@@ -544,14 +559,14 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3780,
+        4340,
         200
       ],
       "notes": "Why Code: picks one guide per brew method and renders escaped HTML in the customer's language",
       "parameters": {
         "mode": "runOnceForAllItems",
         "language": "javaScript",
-        "jsCode": "// Why Code: picks one guide per brew method and renders escaped HTML in the customer's language. Generated from src/nodes/select-guides.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/select-guides.ts\n  var select_guides_exports = {};\n  __export(select_guides_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var LOCALES = [\"en\", \"es\"];\n  function isLocale(value) {\n    return typeof value === \"string\" && LOCALES.includes(value);\n  }\n  function normalizeLocale(value, fallback) {\n    if (typeof value !== \"string\") return fallback;\n    const language = value.trim().toLowerCase().split(/[-_]/)[0];\n    return isLocale(language) ? language : fallback;\n  }\n\n  // src/nodes/select-guides.ts\n  var MESSAGES = {\n    en: {\n      subject: \"How to brew your Nubandina coffee\",\n      greeting: (firstName) => `Hi ${firstName ?? \"there\"},`,\n      intro: (orderNumber) => `Thanks for your order ${orderNumber}. Here's how to get the best from your coffee.`,\n      roast: (roast) => `${roast} roast`,\n      ratio: \"Ratio\",\n      signOff: \"Enjoy your coffee,\"\n    },\n    es: {\n      subject: \"Cómo preparar su café Nubandina\",\n      greeting: (firstName) => firstName === null ? \"Hola:\" : `Hola, ${firstName}:`,\n      intro: (orderNumber) => `Gracias por su pedido ${orderNumber}. Así puede sacarle el máximo provecho a su café.`,\n      roast: (roast) => `tostión ${(/* @__PURE__ */ new Map([[\"light\", \"clara\"], [\"medium\", \"media\"], [\"dark\", \"oscura\"]])).get(roast) ?? roast}`,\n      ratio: \"Proporción\",\n      signOff: \"Que disfrute su café,\"\n    }\n  };\n  var ESCAPE_RE = /[&<>\"']/g;\n  var ESCAPES = { \"&\": \"&amp;\", \"<\": \"&lt;\", \">\": \"&gt;\", '\"': \"&quot;\", \"'\": \"&#39;\" };\n  function escapeHtml(value) {\n    return value.replace(ESCAPE_RE, (char) => ESCAPES[char] ?? char);\n  }\n  function productListItem(variant, m) {\n    const roastSuffix = variant.roast === null ? \"\" : `, ${m.roast(escapeHtml(variant.roast))}`;\n    return `<li>${escapeHtml(variant.product_title)} (${escapeHtml(variant.variant_title)})${roastSuffix}</li>`;\n  }\n  function guideText(guide, locale) {\n    return locale === \"en\" ? guide : guide.translations?.[locale] ?? guide;\n  }\n  function guideSection(guide, m) {\n    const steps = guide.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join(\"\");\n    return `<h2>${escapeHtml(guide.name)}</h2><p>${m.ratio}: ${escapeHtml(guide.ratio)}</p><ol>${steps}</ol>`;\n  }\n  function run(input) {\n    const { order, variants, guides } = input;\n    const locale = normalizeLocale(order.locale, normalizeLocale(input.default_locale, \"en\"));\n    const m = MESSAGES[locale];\n    const byGid = /* @__PURE__ */ new Map();\n    for (const variant of variants) byGid.set(variant.variant_gid, variant);\n    const knownVariants = [];\n    const methodGuides = /* @__PURE__ */ new Map();\n    for (const line of order.lines) {\n      if (line.variant_gid === null) continue;\n      const variant = byGid.get(line.variant_gid);\n      if (!variant) continue;\n      knownVariants.push(variant);\n      const method = variant.brew_method;\n      if (method === null || methodGuides.has(method)) continue;\n      const guide = guides[method];\n      if (guide !== void 0) methodGuides.set(method, guide);\n    }\n    const methods = [...methodGuides.keys()];\n    const send = order.email !== null && methods.length > 0;\n    const productList = `<ul>${knownVariants.map((variant) => productListItem(variant, m)).join(\"\")}</ul>`;\n    const guideSections = [...methodGuides.values()].map((guide) => guideSection(guideText(guide, locale), m)).join(\"\");\n    const html = [\n      `<p>${m.greeting(order.first_name === null ? null : escapeHtml(order.first_name))}</p>`,\n      `<p>${m.intro(escapeHtml(order.order_number))}</p>`,\n      productList,\n      guideSections,\n      `<p>${m.signOff}<br>Nubandina Coffee</p>`\n    ].join(\"\");\n    return {\n      send,\n      locale,\n      to: order.email,\n      subject: m.subject,\n      html,\n      methods\n    };\n  }\n  return __toCommonJS(select_guides_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
+        "jsCode": "// Why Code: picks one guide per brew method and renders escaped HTML in the customer's language. Generated from src/nodes/select-guides.ts by pnpm run build:workflows; edit the source.\n\"use strict\";\nvar __node = (() => {\n  var __defProp = (obj, key, desc) => { obj[key] = desc && \"get\" in desc ? desc.get() : desc.value; return obj; };\n  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;\n  var __getOwnPropNames = Object.getOwnPropertyNames;\n  var __hasOwnProp = Object.prototype.hasOwnProperty;\n  var __export = (target, all) => {\n    for (var name in all)\n      __defProp(target, name, { get: all[name], enumerable: true });\n  };\n  var __copyProps = (to, from, except, desc) => {\n    if (from && typeof from === \"object\" || typeof from === \"function\") {\n      for (let key of __getOwnPropNames(from))\n        if (!__hasOwnProp.call(to, key) && key !== except)\n          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });\n    }\n    return to;\n  };\n  var __toCommonJS = (mod) => __copyProps(__defProp({}, \"__esModule\", { value: true }), mod);\n\n  // src/nodes/select-guides.ts\n  var select_guides_exports = {};\n  __export(select_guides_exports, {\n    run: () => run\n  });\n\n  // src/lib/locale.ts\n  var LOCALES = [\"en\", \"es\"];\n  function isLocale(value) {\n    return typeof value === \"string\" && LOCALES.includes(value);\n  }\n  function normalizeLocale(value, fallback) {\n    if (typeof value !== \"string\") return fallback;\n    const language = value.trim().toLowerCase().split(/[-_]/)[0];\n    return isLocale(language) ? language : fallback;\n  }\n  function messagesFor(table, raw, fallback = \"en\") {\n    return table[normalizeLocale(raw, fallback)];\n  }\n\n  // src/nodes/email-shell.ts\n  var EMAIL_COLORS = { background: \"#FBF7F2\", text: \"#2B1B12\", accent: \"#7C2D12\", muted: \"#6B5B4E\" };\n  var STORE_RE = /^[a-z0-9][a-z0-9-]*$/;\n  function storeUrl(store, locale) {\n    if (!STORE_RE.test(store)) return null;\n    return `https://${store}.myshopify.com/${locale === \"en\" ? \"\" : locale}`;\n  }\n  var ESCAPE_RE = /[&<>\"']/g;\n  var ESCAPES = { \"&\": \"&amp;\", \"<\": \"&lt;\", \">\": \"&gt;\", '\"': \"&quot;\", \"'\": \"&#39;\" };\n  function escapeHtml(value) {\n    return value.replace(ESCAPE_RE, (char) => ESCAPES[char] ?? char);\n  }\n  var FONT = \"font-family:Georgia,'Times New Roman',serif\";\n  function brandedEmail(o) {\n    const c = EMAIL_COLORS;\n    const button = o.cta === null ? \"\" : `<tr><td style=\"padding:8px 24px 24px\"><a href=\"${escapeHtml(o.cta.url)}\" style=\"background:${c.accent};color:${c.background};padding:12px 20px;border-radius:4px;text-decoration:none;display:inline-block;${FONT};font-size:16px\">${escapeHtml(o.cta.label)}</a></td></tr>`;\n    const preheader = o.preheader === void 0 ? \"\" : `<div style=\"display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;opacity:0\">${escapeHtml(o.preheader)}</div>`;\n    return [\n      `<!doctype html><html lang=\"${o.lang}\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>${escapeHtml(o.title)}</title></head>`,\n      `<body style=\"margin:0;padding:0;background:${c.background}\">${preheader}`,\n      `<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:${c.background}\"><tr><td align=\"center\" style=\"padding:24px 12px\">`,\n      `<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:560px;color:${c.text};${FONT};font-size:16px;line-height:1.5;text-align:left\">`,\n      `<tr><td style=\"padding:0 24px 16px;color:${c.accent};font-size:24px;font-weight:bold\">Nubandina Coffee</td></tr>`,\n      `<tr><td style=\"padding:0 24px\">${o.bodyHtml}</td></tr>`,\n      button,\n      `<tr><td style=\"padding:16px 24px 0;color:${c.muted};font-size:13px\">${escapeHtml(o.footer)}</td></tr>`,\n      `</table></td></tr></table></body></html>`\n    ].join(\"\");\n  }\n\n  // src/nodes/select-guides.ts\n  var ROAST_ES = /* @__PURE__ */ new Map([[\"light\", \"clara\"], [\"medium\", \"media\"], [\"dark\", \"oscura\"]]);\n  var MESSAGES = {\n    en: {\n      subject: \"How to brew your Nubandina coffee\",\n      greeting: (firstName) => `Hi ${firstName ?? \"there\"},`,\n      intro: (orderNumber) => `Thanks for your order ${orderNumber}. Here's how to get the best from your coffee.`,\n      roast: (roast) => `${roast} roast`,\n      ratio: \"Ratio\",\n      signOff: \"Enjoy your coffee.\",\n      preheader: (orderNumber) => `Your brewing guide for order ${orderNumber}`,\n      cta: \"Shop again\",\n      footer: \"You're getting this email because you ordered from Nubandina Coffee.\"\n    },\n    es: {\n      subject: \"Cómo preparar su café Nubandina\",\n      greeting: (firstName) => firstName === null ? \"Hola:\" : `Hola, ${firstName}:`,\n      intro: (orderNumber) => `Gracias por su pedido ${orderNumber}. Así puede sacarle el máximo provecho a su café.`,\n      roast: (roast) => `tostión ${ROAST_ES.get(roast) ?? roast}`,\n      ratio: \"Proporción\",\n      signOff: \"Que disfrute su café.\",\n      preheader: (orderNumber) => `Su guía de preparación del pedido ${orderNumber}`,\n      cta: \"Volver a la tienda\",\n      footer: \"Recibe este correo porque hizo un pedido en Nubandina Coffee.\"\n    }\n  };\n  var P_OPEN = '<p style=\"margin:0 0 16px\">';\n  var LIST_STYLE = \"margin:0 0 16px;padding-left:24px\";\n  function productListItem(variant, m) {\n    const roastSuffix = variant.roast === null ? \"\" : `, ${m.roast(escapeHtml(variant.roast))}`;\n    return `<li>${escapeHtml(variant.product_title)} (${escapeHtml(variant.variant_title)})${roastSuffix}</li>`;\n  }\n  function guideText(guide, locale) {\n    return locale === \"en\" ? guide : guide.translations?.[locale] ?? guide;\n  }\n  function guideSection(guide, m) {\n    const steps = guide.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join(\"\");\n    return `<h2 style=\"margin:24px 0 8px;font-size:18px;line-height:1.3\">${escapeHtml(guide.name)}</h2>${P_OPEN}${m.ratio}: ${escapeHtml(guide.ratio)}</p><ol style=\"${LIST_STYLE}\">${steps}</ol>`;\n  }\n  function run(input) {\n    const { order, variants, guides } = input;\n    const locale = normalizeLocale(order.locale, normalizeLocale(input.default_locale, \"en\"));\n    const m = messagesFor(MESSAGES, locale);\n    const byGid = /* @__PURE__ */ new Map();\n    for (const variant of variants) byGid.set(variant.variant_gid, variant);\n    const knownVariants = [];\n    const methodGuides = /* @__PURE__ */ new Map();\n    for (const line of order.lines) {\n      if (line.variant_gid === null) continue;\n      const variant = byGid.get(line.variant_gid);\n      if (!variant) continue;\n      knownVariants.push(variant);\n      const method = variant.brew_method;\n      if (method === null || methodGuides.has(method)) continue;\n      const guide = Object.hasOwn(guides, method) ? guides[method] : void 0;\n      if (guide !== void 0) methodGuides.set(method, guide);\n    }\n    const methods = [...methodGuides.keys()];\n    const send = order.email !== null && methods.length > 0;\n    const productList = `<ul style=\"${LIST_STYLE}\">${knownVariants.map((variant) => productListItem(variant, m)).join(\"\")}</ul>`;\n    const guideSections = [...methodGuides.values()].map((guide) => guideSection(guideText(guide, locale), m)).join(\"\");\n    const bodyHtml = [\n      `${P_OPEN}${m.greeting(order.first_name === null ? null : escapeHtml(order.first_name))}</p>`,\n      `${P_OPEN}${m.intro(escapeHtml(order.order_number))}</p>`,\n      productList,\n      guideSections,\n      `${P_OPEN}${m.signOff}</p>`\n    ].join(\"\");\n    const url = storeUrl(input.store ?? \"\", locale);\n    const html = brandedEmail({ lang: locale, title: m.subject, bodyHtml, cta: url === null ? null : { label: m.cta, url }, footer: m.footer, preheader: m.preheader(order.order_number) });\n    return {\n      send,\n      locale,\n      to: order.email,\n      subject: m.subject,\n      html,\n      methods\n    };\n  }\n  return __toCommonJS(select_guides_exports);\n})();\nreturn [{ json: __node.run($input.first().json) }];\n"
       }
     },
     {
@@ -560,7 +575,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.4,
       "position": [
-        4060,
+        4620,
         200
       ],
       "parameters": {
@@ -594,7 +609,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.2,
       "position": [
-        4340,
+        4900,
         100
       ],
       "retryOnFail": true,
@@ -628,9 +643,9 @@
         -60
       ],
       "parameters": {
-        "width": 1760,
+        "width": 2600,
         "height": 160,
-        "content": "## Brewing guide (after the wait)\nAfter guide_delay_minutes, emails the customer one HTML email with a guide per brew method among the order's known variants, in the order's locale (else config.default_locale). Sends nothing without an email address or a known brew method."
+        "content": "## Brewing guide (after the wait)\nAfter guide_delay_minutes, checks the order's status: a cancelled order stops here. Otherwise emails the customer one HTML email with a guide per brew method among the order's known variants, in the order's locale (else config.default_locale). Sends nothing without an email address or a known brew method. Then, only when the customer accepted marketing, starts Reorder reminder without waiting for it."
       }
     },
     {
@@ -646,6 +661,164 @@
         "width": 420,
         "height": 160,
         "content": "NOTE: a wait shorter than 65 s (MAX_IN_PROCESS_WAIT_MS) stays in process memory and is lost on a restart, so guide_delay_minutes must be at least 2."
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000027",
+      "name": "Check order status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.8,
+      "position": [
+        2940,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "nbcCredAppDb0001",
+          "name": "App DB"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 1000,
+      "parameters": {
+        "resource": "database",
+        "operation": "executeQuery",
+        "query": "SELECT\n  EXISTS (SELECT 1 FROM order_cancellations WHERE order_id = $1) AS cancelled,\n  EXISTS (\n    SELECT 1 FROM orders this_order\n    JOIN orders later ON later.customer_id = this_order.customer_id AND later.received_at > this_order.received_at\n    WHERE this_order.order_id = $1\n      AND NOT EXISTS (SELECT 1 FROM order_cancellations c WHERE c.order_id = later.order_id)\n  ) AS reordered,\n  EXISTS (SELECT 1 FROM orders WHERE order_id = $1) AS recorded;\n",
+        "options": {
+          "queryReplacement": "={{ $('When called').first().json.order.order_id }}",
+          "queryBatching": "independently"
+        }
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000024",
+      "name": "Still active?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        3220,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "30000000-0024-4000-8000-0000000a0001",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.cancelled }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000025",
+      "name": "Wants reminder?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        4900,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "30000000-0025-4000-8000-0000000a0001",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $('When called').first().json.order.accepts_marketing === true }}",
+              "rightValue": ""
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000026",
+      "name": "Start reorder reminder",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.4,
+      "position": [
+        5180,
+        100
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "nbcReorderRemind"
+        },
+        "mode": "once",
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "order": "={{ $('When called').first().json.order }}",
+            "config": "={{ $('When called').first().json.config }}",
+            "variants": "={{ $('Select low-stock variants').first().json.variants }}"
+          },
+          "schema": [
+            {
+              "id": "order",
+              "displayName": "order",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "config",
+              "displayName": "config",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "variants",
+              "displayName": "variants",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "array",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
       }
     }
   ],
@@ -782,7 +955,7 @@
       "main": [
         [
           {
-            "node": "Read brewing guides",
+            "node": "Check order status",
             "type": "main",
             "index": 0
           }
@@ -838,6 +1011,58 @@
         [
           {
             "node": "Email brewing guide",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wants reminder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check order status": {
+      "main": [
+        [
+          {
+            "node": "Still active?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still active?": {
+      "main": [
+        [
+          {
+            "node": "Read brewing guides",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Email brewing guide": {
+      "main": [
+        [
+          {
+            "node": "Wants reminder?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wants reminder?": {
+      "main": [
+        [
+          {
+            "node": "Start reorder reminder",
             "type": "main",
             "index": 0
           }

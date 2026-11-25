@@ -9,7 +9,7 @@ var TASTE_TO_ROAST = {
 var QUESTIONS = ["brew_method", "taste", "people"];
 var BREW_METHODS = ["pour-over", "espresso", "french-press"];
 var TASTES = ["mild", "balanced", "intense"];
-var PEOPLE = /* @__PURE__ */ new Set([1, 2, 3]);
+var PEOPLE = [1, 2, 3];
 function isBrewMethod(value) {
   return typeof value === "string" && BREW_METHODS.includes(value);
 }
@@ -17,7 +17,7 @@ function isTaste(value) {
   return typeof value === "string" && TASTES.includes(value);
 }
 function isPeople(value) {
-  return typeof value === "string" && PEOPLE.has(Number(value));
+  return typeof value === "string" && PEOPLE.includes(Number(value));
 }
 function pickVariant(variants, people) {
   const available = variants.filter((v) => v.available);
@@ -50,6 +50,19 @@ function recommend(products, answers) {
   for (const entry of chosen.slice(0, 2)) {
     const variant = pickVariant(entry.product.variants, answers.people);
     if (variant) picks.push({ product: entry.product, variant });
+  }
+  return picks;
+}
+function isPreferredSize(product, variant, people) {
+  const grams = product.variants.map((v) => v.grams);
+  return variant.grams === (people === 3 ? Math.max(...grams) : Math.min(...grams));
+}
+function favoritePicks(products, people) {
+  const picks = [];
+  for (const product of products) {
+    const variant = pickVariant(product.variants, people);
+    if (variant) picks.push({ product, variant });
+    if (picks.length === 2) break;
   }
   return picks;
 }
@@ -106,9 +119,9 @@ function parseProduct(value) {
 }
 function parseImage(value) {
   if (typeof value !== "object" || value === null) return null;
-  const { src, alt } = value;
+  const { src, src2x, alt } = value;
   if (typeof src !== "string" || src === "") return null;
-  return { src, alt: typeof alt === "string" ? alt : "" };
+  return { src, src2x: typeof src2x === "string" && src2x !== "" ? src2x : null, alt: typeof alt === "string" ? alt : "" };
 }
 function parseProducts(data) {
   if (!Array.isArray(data)) return [];
@@ -118,6 +131,34 @@ function parseProducts(data) {
     if (product) products.push(product);
   }
   return products;
+}
+
+// src/theme/cart-add.ts
+async function addToCart(variantId, o) {
+  const actions = window.Shopify?.actions;
+  if (actions) {
+    const result = await actions.updateCart(
+      { lines: [{ merchandiseId: variantId, quantity: 1 }] },
+      { event: { context: "standard-action" } }
+    );
+    if (result.userErrors && result.userErrors.length > 0) return { ok: false, warnings: [] };
+    if (o.openCart) {
+      try {
+        await actions.openCart();
+      } catch (err) {
+        console.warn("cart-add: openCart failed after a successful add", err);
+      }
+    }
+    return { ok: true, warnings: (result.warnings ?? []).map((warning) => warning.message) };
+  }
+  const response = await fetch(`${o.cartAddUrl}.js`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1 }] })
+  });
+  if (!response.ok) return { ok: false, warnings: [] };
+  if (o.openCart) window.location.assign(o.cartUrl);
+  return { ok: true, warnings: [] };
 }
 
 // src/theme/coffee-finder.ts
@@ -158,8 +199,10 @@ var CoffeeFinder = class extends HTMLElement {
     this.flagMissing(form, missing, { focus: true });
     if (missing.length > 0) return;
     const answers = readAnswers(entries);
-    const picks = answers ? recommend(this.readProducts(), answers) : [];
-    this.renderResults(picks);
+    if (!answers) return;
+    const products = this.readProducts();
+    const matches = recommend(products, answers);
+    this.renderResults(matches.length > 0 ? matches : favoritePicks(products, answers.people), { matched: matches.length > 0, people: answers.people });
   }
   /** The error text is a `role="alert"` region, so setting it announces the problem. */
   flagMissing(form, missing, o) {
@@ -167,10 +210,14 @@ var CoffeeFinder = class extends HTMLElement {
     if (error) error.textContent = missing.length > 0 ? error.dataset.message ?? "" : "";
     for (const input of form.querySelectorAll('input[type="radio"]')) {
       const unanswered = missing.includes(input.name);
-      input.closest("fieldset")?.toggleAttribute("data-unanswered", unanswered);
+      const fieldset = input.closest("fieldset");
+      fieldset?.toggleAttribute("data-unanswered", unanswered);
+      const line = fieldset?.querySelector("[data-question-error]");
+      if (line) line.hidden = !unanswered;
       if (unanswered) {
         input.setAttribute("aria-invalid", "true");
-        if (error?.id) input.setAttribute("aria-describedby", error.id);
+        const ids = [line?.id, error?.id].filter((id) => Boolean(id));
+        if (ids.length > 0) input.setAttribute("aria-describedby", ids.join(" "));
       } else {
         input.removeAttribute("aria-invalid");
         input.removeAttribute("aria-describedby");
@@ -179,7 +226,7 @@ var CoffeeFinder = class extends HTMLElement {
     const [first] = missing;
     if (o.focus && first) form.querySelector(`input[name="${first}"]`)?.focus();
   }
-  renderResults(picks) {
+  renderResults(picks, o) {
     const results = textOf(this, "[data-finder-results]");
     const empty = textOf(this, "[data-finder-empty]");
     const list = textOf(this, "[data-finder-list]");
@@ -187,7 +234,20 @@ var CoffeeFinder = class extends HTMLElement {
     const template = this.querySelector("template[data-finder-card]");
     if (!results || !empty || !list || !heading || !template) return;
     list.textContent = "";
-    empty.hidden = picks.length > 0;
+    empty.hidden = o.matched;
+    heading.textContent = (o.matched ? heading.dataset.matchHeading : heading.dataset.emptyHeading) ?? heading.textContent;
+    const emptyText = textOf(this, "[data-finder-empty-text]");
+    if (emptyText && !o.matched) {
+      const wording = picks.length === 0 ? emptyText.dataset.textNone : picks.length === 1 ? emptyText.dataset.textOne : emptyText.dataset.textTwo;
+      emptyText.textContent = wording ?? emptyText.textContent;
+    }
+    const messages = textOf(this, "[data-finder-messages]");
+    const sizeReason = textOf(this, "[data-finder-size-reason]");
+    if (sizeReason) {
+      const fits = picks.length > 0 && picks.every((pick) => isPreferredSize(pick.product, pick.variant, o.people));
+      sizeReason.textContent = fits ? (o.people === 3 ? messages?.dataset.sizeLarge : messages?.dataset.sizeSmall) ?? "" : "";
+      sizeReason.hidden = !fits;
+    }
     for (const pick of picks) {
       const card = this.renderCard(template, pick.product, pick.variant);
       if (card) list.append(card);
@@ -201,6 +261,10 @@ var CoffeeFinder = class extends HTMLElement {
     if (image) {
       if (product.image) {
         image.src = product.image.src;
+        if (product.image.src2x) {
+          image.srcset = `${product.image.src} 400w, ${product.image.src2x} 800w`;
+          image.sizes = "(min-width: 750px) 19rem, 6.5rem";
+        }
         image.alt = product.image.alt;
       } else {
         image.hidden = true;
@@ -246,25 +310,13 @@ var CoffeeFinder = class extends HTMLElement {
     status.textContent = "";
     delete status.dataset.state;
     try {
-      const actions = window.Shopify?.actions;
-      if (actions) {
-        const result = await actions.updateCart(
-          { lines: [{ merchandiseId: variantId, quantity: 1 }] },
-          { event: { context: "standard-action" } }
-        );
-        if (result.userErrors && result.userErrors.length > 0) {
-          this.setStatus(status, "error", errorText);
-        } else {
-          this.setStatus(status, "success", this.successText(addedText, result.warnings));
-          try {
-            await actions.openCart();
-          } catch (err) {
-            console.warn("coffee-finder: openCart failed after a successful add", err);
-          }
-        }
-      } else {
-        await this.addViaCartAjax(variantId, status, addedText, errorText);
-      }
+      const result = await addToCart(variantId, {
+        cartAddUrl: this.dataset.cartAddUrl ?? "/cart/add",
+        cartUrl: this.dataset.cartUrl ?? "/cart",
+        openCart: true
+      });
+      if (result.ok) this.setStatus(status, "success", this.successText(addedText, result.warnings));
+      else this.setStatus(status, "error", errorText);
     } catch {
       this.setStatus(status, "error", errorText);
     } finally {
@@ -272,23 +324,7 @@ var CoffeeFinder = class extends HTMLElement {
     }
   }
   successText(addedText, warnings) {
-    if (!warnings || warnings.length === 0) return addedText;
-    return [addedText, ...warnings.map((warning) => warning.message)].join(" ");
-  }
-  async addViaCartAjax(variantId, status, addedText, errorText) {
-    const cartAddUrl = this.dataset.cartAddUrl ?? "/cart/add";
-    const cartUrl = this.dataset.cartUrl ?? "/cart";
-    const response = await fetch(`${cartAddUrl}.js`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: [{ id: Number(variantId), quantity: 1 }] })
-    });
-    if (response.ok) {
-      this.setStatus(status, "success", addedText);
-      window.location.assign(cartUrl);
-    } else {
-      this.setStatus(status, "error", errorText);
-    }
+    return warnings.length === 0 ? addedText : [addedText, ...warnings].join(" ");
   }
 };
 if (!customElements.get(TAG_NAME)) customElements.define(TAG_NAME, CoffeeFinder);

@@ -2,8 +2,10 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { applyInsertion, BRAND_PALETTE, BRAND_SETTINGS, INSERTIONS, InsertionError, type SettingChange } from '../../scripts/lib/theme-insertions.ts';
-import { blend, contrastRatio, hoverShift, parseFontHandle, parseHex } from '../../scripts/lib/theme-preview.ts';
+import { applyInsertion, InsertionError, type SettingChange } from '../../scripts/lib/theme-insertions.ts';
+import { BRAND_PALETTE, BRAND_SETTINGS, INSERTIONS } from '../../scripts/lib/theme-insertions.data.ts';
+import { blend, contrastRatio, hoverShift, parseHex } from '../../scripts/lib/color.ts';
+import { parseFontHandle } from '../../scripts/lib/preview-css.ts';
 
 const COMMENT = '/*\n * auto-generated\n */';
 const theme = (current: Record<string, unknown>) => {

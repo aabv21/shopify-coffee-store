@@ -21,9 +21,15 @@
       "people_three_plus": "Personas: tres o más",
       "submit_label": "Texto del botón de búsqueda",
       "required_text": "Mensaje de pregunta sin responder",
+      "question_required": "Mensaje de error por pregunta",
       "results_heading": "Título de los resultados",
+      "empty_heading": "Título sin coincidencia",
       "empty_text": "Texto cuando no hay coincidencias",
+      "empty_text_one": "Texto sin coincidencia: un favorito",
+      "empty_text_none": "Texto sin coincidencia: sin favoritos",
       "empty_link_label": "Texto del enlace cuando no hay coincidencias",
+      "size_reason_small": "Motivo del tamaño: una o dos personas",
+      "size_reason_large": "Motivo del tamaño: tres o más personas",
       "add_label": "Texto del botón para agregar al carrito",
       "added_text": "Mensaje de producto agregado",
       "error_text": "Mensaje de error del carrito"
@@ -37,7 +43,17 @@
       "message_remaining_info": "Déjelo en blanco para mostrar el texto predeterminado traducido a cada idioma. [amount] muestra el monto restante.",
       "message_reached": "Mensaje: envío gratis alcanzado",
       "progress_label": "Etiqueta accesible de la barra de progreso",
-      "blank_info": "Déjelo en blanco para mostrar el texto predeterminado traducido a cada idioma."
+      "suggestion_enabled": "Sugerir un producto que cubra la diferencia",
+      "suggestion_collection": "Colección para sugerencias",
+      "suggestion_collection_info": "Déjelo en blanco para buscar en todos los productos.",
+      "suggestion_message": "Mensaje: sugerencia de producto",
+      "suggestion_message_info": "Déjelo en blanco para mostrar el texto predeterminado traducido a cada idioma. [product] muestra el producto y [price] su precio.",
+      "suggestion_add_label": "Botón de la sugerencia",
+      "suggestion_error": "Mensaje de error de la sugerencia",
+      "blank_info": "Déjelo en blanco para mostrar el texto predeterminado traducido a cada idioma.",
+      "reassurance_enabled": "Mostrar la línea de confianza",
+      "reassurance": "Línea de confianza",
+      "reassurance_info": "Se muestra bajo la barra de envío gratis y bajo los resultados del buscador de café. Déjelo en blanco para mostrar el texto predeterminado traducido a cada idioma. Desmarque \"Mostrar la línea de confianza\" para ocultarla."
     }
   }
 }

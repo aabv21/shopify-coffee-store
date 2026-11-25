@@ -6,16 +6,15 @@ import { formatMoney } from '../src/theme/money.ts';
 import { assembleTheme } from './assemble-theme.ts';
 import { ensureHorizon } from './lib/horizon.ts';
 import { parseJsonc } from './lib/jsonc.ts';
-import { INSERTIONS, splitLeadingComment } from './lib/theme-insertions.ts';
+import { INSERTIONS } from './lib/theme-insertions.data.ts';
+import { splitLeadingComment } from './lib/theme-insertions.ts';
+import { parseCatalog } from './lib/catalog.ts';
+import { previewFontsUrl, staticRootVariables, themeCssVariables } from './lib/preview-css.ts';
 import {
   createPreviewEngine,
-  parseCatalog,
-  previewFontsUrl,
   previewScope,
   resolveSettings,
   sectionSettingDefaults,
-  staticRootVariables,
-  themeCssVariables,
   translate,
 } from './lib/theme-preview.ts';
 

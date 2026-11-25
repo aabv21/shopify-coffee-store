@@ -15,7 +15,12 @@ export interface ShopifyOrderPayload {
   subtotal_price: string;
   total_price: string;
   total_shipping_price_set?: { shop_money?: { amount?: string } };
-  customer?: { first_name?: string | null; last_name?: string | null } | null;
+  /** Marketing consent given at checkout; only an explicit `true` counts. */
+  buyer_accepts_marketing?: boolean | null;
+  /** Set on an `orders/cancelled` payload. */
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
+  customer?: { id?: number | null; first_name?: string | null; last_name?: string | null } | null;
   shipping_address?: { first_name?: string | null; name?: string | null; city?: string | null } | null;
   billing_address?: { first_name?: string | null; name?: string | null; city?: string | null } | null;
   shipping_lines?: { title?: string; price?: string }[];
@@ -50,6 +55,10 @@ export interface NormalizedOrder {
    * use `config.default_locale`. An order normalized before this field existed has none at all.
    */
   locale: Locale | null;
+  /** The Shopify customer's id, or null for a guest checkout. */
+  customer_id: string | null;
+  /** True only when Shopify sent `buyer_accepts_marketing: true`. */
+  accepts_marketing: boolean;
   currency: string;
   subtotal: number;
   shipping: number;
@@ -70,6 +79,7 @@ export interface OrderRow {
   shipping: number;
   total: number;
   free_shipping: 'yes' | 'no';
+  status: 'placed';
 }
 
 export interface VariantInfo {

@@ -21,9 +21,15 @@
       "people_three_plus": "People: three or more",
       "submit_label": "Submit button label",
       "required_text": "Unanswered question message",
+      "question_required": "Per-question error message",
       "results_heading": "Results heading",
+      "empty_heading": "No match heading",
       "empty_text": "No match text",
+      "empty_text_one": "No match text: one favorite",
+      "empty_text_none": "No match text: no favorites",
       "empty_link_label": "No match link label",
+      "size_reason_small": "Size reason: one or two people",
+      "size_reason_large": "Size reason: three or more people",
       "add_label": "Add to cart button label",
       "added_text": "Added to cart message",
       "error_text": "Cart error message"
@@ -37,7 +43,17 @@
       "message_remaining_info": "Leave blank to show the default, translated into each store language. [amount] shows the amount left.",
       "message_reached": "Message: free shipping reached",
       "progress_label": "Progress bar accessible label",
-      "blank_info": "Leave blank to show the default, translated into each store language."
+      "suggestion_enabled": "Suggest a product that covers the gap",
+      "suggestion_collection": "Suggestion collection",
+      "suggestion_collection_info": "Leave blank to search every product.",
+      "suggestion_message": "Message: product suggestion",
+      "suggestion_message_info": "Leave blank to show the default, translated into each store language. [product] shows the product and [price] its price.",
+      "suggestion_add_label": "Suggestion button label",
+      "suggestion_error": "Suggestion error message",
+      "blank_info": "Leave blank to show the default, translated into each store language.",
+      "reassurance_enabled": "Show the reassurance line",
+      "reassurance": "Reassurance line",
+      "reassurance_info": "Shown under the free shipping bar and under the coffee finder's results. Leave blank to show the default, translated into each store language. Untick \"Show the reassurance line\" to hide it."
     }
   }
 }

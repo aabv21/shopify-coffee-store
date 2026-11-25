@@ -14,7 +14,7 @@ files, producing a complete, pushable theme at `.theme-build/theme/`.
    then copies every file under this directory (`theme/**`) on top of it, except this README. A
    copied file that didn't already exist in Horizon is new (`added`); one that did is a deliberate
    override (`modified`).
-3. **Insertions.** `scripts/lib/theme-insertions.ts`'s `INSERTIONS` list makes small, surgical
+3. **Insertions.** `scripts/lib/theme-insertions.data.ts`'s `INSERTIONS` list makes small, surgical
    edits to Horizon's own files that a whole-file overlay can't express: a line inserted before an
    exact anchor, an exact anchor replaced, a settings group appended once, a section added once to
    a JSON template, theme settings changed in `config/settings_data.json`, or a translation
@@ -50,35 +50,61 @@ shipping threshold, updating live as the cart changes.
 - `src/theme/free-shipping.ts` — `freeShippingProgress(totalCents, thresholdCents)` and
   `barMessage(state, messages, moneyFormat)`: the bar's own math and copy, with no DOM. Pure,
   unit-tested (`tests/theme/free-shipping.test.ts`).
+- `src/theme/free-shipping.ts` also holds `parseSuggestionCandidates(data)` and
+  `pickSuggestion(candidates, remainingCents)`: the cheapest bag that is in stock and covers the
+  remaining amount (the first on a tie), or none once free shipping is reached or when no bag
+  covers the gap.
+- `src/theme/cart-add.ts` — `addToCart(variantId, { cartAddUrl, cartUrl, openCart })`, shared by
+  the finder and the bar: `Shopify.actions.updateCart`, or the Cart AJAX API when the page lacks it.
+  `openCart` opens the drawer after a successful add (and, in the fallback, goes to the cart page).
 - `src/theme/free-shipping-bar.ts` — the `<free-shipping-bar>` custom element. Bundled by
   `THEME_ENTRIES` into `theme/assets/free-shipping-bar.js` (generated; never hand-edited).
 - `theme/snippets/free-shipping-bar.liquid` — renders the `<free-shipping-bar>` markup from the
   Theme contracts' DOM contract, reads the settings below (each blank message falling back to its
-  translation; see Translations), and loads the bundled script. The first
-  render is server-side: the message, the fill, `aria-valuenow`, `aria-valuetext`, and
-  `data-state` (`remaining` or `reached`) are already right before the script runs, so nothing
-  starts empty or shifts.
+  translation; see Translations), and loads the bundled script. The first render is server-side: the
+  message, the fill, `aria-valuenow`, and `data-state` (`remaining` or `reached`) are already right
+  before the script runs, so nothing starts empty or shifts.
 
-**Insertions** (`scripts/lib/theme-insertions.ts`'s `INSERTIONS`):
+**Insertions** (`scripts/lib/theme-insertions.data.ts`'s `INSERTIONS`):
 
 1. `snippets/cart-summary.liquid`: a `before-line` insertion of `{% render 'free-shipping-bar' %}`
    on its own line, anchored immediately before `<div class="cart-totals">` (that line appears
    exactly once in Horizon's file).
 2. `config/settings_schema.json`: an `append-settings-group` insertion adding the group "Free
-   shipping bar" (`t:nubandina.free_shipping_bar.name`) with five settings:
+   shipping bar" (`t:nubandina.free_shipping_bar.name`) with twelve settings:
    `free_shipping_bar_enabled` (checkbox, default on), `free_shipping_threshold` (number, default
    120000), `free_shipping_message_remaining` (text, `[amount]` placeholder),
-   `free_shipping_message_reached` (text), and `free_shipping_progress_label` (text, the progress
-   bar's accessible label). Every label and info text is a `t:` key, and the three texts have no
-   default: left blank, each shows its storefront translation.
+   `free_shipping_message_reached` (text), `free_shipping_progress_label` (text, the progress bar's
+   accessible label), `free_shipping_suggestion_enabled` (checkbox, default on),
+   `free_shipping_suggestion_collection` (collection; blank searches every product),
+   `free_shipping_suggestion_message` (text, `[product]` and `[price]` placeholders),
+   `free_shipping_suggestion_add_label` and `free_shipping_suggestion_error` (text),
+   `reassurance_enabled` (checkbox, default on), and `reassurance_text` (text, the line under the bar
+   and under the coffee finder's results). Every label and info text is a `t:` key, and the
+   texts have no default: left blank, each shows its storefront translation.
 
-**States and accessibility.** The track is a `role="progressbar"` with `aria-valuenow` (the
-percent), `aria-valuetext` (the same message the bar shows), and the progress label setting as its
-name. At the threshold, `data-state="reached"` shows a check icon (inline SVG, `aria-hidden`, since
-the message already says it) and sets the message in bold. The fill is a full-width bar slid into
-place with `transform`, transitioned only under `prefers-reduced-motion: no-preference`. The script
-writes the message and attributes only when they change, so the polite live region doesn't
+**States and accessibility.** The track is a `role="progressbar"` with `aria-valuenow` (the percent)
+and the progress label setting as its name. It has no `aria-valuetext`, so the message is spoken
+once, by its polite live region, and never twice. Under the track, a muted reassurance line
+("Roasted to order. Ships within 2 business days.") comes from `reassurance_text` or its
+translation, in Horizon's muted-text opacity; the coffee finder shows the same line under its
+results, and unticking `reassurance_enabled` hides both, since a blank text only falls back to the
+translation. At the threshold, `data-state="reached"` shows a check icon (inline SVG, `aria-hidden`,
+since the message already says it) and sets the message in bold. The fill is a full-width bar slid
+into place with `transform`, transitioned only under `prefers-reduced-motion: no-preference`. The
+script writes the message and attributes only when they change, so the polite live region doesn't
 re-announce what the server already rendered.
+
+**The suggestion.** When `free_shipping_suggestion_enabled` is on, the snippet renders a hidden
+suggestion row and a `<script type="application/json" data-bar-suggestions>` holding up to 50
+products' variants from the chosen collection (else `collections.all`): `variantId`, `label` (the
+product title plus the variant title, unless it is `Default Title`), `priceCents`, the formatted
+`price`, and `available`, with `</` escaped as in the finder. On every render the script asks
+`pickSuggestion` for a bag and fills the message (`[product]`, `[price]`); no bag, or free shipping
+reached, hides the row. "Add" calls `addToCart` with `openCart: false`, so the drawer stays as it
+is, then re-reads `/cart.js`; a failure writes the error text into the row's status. A sold-out
+variant is never offered, and the offer is the cheapest in-stock bag at or above the gap, so a
+small gap can still suggest a larger bag.
 
 **Staying live.** The bar updates two ways: it listens on `document` for
 `shopify:cart:lines-update` and re-reads `/cart.js` once the event's own promise settles, and it
@@ -120,15 +146,21 @@ two coffees from product metafields, and adds the chosen bag to the cart.
 **Layout and states.** Mobile first: each answer is a full-width option at least 48px tall, the
 whole option clickable; from 750px the three answers sit side by side, and from 990px the intro
 stays beside the form. A chosen option takes the primary color as its border and a light tint.
-Submitting with a question unanswered marks that question's options, sets `aria-invalid` and
-`aria-describedby` on its radios, shows the "Unanswered question message" setting in a
-`role="alert"` region beside the button, and moves focus to the first unanswered question; answering
-it clears the mark. Results come in as cards (image, linked title, notes, size, price, and an "Add
-to cart" button); with no match, the "No match text" shows with a link to every coffee. While an
-add is in flight, the button shows a small spinning ring (static under reduced motion). The card's
-status line says whether the add worked, styled by `data-state="success"` or `"error"`.
+Submitting with a question unanswered marks that question's options, shows its own "Choose one
+answer." line under the question, sets `aria-invalid` and an `aria-describedby` naming that line and
+the summary on its radios, shows the "Unanswered question message" setting in a `role="alert"`
+region beside the button, and moves focus to the first unanswered question; answering it clears the
+mark and hides its line. Results come in as cards (image with a 400 and 800 pixel `srcset`, linked
+title, notes, size, price, and an "Add to cart" button). One line under the results heading says why
+the size fits ("Sized for three or more people"); it is hidden when a sold-out bag made any card
+fall back to another size, so it never contradicts the bag shown. With no match, the heading changes
+to "No exact match" and the text below it names the favorites shown, two, one, or none, with a link
+to every coffee. The favorites are the first available coffees of the collection, in the size the
+answer implies. A reassurance line shows under the results. While an add is in flight, the button
+shows a small spinning ring (static under reduced motion). The card's status line says whether the
+add worked, styled by `data-state="success"` or `"error"`.
 
-**Insertions** (`scripts/lib/theme-insertions.ts`'s `INSERTIONS`):
+**Insertions** (`scripts/lib/theme-insertions.data.ts`'s `INSERTIONS`):
 
 3. `templates/index.json`: an `add-section-after` insertion adding section `coffee_finder`
    (`{ "type": "coffee-finder", "settings": {} }`) right after `hero_jVaWmY` in `order`, keeping the
@@ -156,14 +188,15 @@ shows the error text and re-enables the add button.
 
 **Accessibility.** Each question is a native `<fieldset>` with a `<legend>` and radio inputs (the
 question number before each legend is CSS-generated with empty alternative text, so it isn't read
-out); the whole option shows the focus ring, and the radio's own ring is dropped only where
-`:has()` can draw that replacement. The results region is `aria-live="polite"`; submitting moves
-focus to the results heading (`tabindex="-1"`, since it isn't otherwise focusable), which shows a
-focus ring when reached by keyboard. Each card's title is a link to the product. The add button
-sets `aria-busy` while the request is in flight, instead of `disabled`, which would drop keyboard
-focus to the page; a second press while busy does nothing. Each card's add button carries the
-product and variant name in a visually-hidden span inside it, so its accessible name names the
-coffee, and its status line is a `role="status"` region. The card template's image has `alt=""`.
+out); the whole option shows the focus ring, and the radio's own ring is dropped only where `:has()`
+can draw that replacement. The results region is not a live region, so it never announces on top of
+the focus move; submitting moves focus to the results heading (`tabindex="-1"`, since it isn't
+otherwise focusable), which shows no outline box because it isn't a control. Each card's title is a
+link to the product. The add button sets `aria-busy` while the request is in flight, instead of
+`disabled`, which would drop keyboard focus to the page; a second press while busy does nothing.
+Each card's add button carries the product and variant name in a visually-hidden span inside it, so
+its accessible name names the coffee, and its status line is a `role="status"` region. The card
+template's image has `alt=""`.
 
 **Limitations:**
 
@@ -246,10 +279,10 @@ English, and Spanish exists only in the translation files.
 `locales/es.json` would replace Horizon's whole file) holds four partial Shopify locale files, each
 with a single top-level key, `nubandina`:
 
-- `en.default.json` and `es.json` — storefront strings: the coffee finder's 22 texts and the
-  free-shipping bar's three, including the status and error messages the scripts read from data
-  attributes (`data-message`, `data-added`, `data-error`, `data-message-remaining`,
-  `data-message-reached`).
+- `en.default.json` and `es.json` — storefront strings: the coffee finder's 28 texts, the
+  free-shipping bar's three, and the shared reassurance line, including the status and error
+  messages the scripts read from data attributes (`data-message`, `data-added`, `data-error`,
+  `data-message-remaining`, `data-message-reached`).
 - `en.default.schema.json` and `es.schema.json` — the theme editor's labels and help text, which
   the section schema and the free-shipping settings group reference as `t:nubandina.…`.
 
@@ -294,7 +327,7 @@ translated value never matches and the Spanish storefront stops recommending any
 
 **Adding a language.** Add `theme-locales/<code>.json` and `<code>.schema.json` (IETF tag, such as
 `pt-BR`), give them every key the English files have, switch that locale's insertion in
-`scripts/lib/theme-insertions.ts` from the English strings to the new file, and publish the
+`scripts/lib/theme-insertions.data.ts` from the English strings to the new file, and publish the
 language in Shopify's admin. `tests/theme/translations.test.ts` asserts that English and Spanish
 carry the same keys, each non-empty and actually translated with the same placeholders, and that
 the Liquid and the editor schema use exactly those keys.
@@ -321,7 +354,7 @@ Each run replaces the last one's page, in the language it was given, with `<html
 wrapper, and a real cart can all differ; the real check is `shopify theme dev` against a store (see
 "Pushing to a store" below). What it does instead:
 
-- **Mock data** (`scripts/lib/theme-preview.ts`'s `parseCatalog`): `data/products.csv` shaped into
+- **Mock data** (`scripts/lib/catalog.ts`'s `parseCatalog`): `data/products.csv` shaped into
   the `product` objects the finder's Liquid reads, with synthetic ids (products from 1001,
   variants from 2001), prices in cents, availability from stock and the selling policy, the first
   row's image and alt text, and the three `coffee` metafields. `section.settings` comes from the
@@ -372,7 +405,8 @@ asserts the Spanish text and that none of this repo's English strings is left in
 ## Screenshots
 
 From the offline preview, so an approximation of the storefront (see above). Each is 390 × 844 and
-1280 × 800.
+1280 × 800, except the laptop finder results, which are 1280 × 1160 so all three
+questions show above the cards.
 
 | | 390 × 844 | 1280 × 800 |
 | --- | --- | --- |
@@ -458,6 +492,9 @@ run yet:
 
 - **Drawer.** With Sierra Nevada 250 g in the cart, it shows "You’re $82.000 away from free
   shipping" at 31%.
+- **Suggestion.** With Sierra Nevada 250 g × 3 (114,000 COP), it adds "Add Sierra Nevada 250 g
+  ($38.000) and shipping is free." and an "Add" button. Pressing it puts that bag in the cart
+  without opening the drawer, and the bar switches to "You’ve got free shipping!".
 - **Live updates.** Raising the quantity to 4 (152,000 COP) switches it to "You’ve got free
   shipping!" without a reload, in the drawer and on `/cart`. Lowering it again restores the
   remaining message.
@@ -465,8 +502,8 @@ run yet:
   checkout charges 0 shipping.
 - **Disabled.** A blank threshold, or unticking "Show the free shipping bar", hides the bar with no
   console errors.
-- **Screen reader.** VoiceOver reads the bar as "Progress toward free shipping" with its message as
-  the value, and announces the new message once after a cart change, not on page load.
+- **Screen reader.** VoiceOver reads the bar as "Progress toward free shipping" with its percent as
+  the value, and announces a cart change once, never on page load.
 
 ### Coffee finder (deferred live checks)
 
@@ -474,10 +511,12 @@ These need `pnpm dlx @shopify/cli@5.0.0 theme dev` against `.theme-build/theme`,
 Chrome DevTools open, so they haven't been run yet:
 
 - **Keyboard path.** Tab reaches each radio group and arrow keys move within it. Submitting
-  "Pour-over / Mild and bright / Just me" moves focus to "Our pick for you", which shows one card:
-  Nariño 250 g, its price, and its notes.
+  "Pour-over / Mild and bright / Just me" moves focus to "Our pick for you", with no outline box,
+  and shows one card: Nariño 250 g, its price, and its notes, with "Sized for one or two people"
+  under the heading.
 - **Unanswered question.** Submitting with only a brew method chosen marks the other two questions,
-  announces "Choose an answer for each question.", and moves focus to the taste question.
+  announces "Choose an answer for each question.", shows "Choose one answer." under each, and moves
+  focus to the taste question.
 - **Adding to cart.** "Add to cart" with Enter shows the busy ring, keeps focus on the button,
   opens the cart drawer, and the free-shipping bar reflects the new total.
 - **Second option.** "Espresso / Mild and bright / Three or more" shows two cards, Sierra Nevada

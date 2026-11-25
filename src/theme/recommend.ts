@@ -8,7 +8,7 @@ export interface FinderProduct {
   id: number;
   title: string;
   url: string;
-  image: { src: string; alt: string } | null;
+  image: { src: string; src2x: string | null; alt: string } | null;
   roast: string | null;
   brewMethod: string | null;
   tastingNotes: string | null;
@@ -27,9 +27,9 @@ export const TASTE_TO_ROAST: Readonly<Record<Taste, 'light' | 'medium' | 'dark'>
 export const QUESTIONS = ['brew_method', 'taste', 'people'] as const;
 export type Question = (typeof QUESTIONS)[number];
 
-const BREW_METHODS: readonly BrewMethod[] = ['pour-over', 'espresso', 'french-press'];
-const TASTES: readonly Taste[] = ['mild', 'balanced', 'intense'];
-const PEOPLE = new Set([1, 2, 3]);
+export const BREW_METHODS: readonly BrewMethod[] = ['pour-over', 'espresso', 'french-press'];
+export const TASTES: readonly Taste[] = ['mild', 'balanced', 'intense'];
+export const PEOPLE = [1, 2, 3] as const;
 
 function isBrewMethod(value: unknown): value is BrewMethod {
   return typeof value === 'string' && BREW_METHODS.includes(value as BrewMethod);
@@ -40,7 +40,7 @@ function isTaste(value: unknown): value is Taste {
 }
 
 function isPeople(value: unknown): value is string {
-  return typeof value === 'string' && PEOPLE.has(Number(value));
+  return typeof value === 'string' && (PEOPLE as readonly number[]).includes(Number(value));
 }
 
 /** The best variant for a given party size: lightest available for 1–2 people, heaviest for 3, keeping the first on a tie. */
@@ -81,6 +81,23 @@ export function recommend(products: readonly FinderProduct[], answers: FinderAns
   for (const entry of chosen.slice(0, 2)) {
     const variant = pickVariant(entry.product.variants, answers.people);
     if (variant) picks.push({ product: entry.product, variant });
+  }
+  return picks;
+}
+
+/** Whether a variant is the size the answer asks for: the product's lightest bag for 1–2 people, its heaviest for 3, sold out or not. */
+export function isPreferredSize(product: FinderProduct, variant: FinderVariant, people: 1 | 2 | 3): boolean {
+  const grams = product.variants.map((v) => v.grams);
+  return variant.grams === (people === 3 ? Math.max(...grams) : Math.min(...grams));
+}
+
+/** The no-match fallback: the first two products in data order that have an available variant, in the right size. */
+export function favoritePicks(products: readonly FinderProduct[], people: 1 | 2 | 3): Recommendation[] {
+  const picks: Recommendation[] = [];
+  for (const product of products) {
+    const variant = pickVariant(product.variants, people);
+    if (variant) picks.push({ product, variant });
+    if (picks.length === 2) break;
   }
   return picks;
 }
@@ -148,9 +165,9 @@ function parseProduct(value: unknown): FinderProduct | null {
 /** Shopify serves an unset alt text as null, which must render as alt="", never the word "null". */
 function parseImage(value: unknown): FinderProduct['image'] {
   if (typeof value !== 'object' || value === null) return null;
-  const { src, alt } = value as Record<string, unknown>;
+  const { src, src2x, alt } = value as Record<string, unknown>;
   if (typeof src !== 'string' || src === '') return null;
-  return { src, alt: typeof alt === 'string' ? alt : '' };
+  return { src, src2x: typeof src2x === 'string' && src2x !== '' ? src2x : null, alt: typeof alt === 'string' ? alt : '' };
 }
 
 export function parseProducts(data: unknown): FinderProduct[] {

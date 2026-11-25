@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { missingAnswers, parseProducts, readAnswers, recommend, type FinderProduct } from '../../src/theme/recommend.ts';
+import { favoritePicks, isPreferredSize, missingAnswers, parseProducts, readAnswers, recommend, type FinderProduct, type FinderVariant } from '../../src/theme/recommend.ts';
 
 const p = (id: number, title: string, roast: string | null, brewMethod: string | null, avail: [boolean, boolean] = [true, true]): FinderProduct => ({
   id, title, url: `/products/${String(id)}`, image: null, roast, brewMethod, tastingNotes: null,
@@ -42,6 +42,27 @@ it('drops malformed product data', () => {
   expect(parseProducts([{ id: 1, title: 'A', variants: [] }, { title: 'no id', variants: [{ id: 2 }] }])).toEqual([]);
 });
 it("a null alt text becomes an empty string, never 'null'", () =>
-  expect(parseProducts([{ id: 1, title: 'A', image: { src: '/a.jpg', alt: null }, variants: [{ id: 2 }] }])[0]?.image).toEqual({ src: '/a.jpg', alt: '' }));
+  expect(parseProducts([{ id: 1, title: 'A', image: { src: '/a.jpg', alt: null }, variants: [{ id: 2 }] }])[0]?.image).toEqual({ src: '/a.jpg', src2x: null, alt: '' }));
 it('an image without a string src is dropped', () =>
   expect(parseProducts([{ id: 1, title: 'A', image: { src: null, alt: 'x' }, variants: [{ id: 2 }] }])[0]?.image).toBeNull());
+
+it('favoritePicks returns the first two available coffees in the right size', () => {
+  expect(ids(favoritePicks(catalog, 3))).toEqual([[1, 12], [2, 22]]);
+  expect(ids(favoritePicks(catalog, 1))).toEqual([[1, 11], [2, 21]]);
+});
+it('favoritePicks skips a product with nothing available', () =>
+  expect(ids(favoritePicks([p(1, 'A', 'light', 'pour-over', [false, false]), mediumPress, darkEspresso], 2))).toEqual([[2, 21], [3, 31]]));
+it('parseProducts reads the 2x image source and treats a blank one as missing', () => {
+  const raw = (image: unknown) => [{ id: 1, title: 'A', variants: [{ id: 2, available: true }], image }];
+  expect(parseProducts(raw({ src: '/a', src2x: '/b', alt: 'x' }))[0]?.image).toEqual({ src: '/a', src2x: '/b', alt: 'x' });
+  expect(parseProducts(raw({ src: '/a', src2x: '', alt: 'x' }))[0]?.image?.src2x).toBeNull();
+  expect(parseProducts(raw({ src: '/a', alt: 'x' }))[0]?.image?.src2x).toBeNull();
+});
+
+it('isPreferredSize is true only for the lightest bag for 1-2 people and the heaviest for 3, sold out or not', () => {
+  const [small, large] = lightPour.variants as [FinderVariant, FinderVariant];
+  expect([isPreferredSize(lightPour, small, 1), isPreferredSize(lightPour, large, 1)]).toEqual([true, false]);
+  expect([isPreferredSize(lightPour, small, 3), isPreferredSize(lightPour, large, 3)]).toEqual([false, true]);
+  const soldOutLarge = p(1, 'A', 'light', 'pour-over', [true, false]);
+  expect(isPreferredSize(soldOutLarge, soldOutLarge.variants[0]!, 3)).toBe(false);
+});

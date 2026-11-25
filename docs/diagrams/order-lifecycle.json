@@ -1,0 +1,255 @@
+{
+  "schema_version": 3,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Order Lifecycle States",
+    "locale": "en",
+    "output": "docs/diagrams/order-lifecycle.html",
+    "animation": "trace",
+    "quality_profile": "showcase"
+  },
+  "mainPath": [
+    "delivered",
+    "recorded",
+    "config-checked",
+    "row-sent",
+    "waiting",
+    "guide-sent"
+  ],
+  "states": [
+    {
+      "id": "delivered",
+      "type": "start",
+      "label": "Delivered",
+      "sublabel": "webhook",
+      "tag": "entry",
+      "step": "01"
+    },
+    {
+      "id": "recorded",
+      "type": "active",
+      "label": "Recorded",
+      "sublabel": "gate passed",
+      "tag": "gate",
+      "step": "02"
+    },
+    {
+      "id": "config-checked",
+      "type": "active",
+      "label": "Config ok",
+      "sublabel": "checked",
+      "tag": "intake",
+      "step": "03"
+    },
+    {
+      "id": "row-sent",
+      "type": "active",
+      "label": "Row and email",
+      "sublabel": "sheet, owner",
+      "tag": "process",
+      "step": "04"
+    },
+    {
+      "id": "waiting",
+      "type": "waiting",
+      "label": "Waiting",
+      "sublabel": "Postgres",
+      "tag": "wait",
+      "step": "05"
+    },
+    {
+      "id": "guide-sent",
+      "type": "success",
+      "label": "Guide sent",
+      "sublabel": "customer",
+      "tag": "done",
+      "step": "06"
+    },
+    {
+      "id": "stopped",
+      "type": "failure",
+      "label": "Stopped",
+      "sublabel": "silent",
+      "tag": "no alert"
+    },
+    {
+      "id": "intake-failed",
+      "type": "failure",
+      "label": "Intake failed",
+      "sublabel": "row kept",
+      "tag": "alert"
+    },
+    {
+      "id": "process-failed",
+      "type": "failure",
+      "label": "Run failed",
+      "sublabel": "process-order",
+      "tag": "alert"
+    },
+    {
+      "id": "cancelled",
+      "type": "failure",
+      "label": "Cancelled",
+      "sublabel": "marked, owner told",
+      "tag": "stop"
+    },
+    {
+      "id": "reminder-waiting",
+      "type": "waiting",
+      "label": "Reminder waits",
+      "sublabel": "consented",
+      "tag": "wait"
+    },
+    {
+      "id": "reminder-sent",
+      "type": "success",
+      "label": "Reminder sent",
+      "sublabel": "customer",
+      "tag": "done"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "delivered-recorded",
+      "from": "delivered",
+      "to": "recorded",
+      "label": "new"
+    },
+    {
+      "id": "recorded-config",
+      "from": "recorded",
+      "to": "config-checked",
+      "label": "valid"
+    },
+    {
+      "id": "config-row",
+      "from": "config-checked",
+      "to": "row-sent",
+      "label": "sync"
+    },
+    {
+      "id": "row-waiting",
+      "from": "row-sent",
+      "to": "waiting",
+      "label": "stock"
+    },
+    {
+      "id": "waiting-guide",
+      "from": "waiting",
+      "to": "guide-sent",
+      "label": "due"
+    },
+    {
+      "id": "delivered-stopped",
+      "from": "delivered",
+      "to": "stopped",
+      "label": "bad HMAC",
+      "variant": "security"
+    },
+    {
+      "id": "delivered-repeat",
+      "from": "delivered",
+      "to": "stopped",
+      "label": "repeat",
+      "variant": "dashed"
+    },
+    {
+      "id": "recorded-intake-failed",
+      "from": "recorded",
+      "to": "intake-failed",
+      "label": "error",
+      "variant": "security"
+    },
+    {
+      "id": "row-process-failed",
+      "from": "row-sent",
+      "to": "process-failed",
+      "label": "error",
+      "variant": "security"
+    },
+    {
+      "id": "waiting-process-failed",
+      "from": "waiting",
+      "to": "process-failed",
+      "label": "error",
+      "variant": "security"
+    },
+    {
+      "id": "intake-failed-delivered",
+      "from": "intake-failed",
+      "to": "delivered",
+      "label": "delete row, retry",
+      "variant": "dashed"
+    },
+    {
+      "id": "process-failed-row",
+      "from": "process-failed",
+      "to": "row-sent",
+      "label": "retry run",
+      "variant": "dashed"
+    },
+    {
+      "id": "waiting-cancelled",
+      "from": "waiting",
+      "to": "cancelled",
+      "label": "cancelled",
+      "variant": "security"
+    },
+    {
+      "id": "guide-reminder",
+      "from": "guide-sent",
+      "to": "reminder-waiting",
+      "label": "consent",
+      "variant": "dashed"
+    },
+    {
+      "id": "reminder-due",
+      "from": "reminder-waiting",
+      "to": "reminder-sent",
+      "label": "due",
+      "variant": "dashed"
+    },
+    {
+      "id": "reminder-skip",
+      "from": "reminder-waiting",
+      "to": "stopped",
+      "label": "skipped",
+      "variant": "security"
+    },
+    {
+      "id": "guide-cancelled",
+      "from": "guide-sent",
+      "to": "cancelled",
+      "label": "cancelled",
+      "variant": "security"
+    },
+    {
+      "id": "waiting-reminder",
+      "from": "waiting",
+      "to": "reminder-waiting",
+      "label": "no guide",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Main path",
+      "items": [
+        "Each order is recorded once before any side effect",
+        "The guide waits in Postgres, so a restart doesn't lose it",
+        "A consenting customer's reminder waits in Postgres too"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Stops and recovery",
+      "items": [
+        "A bad signature or a repeat stops silently, with no alert",
+        "An intake failure needs the orders row deleted, then a retry of shopify-orders",
+        "A process-order failure is its own run: retry that run, and keep the row",
+        "A cancellation stops the guide or the reminder if it comes first; later it only marks the row"
+      ]
+    }
+  ]
+}
