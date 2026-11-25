@@ -14,7 +14,7 @@ files, producing a complete, pushable theme at `.theme-build/theme/`.
    then copies every file under this directory (`theme/**`) on top of it, except this README. A
    copied file that didn't already exist in Horizon is new (`added`); one that did is a deliberate
    override (`modified`).
-3. **Insertions.** `scripts/lib/theme-insertions.ts`'s `INSERTIONS` list makes small, surgical
+3. **Insertions.** `scripts/lib/theme-insertions.data.ts`'s `INSERTIONS` list makes small, surgical
    edits to Horizon's own files that a whole-file overlay can't express: a line inserted before an
    exact anchor, an exact anchor replaced, a settings group appended once, a section added once to
    a JSON template, theme settings changed in `config/settings_data.json`, or a translation
@@ -59,7 +59,7 @@ shipping threshold, updating live as the cart changes.
   `data-state` (`remaining` or `reached`) are already right before the script runs, so nothing
   starts empty or shifts.
 
-**Insertions** (`scripts/lib/theme-insertions.ts`'s `INSERTIONS`):
+**Insertions** (`scripts/lib/theme-insertions.data.ts`'s `INSERTIONS`):
 
 1. `snippets/cart-summary.liquid`: a `before-line` insertion of `{% render 'free-shipping-bar' %}`
    on its own line, anchored immediately before `<div class="cart-totals">` (that line appears
@@ -128,7 +128,7 @@ to cart" button); with no match, the "No match text" shows with a link to every 
 add is in flight, the button shows a small spinning ring (static under reduced motion). The card's
 status line says whether the add worked, styled by `data-state="success"` or `"error"`.
 
-**Insertions** (`scripts/lib/theme-insertions.ts`'s `INSERTIONS`):
+**Insertions** (`scripts/lib/theme-insertions.data.ts`'s `INSERTIONS`):
 
 3. `templates/index.json`: an `add-section-after` insertion adding section `coffee_finder`
    (`{ "type": "coffee-finder", "settings": {} }`) right after `hero_jVaWmY` in `order`, keeping the
@@ -294,7 +294,7 @@ translated value never matches and the Spanish storefront stops recommending any
 
 **Adding a language.** Add `theme-locales/<code>.json` and `<code>.schema.json` (IETF tag, such as
 `pt-BR`), give them every key the English files have, switch that locale's insertion in
-`scripts/lib/theme-insertions.ts` from the English strings to the new file, and publish the
+`scripts/lib/theme-insertions.data.ts` from the English strings to the new file, and publish the
 language in Shopify's admin. `tests/theme/translations.test.ts` asserts that English and Spanish
 carry the same keys, each non-empty and actually translated with the same placeholders, and that
 the Liquid and the editor schema use exactly those keys.
@@ -321,7 +321,7 @@ Each run replaces the last one's page, in the language it was given, with `<html
 wrapper, and a real cart can all differ; the real check is `shopify theme dev` against a store (see
 "Pushing to a store" below). What it does instead:
 
-- **Mock data** (`scripts/lib/theme-preview.ts`'s `parseCatalog`): `data/products.csv` shaped into
+- **Mock data** (`scripts/lib/catalog.ts`'s `parseCatalog`): `data/products.csv` shaped into
   the `product` objects the finder's Liquid reads, with synthetic ids (products from 1001,
   variants from 2001), prices in cents, availability from stock and the selling policy, the first
   row's image and alt text, and the three `coffee` metafields. `section.settings` comes from the

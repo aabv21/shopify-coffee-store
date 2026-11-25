@@ -1,8 +1,9 @@
 // Renders the real theme components through the offline preview engine, so the preview and DOM
 // suites test the same markup the store serves.
 import { readFileSync } from 'node:fs';
-import { INSERTIONS, readThemeLocale } from '../../scripts/lib/theme-insertions.ts';
-import { createPreviewEngine, parseCatalog, previewScope, resolveSettings, sectionSettingDefaults, type MockProduct } from '../../scripts/lib/theme-preview.ts';
+import { INSERTIONS, readThemeLocale } from '../../scripts/lib/theme-insertions.data.ts';
+import { parseCatalog, type MockProduct } from '../../scripts/lib/catalog.ts';
+import { createPreviewEngine, previewScope, resolveSettings, sectionSettingDefaults } from '../../scripts/lib/theme-preview.ts';
 
 export const MONEY = '${{amount_no_decimals_with_comma_separator}}';
 export const SNIPPETS = 'theme/snippets';

@@ -7,7 +7,7 @@ import {
   INSERTIONS,
   LOCALE_NAMESPACE,
   readThemeLocale,
-} from '../../scripts/lib/theme-insertions.ts';
+} from '../../scripts/lib/theme-insertions.data.ts';
 
 /** Every leaf of a translation tree, as `[dotted key, value]`. */
 function leaves(tree: unknown, prefix = LOCALE_NAMESPACE): [string, unknown][] {

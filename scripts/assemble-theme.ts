@@ -2,7 +2,8 @@ import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ensureHorizon } from './lib/horizon.ts';
-import { applyInsertion, INSERTIONS, type Insertion } from './lib/theme-insertions.ts';
+import { applyInsertion, type Insertion } from './lib/theme-insertions.ts';
+import { INSERTIONS } from './lib/theme-insertions.data.ts';
 
 const CACHE_ROOT = '.theme-build';
 const OUT_DIR = '.theme-build/theme';
