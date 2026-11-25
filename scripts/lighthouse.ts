@@ -190,8 +190,17 @@ export async function measureOnce(o: { run: () => Promise<void>; outputPath: str
   }
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- a report path built from fixed names and the date
   if (!existsSync(o.outputPath)) throw runError ?? new Error(`Lighthouse wrote no report at ${o.outputPath}`);
-  // eslint-disable-next-line security/detect-non-literal-fs-filename -- the same report path
-  const report = redactReport(JSON.parse(readFileSync(o.outputPath, 'utf8')));
+  let parsed: unknown;
+  try {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- the same report path
+    parsed = JSON.parse(readFileSync(o.outputPath, 'utf8'));
+  } catch (err) {
+    if (!(err instanceof SyntaxError)) throw err;
+    // An unreadable report can't be redacted, so it must not stay on disk with its cookie.
+    rmSync(o.outputPath, { force: true });
+    throw runError ?? new Error(`Lighthouse's report at ${o.outputPath} is not valid JSON, so it was deleted`);
+  }
+  const report = redactReport(parsed);
   // eslint-disable-next-line security/detect-non-literal-fs-filename -- the same report, rewritten without the cookie
   writeFileSync(o.outputPath, JSON.stringify(report));
   const scores = readScores(report);
