@@ -31,6 +31,17 @@ afterEach(() => {
 });
 
 describe('free-shipping bar in the DOM', () => {
+  it('the progressbar carries the percent, not the message, so the message is spoken once', async () => {
+    mount(await renderBar(3_800_000));
+    expect(track().hasAttribute('aria-valuetext')).toBe(false);
+    expect(track().getAttribute('aria-valuenow')).toBe('31');
+    stubFetch(() => cartResponse(12_000_000));
+    document.dispatchEvent(new CustomEvent(CART_EVENT, { detail: { promise: Promise.resolve() } }));
+    await ticks();
+    expect(track().hasAttribute('aria-valuetext')).toBe(false);
+    expect(track().getAttribute('aria-valuenow')).toBe('100');
+  });
+
   it("upgrading the server render doesn't re-announce its message", async () => {
     const template = document.createElement('template');
     template.innerHTML = await renderBar(3_800_000);
@@ -49,7 +60,6 @@ describe('free-shipping bar in the DOM', () => {
     const messageEl = document.querySelector('[data-bar-message]')!;
     expect(records.filter((r) => messageEl.contains(r.target))).toEqual([]);
     expect(records.map((r) => r.attributeName)).not.toContain('aria-valuenow');
-    expect(records.map((r) => r.attributeName)).not.toContain('aria-valuetext');
     expect(message()).toBe('You’re $82.000 away from free shipping');
     expect(track().getAttribute('aria-valuenow')).toBe('31');
   });

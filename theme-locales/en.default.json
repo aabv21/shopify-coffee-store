@@ -34,6 +34,7 @@
       "message_remaining": "You’re [amount] away from free shipping",
       "message_reached": "You’ve got free shipping!",
       "progress_label": "Progress toward free shipping"
-    }
+    },
+    "reassurance": "Roasted to order. Ships within 2 business days."
   }
 }

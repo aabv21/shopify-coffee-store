@@ -105,6 +105,12 @@
         <a class="button-secondary coffee-finder__empty-link" href="{{ routes.all_products_collection_url }}">{% render 'nubandina-text', value: section.settings.empty_link_label, key: 'nubandina.coffee_finder.empty_link_label' %}</a>
       </div>
       <ul data-finder-list class="coffee-finder__list" role="list"></ul>
+      {%- capture finder_reassurance -%}
+        {%- render 'nubandina-text', value: settings.reassurance_text, key: 'nubandina.reassurance' -%}
+      {%- endcapture -%}
+      {%- if settings.reassurance_enabled and finder_reassurance != blank -%}
+        <p class="coffee-finder__reassurance">{{ finder_reassurance }}</p>
+      {%- endif -%}
     </div>
 
     <template data-finder-card>
@@ -386,6 +392,12 @@
     margin: 0;
     max-inline-size: 48ch;
     text-wrap: pretty;
+  }
+
+  .coffee-finder__reassurance {
+    margin: 0;
+    font-size: var(--font-size--sm);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-muted-text));
   }
 
   .coffee-finder__list {

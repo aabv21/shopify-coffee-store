@@ -43,7 +43,10 @@
       "message_remaining_info": "Leave blank to show the default, translated into each store language. [amount] shows the amount left.",
       "message_reached": "Message: free shipping reached",
       "progress_label": "Progress bar accessible label",
-      "blank_info": "Leave blank to show the default, translated into each store language."
+      "blank_info": "Leave blank to show the default, translated into each store language.",
+      "reassurance_enabled": "Show the reassurance line",
+      "reassurance": "Reassurance line",
+      "reassurance_info": "Shown under the free shipping bar and under the coffee finder's results. Leave blank to show the default, translated into each store language. Untick \"Show the reassurance line\" to hide it."
     }
   }
 }

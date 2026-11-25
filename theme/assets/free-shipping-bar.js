@@ -111,7 +111,6 @@ var FreeShippingBar = class extends HTMLElement {
     const message = barMessage(state, messages, moneyFormat);
     if (messageEl.textContent !== message) messageEl.textContent = message;
     setAttributeIfChanged(trackEl, "aria-valuenow", state.percent.toString());
-    setAttributeIfChanged(trackEl, "aria-valuetext", message);
     setAttributeIfChanged(this, "data-state", state.reached ? "reached" : "remaining");
     fillEl.style.setProperty("--free-shipping-progress", (state.percent / 100).toString());
   }

@@ -43,7 +43,10 @@
       "message_remaining_info": "Déjelo en blanco para mostrar el texto predeterminado traducido a cada idioma. [amount] muestra el monto restante.",
       "message_reached": "Mensaje: envío gratis alcanzado",
       "progress_label": "Etiqueta accesible de la barra de progreso",
-      "blank_info": "Déjelo en blanco para mostrar el texto predeterminado traducido a cada idioma."
+      "blank_info": "Déjelo en blanco para mostrar el texto predeterminado traducido a cada idioma.",
+      "reassurance_enabled": "Mostrar la línea de confianza",
+      "reassurance": "Línea de confianza",
+      "reassurance_info": "Se muestra bajo la barra de envío gratis y bajo los resultados del buscador de café. Déjelo en blanco para mostrar el texto predeterminado traducido a cada idioma. Desmarque \"Mostrar la línea de confianza\" para ocultarla."
     }
   }
 }

@@ -115,6 +115,13 @@ export const INSERTIONS: readonly Insertion[] = [
           label: 't:nubandina.free_shipping_bar.progress_label',
           info: 't:nubandina.free_shipping_bar.blank_info',
         },
+        { type: 'checkbox', id: 'reassurance_enabled', label: 't:nubandina.free_shipping_bar.reassurance_enabled', default: true },
+        {
+          type: 'text',
+          id: 'reassurance_text',
+          label: 't:nubandina.free_shipping_bar.reassurance',
+          info: 't:nubandina.free_shipping_bar.reassurance_info',
+        },
       ],
     },
   },

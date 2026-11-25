@@ -34,6 +34,7 @@
       "message_remaining": "Le faltan [amount] para el envío gratis",
       "message_reached": "¡Su pedido tiene envío gratis!",
       "progress_label": "Progreso hacia el envío gratis"
-    }
+    },
+    "reassurance": "Tostado bajo pedido. Sale en 2 días hábiles."
   }
 }
