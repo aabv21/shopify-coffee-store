@@ -1,19 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { parseCatalog } from '../../scripts/lib/catalog.ts';
+import { hoverShift, parseHex, shiftLightness, toHex } from '../../scripts/lib/color.ts';
+import { parseFontHandle, presetFontSizes, previewFontsUrl, staticRootVariables, themeCssVariables } from '../../scripts/lib/preview-css.ts';
 import {
   createPreviewEngine,
-  hoverShift,
-  parseCatalog,
-  parseFontHandle,
-  parseHex,
-  presetFontSizes,
-  previewFontsUrl,
   previewScope,
   resolveSettings,
   sectionSettingDefaults,
-  shiftLightness,
-  staticRootVariables,
-  themeCssVariables,
-  toHex,
   translate,
 } from '../../scripts/lib/theme-preview.ts';
 import { parsePreviewArgs, previewPage } from '../../scripts/theme-preview.ts';

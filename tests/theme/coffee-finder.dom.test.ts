@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import '../../src/theme/coffee-finder.ts';
 import type { UpdateCartResult } from '../../src/theme/shopify-actions.d.ts';
-import type { MockProduct } from '../../scripts/lib/theme-preview.ts';
+import type { MockProduct } from '../../scripts/lib/catalog.ts';
 import { catalog, renderFinder } from '../lib/theme-render.ts';
 
 const ADDED = 'Added to your cart.';

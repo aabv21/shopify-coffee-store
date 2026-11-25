@@ -1,6 +1,6 @@
 // The error handler loads config unvalidated, so nothing here may throw: a missing or malformed
 // value falls back to English or an empty string, never a second failure that silences the alert.
-import { normalizeLocale, STORE_TIMEZONE, type Locale } from '../lib/locale.ts';
+import { messagesFor, STORE_TIMEZONE, type Locale } from '../lib/locale.ts';
 
 export interface ErrorAlertInput {
   /** The Error Trigger's item: `execution` for a failed run, `trigger` for an activation error. */
@@ -57,7 +57,7 @@ function text(value: unknown): string | undefined {
 }
 
 export function run(input: ErrorAlertInput): ErrorAlert {
-  const m = MESSAGES[normalizeLocale(input.team_locale, 'en')];
+  const m = messagesFor(MESSAGES, input.team_locale);
   const execution = field(input.error, 'execution');
   const workflowName = text(field(field(input.error, 'workflow'), 'name')) ?? '';
   const message = text(field(field(execution, 'error'), 'message')) ?? text(field(field(field(input.error, 'trigger'), 'error'), 'message')) ?? '';

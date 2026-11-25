@@ -26,6 +26,7 @@
     "lighthouse": "node scripts/lighthouse.ts"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.17",
     "@eslint/js": "^10.0.1",
     "@shopify/theme-check-node": "3.31.0",
     "@types/luxon": "^3.7.6",

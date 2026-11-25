@@ -9,7 +9,7 @@ var TASTE_TO_ROAST = {
 var QUESTIONS = ["brew_method", "taste", "people"];
 var BREW_METHODS = ["pour-over", "espresso", "french-press"];
 var TASTES = ["mild", "balanced", "intense"];
-var PEOPLE = /* @__PURE__ */ new Set([1, 2, 3]);
+var PEOPLE = [1, 2, 3];
 function isBrewMethod(value) {
   return typeof value === "string" && BREW_METHODS.includes(value);
 }
@@ -17,7 +17,7 @@ function isTaste(value) {
   return typeof value === "string" && TASTES.includes(value);
 }
 function isPeople(value) {
-  return typeof value === "string" && PEOPLE.has(Number(value));
+  return typeof value === "string" && PEOPLE.includes(Number(value));
 }
 function pickVariant(variants, people) {
   const available = variants.filter((v) => v.available);
