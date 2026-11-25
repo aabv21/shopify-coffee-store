@@ -24,13 +24,13 @@ The order lifecycle, step by step, is the sequence diagram in [docs/architecture
 - Records **each order once** in Postgres before any side effect, so a repeated delivery does nothing.
 - Writes one **Google Sheets row** per order and emails the **owner** a summary.
 - Reads stock from Shopify and emails a **low-stock alert** for each tracked variant left under the threshold.
-- **Waits** in Postgres (60 minutes by default, surviving a restart), then emails the customer a **brewing guide** for each brew method in the order, in the customer's language.
+- **Waits** in Postgres (60 minutes by default, surviving a restart), then emails the customer a **brewing guide** for each brew method in the order, in the customer's language, in a branded email with a "Shop again" button.
 - Emails the owner an **error alert** with the failed node and an execution link when any step fails.
 
-![The coffee finder's recommendations on a laptop: two coffee cards with photos, notes, prices, and Add to cart buttons beside the three answered questions](docs/screenshots/finder-results-1280.png)
+![The coffee finder's recommendations on a laptop: two coffee cards with photos, notes, prices, and Add to cart buttons under the three answered questions](docs/screenshots/finder-results-1280.png)
 
 <details>
-<summary>All storefront screenshots (offline preview, 390 × 844 and 1280 × 800)</summary>
+<summary>All storefront screenshots (offline preview, 390 × 844 and 1280 × 800; the laptop finder results are 1280 × 1160 so all three questions show above the cards)</summary>
 
 | | 390 × 844 | 1280 × 800 |
 | --- | --- | --- |
@@ -108,7 +108,7 @@ Everything under "Verified offline" runs in CI or locally with no third-party ac
 | Types, lint, and every Vitest suite ([`docs/testing.md`](docs/testing.md)) | `pnpm run typecheck && pnpm run lint && pnpm test` | All pass, including the coffee finder and the free-shipping bar run in happy-dom |
 | Code nodes match their TypeScript, and workflow hygiene | `pnpm run build:workflows -- --check && pnpm run check` | No drift, no violations |
 | Shopify's theme check on the assembled theme | `pnpm run theme:check` | `failing: 0` across this repo's 5 added and 62 modified files; Horizon's own baseline is printed, not asserted |
-| Accessibility of both components | `pnpm run theme:preview` (add `-- --locale es`), `python3 -m http.server 8765 --directory .theme-build/preview`, then open <http://localhost:8765> in Chrome at 390 and 1280 px and run the [axe DevTools](https://www.deque.com/axe/devtools/) extension's full-page scan (axe-core 4.14.0) in each state | No violations in either component, or on the page, in any state at 390 and 1280 px; a focus ring at every stop of the finder's keyboard path |
+| Accessibility of both components | `pnpm run theme:preview` (add `-- --locale es`), `python3 -m http.server 8765 --directory .theme-build/preview`, then open <http://localhost:8765> in Chrome at 390 and 1280 px and run the [axe DevTools](https://www.deque.com/axe/devtools/) extension's full-page scan (axe-core 4.14.0) in each state | No violations in either component, or on the page, in any state at 390 and 1280 px; a focus ring at every interactive stop of the finder's keyboard path (the results heading takes focus without a ring) |
 | The published workflow chain executes | CI's `n8n` job | Boots n8n and Postgres, runs `pnpm run setup`, and calls `load-config` and `intake-order` through the dev harness; the `es-CO` fixture order comes back with locale `es` |
 | Least-privilege database role | `node scripts/check-db.ts` | Only `ok` lines: `app_runtime` holds `SELECT, INSERT` on `orders` and nothing else |
 | The harness's response shapes | `node scripts/check-dev-response.ts` | Exits 0 |
@@ -205,18 +205,31 @@ It runs Lighthouse's mobile defaults 5 times per theme, alternating, and prints 
 - **Live updates.** Raising the quantity to 4 (152,000 COP) switches it to "You’ve got free shipping!" without a reload, in the drawer and on `/cart`. Lowering it again restores the remaining message.
 - **Boundary.** Huila 250 g plus Huila 500 g (exactly 120,000 COP) shows the reached message, and checkout charges 0 shipping.
 - **Disabled.** A blank threshold, or unticking "Show the free shipping bar", hides the bar with no console errors.
-- **Screen reader.** VoiceOver reads the bar as "Progress toward free shipping" with its message as the value, and announces a cart change once, never on page load.
-- **Keyboard path.** Tab reaches each radio group and arrow keys move within it. Submitting "Pour-over / Mild and bright / Just me" moves focus to "Our pick for you", which shows one card: Nariño 250 g, its price, and its notes.
-- **Unanswered question.** Submitting with only a brew method chosen marks the other two questions, announces "Choose an answer for each question.", and moves focus to the taste question.
+- **Screen reader.** VoiceOver reads the bar as "Progress toward free shipping" with its percent as the value, and announces a cart change once, never on page load.
+- **Keyboard path.** Tab reaches each radio group and arrow keys move within it. Submitting "Pour-over / Mild and bright / Just me" moves focus to "Our pick for you", with no outline box, and shows one card: Nariño 250 g, its price, its notes, and "Sized for one or two people" once under the heading.
+- **Unanswered question.** Submitting with only a brew method chosen marks the other two questions, announces "Choose an answer for each question.", shows "Choose one answer." under each, and moves focus to the taste question.
 - **Adding to cart.** "Add to cart" with Enter shows the busy ring, keeps focus on the button, opens the cart drawer, and the free-shipping bar reflects the new total.
 - **Second option.** "Espresso / Mild and bright / Three or more" shows two cards, Sierra Nevada 500 g and then Nariño 500 g.
 - **Theme editor.** The section can be added to another page, its texts edited, and the section removed, all without code.
 - **No errors.** The console shows no errors, and `Shopify.actions` is present. Note it if it's absent: the Cart AJAX fallback then handles "Add to cart".
+- **Reassurance line.** "Roasted to order. Ships within 2 business days." shows under the bar and under the finder's results, and in Spanish on `/es`. Unticking "Show the reassurance line" in the theme settings hides both.
 - **Brand.** The theme editor shows the six palette colors and the Alegreya fonts, both fonts load from Shopify's font CDN, and Horizon's own muted text (the footer copyright) uses the raised 0.65 opacity.
 - **Spanish storefront.** With Spanish published, `/es` shows the finder and the free-shipping bar in Spanish; `theme/README.md` lists the translation checks.
 - **Language selector.** With Spanish published, the header selector switches to `/es`. An order placed there carries `customer_locale` `es` in "Normalize order"'s output, and its guide arrives in Spanish.
 - **Finder after Translate & Adapt.** On `/es`, "Pour-over / Suave y brillante / Solo yo" still shows one card, with Nariño's translated title. Translate & Adapt lists no Spanish value for Roast or Brew method.
 - **Lighthouse.** As under "Theme performance" above. Then open one base and one theme report from `.lighthouse/<date>/` in the [Lighthouse viewer](https://googlechrome.github.io/lighthouse/viewer/) and confirm the final screenshot shows the right theme.
+
+**Guide email and product SEO**
+
+- **Guide email.** Place test order 1 on the storefront and open the guide email in Gmail on the web and on a phone. It shows the Nubandina header, the guide, and a "Shop again" button that opens `https://<store>.myshopify.com/`; a Spanish order shows "Volver a la tienda" linking to `/es`.
+- **Product SEO.** With `.env` loaded (`set -a; . ./.env; set +a`), unlock the password page and read the product:
+
+  ```sh
+  curl -s -c /tmp/sf.jar -d "form_type=storefront_password&password=$SHOPIFY_STOREFRONT_PASSWORD" "https://$SHOPIFY_STORE.myshopify.com/password" >/dev/null
+  curl -s -b /tmp/sf.jar "https://$SHOPIFY_STORE.myshopify.com/products/narino" | grep -E '<title>|name="description"|og:title|application/ld\+json'
+  ```
+
+  The `<title>` and meta description equal the CSV's SEO fields, and an `og:title` and a Product JSON-LD block are present. Delete `/tmp/sf.jar` afterwards.
 
 **From a clean clone**
 
@@ -236,6 +249,7 @@ It runs Lighthouse's mobile defaults 5 times per theme, alternating, and prints 
 
 Deliberate simplifications, each with its ceiling and upgrade path:
 
+- **The guide email has no plain-text part.** n8n's Gmail node sends one body type. Upgrade path: an SMTP credential and the Send Email node's HTML-and-text format.
 - **`intake-order` processes only the first order of a call.** `Process order`'s input reads `.first()` off `Normalize order`'s output, which is exact while a webhook call carries one order, as it does today. Upgrade path: read the order from the current item (`.item`).
 - **Shopify gets its HTTP 200 before the order is recorded.** The Shopify Trigger answers on receipt, so a later failure (a database outage, a bad hand-edited config) shows up only in n8n's executions list, never as a failed delivery in Shopify.
 - **The Shopify trigger needs a valid token at every n8n start.** An invalid or expired one is an activation error, and orders placed meanwhile are lost. Upgrade path: the offline token from `pnpm run shopify:token`, which doesn't expire.

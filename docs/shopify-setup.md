@@ -40,6 +40,7 @@ Keep these two values in English in every language: see the warning in §10.
 2. Upload `data/products.csv` from this repo.
 3. Confirm the preview shows 3 products and 6 variants, then start the import.
 4. After the import finishes, open each product and confirm its `Roast`, `Tasting notes`, and `Brew method` metafields are filled, and that its image is attached.
+5. Open one product's **Search engine listing**: the CSV fills each product's search-engine title and description (`SEO title`, `SEO description`). Horizon emits the canonical URL, the Open Graph tags and the Product JSON-LD itself; the README's live checks confirm them.
 
 **Note:** the CSV's "Inventory quantity" column only applies to stores with a single location — it sets the starting stock at that location. A multi-location store would need to set stock per location after import instead.
 

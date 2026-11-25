@@ -15,6 +15,9 @@
   {%- capture free_shipping_progress_label -%}
     {%- render 'nubandina-text', value: settings.free_shipping_progress_label, key: 'nubandina.free_shipping_bar.progress_label' -%}
   {%- endcapture -%}
+  {%- capture free_shipping_reassurance -%}
+    {%- render 'nubandina-text', value: settings.reassurance_text, key: 'nubandina.reassurance' -%}
+  {%- endcapture -%}
   {%- liquid
     assign free_shipping_total_cents = cart.total_price | at_least: 0
     assign free_shipping_percent = free_shipping_total_cents | times: 100 | divided_by: free_shipping_threshold_cents | floor | at_most: 100
@@ -61,7 +64,6 @@
       aria-valuemin="0"
       aria-valuemax="100"
       aria-valuenow="{{ free_shipping_percent }}"
-      aria-valuetext="{{ free_shipping_message }}"
       aria-label="{{ free_shipping_progress_label }}"
     >
       <div
@@ -70,6 +72,9 @@
         style="--free-shipping-progress: {{ free_shipping_percent | divided_by: 100.0 }};"
       ></div>
     </div>
+    {%- if settings.reassurance_enabled and free_shipping_reassurance != blank -%}
+      <p class="free-shipping-bar__reassurance">{{ free_shipping_reassurance }}</p>
+    {%- endif -%}
   </free-shipping-bar>
   <script src="{{ 'free-shipping-bar.js' | asset_url }}" type="module"></script>
 {%- endif -%}
@@ -103,6 +108,13 @@
 
   .free-shipping-bar[data-state='reached'] .free-shipping-bar__message {
     font-weight: 700;
+  }
+
+  .free-shipping-bar__reassurance {
+    margin: 0;
+    font-size: var(--font-size--sm);
+    color: rgb(var(--color-foreground-rgb) / var(--opacity-muted-text));
+    text-wrap: pretty;
   }
 
   .free-shipping-bar__track {

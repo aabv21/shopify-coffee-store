@@ -29,6 +29,20 @@ it('gives each product a public https image with alt text', () => {
     expect(r['Image alt text']?.length).toBeGreaterThan(0);
   }
 });
+it('gives each product a unique SEO title of 60 characters or fewer and an SEO description of 50 to 160', () => {
+  const firsts = rows.filter((r) => r['Title'] !== '');
+  const titles = firsts.map((r) => r['SEO title'] ?? '');
+  expect(new Set(titles).size).toBe(firsts.length);
+  for (const r of firsts) {
+    expect(r['SEO title']?.length).toBeGreaterThan(0);
+    expect(r['SEO title']?.length).toBeLessThanOrEqual(60);
+    expect(r['SEO description']?.length).toBeGreaterThanOrEqual(50);
+    expect(r['SEO description']?.length).toBeLessThanOrEqual(160);
+  }
+});
+it('leaves SEO fields blank on variant rows', () => {
+  for (const r of rows.filter((x) => x['Title'] === '')) expect([r['SEO title'], r['SEO description']]).toEqual(['', '']);
+});
 it('has one guide per brew method with a ratio and three short steps', () => {
   expect(Object.keys(guides).sort()).toEqual(['espresso', 'french-press', 'pour-over']);
   expect([guides['pour-over']?.ratio, guides['espresso']?.ratio, guides['french-press']?.ratio].map((r) => r?.split(' ')[0])).toEqual(['1:16', '1:2', '1:15']);

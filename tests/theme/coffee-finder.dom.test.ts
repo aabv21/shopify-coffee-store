@@ -102,6 +102,117 @@ describe('coffee finder questions', () => {
   });
 });
 
+const unmatched = (): MockProduct[] =>
+  catalog().map((product) => ({ ...product, metafields: { coffee: { roast: { value: 'dark' }, brew_method: { value: 'espresso' }, tasting_notes: product.metafields.coffee.tasting_notes } } }));
+const headingText = () => document.querySelector('[data-finder-heading]')!.textContent;
+
+describe('coffee finder results and errors', () => {
+  it('a no-match result swaps the heading to "No exact match" and shows two favorites', async () => {
+    await recommendNarino({ products: unmatched() });
+    expect(headingText()).toBe('No exact match');
+    expect(document.querySelector<HTMLElement>('[data-finder-empty]')!.hidden).toBe(false);
+    expect(document.querySelector('[data-finder-empty]')!.textContent).toContain('two of our favorites');
+    expect(cards()).toHaveLength(2);
+    expect([...document.querySelectorAll('[data-card-title]')].map((e) => e.textContent)).toEqual(['Nariño', 'Huila']);
+  });
+
+  it('a match keeps the "Our pick for you" heading', async () => {
+    await recommendNarino();
+    expect(headingText()).toBe('Our pick for you');
+    expect(document.querySelector<HTMLElement>('[data-finder-empty]')!.hidden).toBe(true);
+  });
+
+  it('an unanswered question shows its own error line and points its radios at it', async () => {
+    await mount();
+    check('brew_method', 'pour-over');
+    form().requestSubmit();
+    const line = (name: string) => fieldset(name).querySelector<HTMLElement>('[data-question-error]')!;
+    expect(line('brew_method').hidden).toBe(true);
+    expect(line('taste').hidden).toBe(false);
+    expect(line('taste').textContent).toBe('Choose one answer.');
+    const summary = document.querySelector('[data-finder-error]')!.id;
+    for (const radio of document.querySelectorAll('input[name="taste"]')) {
+      expect(radio.getAttribute('aria-describedby')).toBe(`${line('taste').id} ${summary}`);
+    }
+    expect(document.querySelector('input[name="brew_method"]')!.hasAttribute('aria-describedby')).toBe(false);
+  });
+
+  it('answering it hides that line', async () => {
+    await mount();
+    form().requestSubmit();
+    check('taste', 'mild');
+    form().dispatchEvent(new Event('change', { bubbles: true }));
+    expect(fieldset('taste').querySelector<HTMLElement>('[data-question-error]')!.hidden).toBe(true);
+    expect(fieldset('people').querySelector<HTMLElement>('[data-question-error]')!.hidden).toBe(false);
+    expect(document.querySelector('input[name="taste"]')!.hasAttribute('aria-describedby')).toBe(false);
+  });
+
+  it('the results region is not a live region', async () => {
+    await mount();
+    expect(document.querySelector('[data-finder-results]')!.hasAttribute('aria-live')).toBe(false);
+  });
+
+  it('one line under the heading says why the size fits, in the right wording for the answer', async () => {
+    await mount();
+    check('brew_method', 'pour-over');
+    check('taste', 'mild');
+    check('people', '3');
+    form().requestSubmit();
+    const reason = document.querySelector<HTMLElement>('[data-finder-size-reason]')!;
+    expect(reason.hidden).toBe(false);
+    expect(reason.textContent).toBe('Sized for three or more people');
+    expect(document.querySelectorAll('[data-card-size-reason]')).toHaveLength(0);
+    document.body.replaceChildren();
+    await recommendNarino();
+    expect(document.querySelector('[data-finder-size-reason]')!.textContent).toBe('Sized for one or two people');
+  });
+
+  it('says nothing about size when a sold-out bag made a card fall back to another size', async () => {
+    const products = catalog();
+    for (const product of products) for (const variant of product.variants) if (variant.title === '500 g') variant.available = false;
+    await mount({ products });
+    check('brew_method', 'pour-over');
+    check('taste', 'mild');
+    check('people', '3');
+    form().requestSubmit();
+    expect(document.querySelector('[data-card-variant]')!.textContent).toBe('250 g');
+    expect(document.querySelector<HTMLElement>('[data-finder-size-reason]')!.hidden).toBe(true);
+  });
+
+  it('the no-match text counts the favorites shown: two, one, or none', async () => {
+    const text = () => document.querySelector('[data-finder-empty-text]')!.textContent;
+    await recommendNarino({ products: unmatched() });
+    expect(text()).toContain('two of our favorites');
+    document.body.replaceChildren();
+
+    const one = unmatched();
+    for (const product of one.slice(1)) for (const variant of product.variants) variant.available = false;
+    await recommendNarino({ products: one });
+    expect(cards()).toHaveLength(1);
+    expect(text()).toContain('one of our favorites');
+    expect(text()).not.toContain('two');
+    document.body.replaceChildren();
+
+    const none = unmatched();
+    for (const product of none) for (const variant of product.variants) variant.available = false;
+    await recommendNarino({ products: none });
+    expect(cards()).toHaveLength(0);
+    expect(text()).not.toContain('favorites');
+    expect(text()).toContain('browse every coffee');
+    expect(document.querySelector<HTMLElement>('[data-finder-size-reason]')!.hidden).toBe(true);
+  });
+
+  it('a card image offers a 2x source', async () => {
+    const narino = catalog()[0]!.featured_image!;
+    await recommendNarino();
+    const image = document.querySelector<HTMLImageElement>('[data-card-image]')!;
+    const url800 = new URL(narino.src);
+    url800.searchParams.set('width', '800');
+    expect(image.getAttribute('srcset')).toBe(`${withWidth400(narino.src)} 400w, ${url800.toString()} 800w`);
+    expect(image.getAttribute('sizes')).toBe('(min-width: 750px) 19rem, 6.5rem');
+  });
+});
+
 describe('coffee finder add to cart', () => {
   it('Add to cart through Shopify.actions sends the variant and opens the cart', async () => {
     const actions = stubActions(() => Promise.resolve({}));

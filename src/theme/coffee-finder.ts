@@ -1,6 +1,6 @@
 // Writes text only through textContent, never innerHTML: product data and settings are
 // merchant-entered, and Shopify's messages are text too.
-import { missingAnswers, parseProducts, readAnswers, recommend, type FinderProduct, type FinderVariant, type Question } from './recommend.ts';
+import { favoritePicks, isPreferredSize, missingAnswers, parseProducts, readAnswers, recommend, type FinderProduct, type FinderVariant, type Question } from './recommend.ts';
 import './shopify-actions.d.ts';
 
 const TAG_NAME = 'coffee-finder';
@@ -48,8 +48,10 @@ class CoffeeFinder extends HTMLElement {
     if (missing.length > 0) return;
 
     const answers = readAnswers(entries);
-    const picks = answers ? recommend(this.readProducts(), answers) : [];
-    this.renderResults(picks);
+    if (!answers) return;
+    const products = this.readProducts();
+    const matches = recommend(products, answers);
+    this.renderResults(matches.length > 0 ? matches : favoritePicks(products, answers.people), { matched: matches.length > 0, people: answers.people });
   }
 
   /** The error text is a `role="alert"` region, so setting it announces the problem. */
@@ -60,10 +62,14 @@ class CoffeeFinder extends HTMLElement {
     // Every radio in a fieldset shares its question's name, so each one sets the same flag.
     for (const input of form.querySelectorAll<HTMLInputElement>('input[type="radio"]')) {
       const unanswered = (missing as readonly string[]).includes(input.name);
-      input.closest('fieldset')?.toggleAttribute('data-unanswered', unanswered);
+      const fieldset = input.closest('fieldset');
+      fieldset?.toggleAttribute('data-unanswered', unanswered);
+      const line = fieldset?.querySelector<HTMLElement>('[data-question-error]');
+      if (line) line.hidden = !unanswered;
       if (unanswered) {
         input.setAttribute('aria-invalid', 'true');
-        if (error?.id) input.setAttribute('aria-describedby', error.id);
+        const ids = [line?.id, error?.id].filter((id): id is string => Boolean(id));
+        if (ids.length > 0) input.setAttribute('aria-describedby', ids.join(' '));
       } else {
         input.removeAttribute('aria-invalid');
         input.removeAttribute('aria-describedby');
@@ -74,7 +80,7 @@ class CoffeeFinder extends HTMLElement {
     if (o.focus && first) form.querySelector<HTMLInputElement>(`input[name="${first}"]`)?.focus();
   }
 
-  private renderResults(picks: ReturnType<typeof recommend>): void {
+  private renderResults(picks: ReturnType<typeof recommend>, o: { matched: boolean; people: 1 | 2 | 3 }): void {
     const results = textOf(this, '[data-finder-results]');
     const empty = textOf(this, '[data-finder-empty]');
     const list = textOf(this, '[data-finder-list]');
@@ -83,7 +89,24 @@ class CoffeeFinder extends HTMLElement {
     if (!results || !empty || !list || !heading || !template) return;
 
     list.textContent = '';
-    empty.hidden = picks.length > 0;
+    empty.hidden = o.matched;
+    heading.textContent = (o.matched ? heading.dataset.matchHeading : heading.dataset.emptyHeading) ?? heading.textContent;
+
+    const emptyText = textOf(this, '[data-finder-empty-text]');
+    if (emptyText && !o.matched) {
+      const wording = picks.length === 0 ? emptyText.dataset.textNone : picks.length === 1 ? emptyText.dataset.textOne : emptyText.dataset.textTwo;
+      emptyText.textContent = wording ?? emptyText.textContent;
+    }
+
+    // One line for the whole answer, said only while every card shows the size it asks for: a
+    // sold-out bag makes a card fall back to another size, and then the line would be false.
+    const messages = textOf(this, '[data-finder-messages]');
+    const sizeReason = textOf(this, '[data-finder-size-reason]');
+    if (sizeReason) {
+      const fits = picks.length > 0 && picks.every((pick) => isPreferredSize(pick.product, pick.variant, o.people));
+      sizeReason.textContent = fits ? ((o.people === 3 ? messages?.dataset.sizeLarge : messages?.dataset.sizeSmall) ?? '') : '';
+      sizeReason.hidden = !fits;
+    }
 
     for (const pick of picks) {
       const card = this.renderCard(template, pick.product, pick.variant);
@@ -101,6 +124,10 @@ class CoffeeFinder extends HTMLElement {
     if (image) {
       if (product.image) {
         image.src = product.image.src;
+        if (product.image.src2x) {
+          image.srcset = `${product.image.src} 400w, ${product.image.src2x} 800w`;
+          image.sizes = '(min-width: 750px) 19rem, 6.5rem';
+        }
         image.alt = product.image.alt;
       } else {
         image.hidden = true;
